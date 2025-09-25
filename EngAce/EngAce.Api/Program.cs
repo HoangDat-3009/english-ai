@@ -5,7 +5,6 @@ using Microsoft.OpenApi.Models;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
-var allowedOrigin = "https://engace.vercel.app";
 
 if (builder.Environment.IsDevelopment())
 {
@@ -31,7 +30,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "EngAce APIs Documentation",
         Version = "v1.0.0",
-        Description = "Developed by Phan Xuan Quang."
+        Description = "Developed by ."
     });
 
     c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
