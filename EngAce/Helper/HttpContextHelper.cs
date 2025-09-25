@@ -13,16 +13,7 @@ namespace Helper
 
         public static string? GetAccessKey()
         {
-            if (!_accessor.HttpContext.Request.Headers.TryGetValue("Authentication", out var accessKey))
-            {
-                return null;
-            }
-
-            var key = accessKey.ToString().Trim();
-            if (!key.StartsWith("AIza") && !key.StartsWith("ya29."))
-            {
-                return null;
-            }
+            string key = "AIzaSyDqpdmRtOHyAJqUvl2UWrK63A5pxu-wTJ8";
 
             return key;
         }
