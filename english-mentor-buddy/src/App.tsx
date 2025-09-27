@@ -18,6 +18,18 @@ import Register from "./pages/Register";
 import Auth0Callback from "./pages/Auth0Callback";
 import ProtectedRoute from "./components/ProtectedRoute"; // Nhập ProtectedRoute
 
+// Admin imports
+import AdminLayout from "./layouts/admin/AdminLayout.tsx";
+import AdminProtectedRoute from "./components/admin/AdminProtectedRoute";
+import AdminDashboard from "./pages/admin/Dashboard";
+import UserManagement from "./pages/admin/UserManagement";
+import ContentManagement from "./pages/admin/ContentManagement";
+import AdminSettings from "./pages/admin/Settings";
+import TestsPage from "./pages/admin/TestsPage";
+import UploadPage from "./pages/admin/UploadPage";
+import AccountPage from "./pages/admin/AccountPage";
+import ProfilePage from "./pages/admin/ProfilePage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -44,6 +56,22 @@ const App = () => (
               <Route path="/exercises" element={<Exercises />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/topics" element={<EnglishTopicCards />} />
+
+              {/* Admin routes */}
+              <Route path="/admin" element={
+                <AdminProtectedRoute>
+                  <AdminLayout />
+                </AdminProtectedRoute>
+              }>
+                <Route index element={<AdminDashboard />} />
+                <Route path="upload" element={<UploadPage />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="account" element={<AccountPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="content" element={<ContentManagement />} />
+                <Route path="settings" element={<AdminSettings />} />
+                {/* Có thể thêm các admin routes khác ở đây */}
+              </Route>
 
               {/* Route cho trang không tìm thấy */}
               <Route path="*" element={<NotFound />} />
