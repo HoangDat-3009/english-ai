@@ -226,48 +226,56 @@ const UploadPage = () => {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Upload Tests</h1>
+        <p className="text-muted-foreground">
+          Upload files cho từng part của TOEIC và quản lý đề thi của bạn
+        </p>
+      </div>
+
       {/* Header với statistics */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-2xl">
+        <Card className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Tổng đề thi</p>
-                <p className="text-2xl font-bold">86</p>
-                <p className="text-xs text-muted-foreground">+12 tuần này</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Tổng đề thi</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">86</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">+12 tuần này</p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-full">
-                <FileText className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
+        <Card className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">File đã tải lên</p>
-                <p className="text-2xl font-bold">324</p>
-                <p className="text-xs text-muted-foreground">2.8GB dung lượng</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">File đã tải lên</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">324</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">2.8GB dung lượng</p>
               </div>
-              <div className="p-3 bg-green-50 rounded-full">
-                <Upload className="h-6 w-6 text-green-600" />
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                <Upload className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
+        <Card className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Đang xử lý</p>
-                <p className="text-2xl font-bold">3</p>
-                <p className="text-xs text-muted-foreground">Ước tính 10 phút</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Đang xử lý</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">3</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Ước tính 10 phút</p>
               </div>
-              <div className="p-3 bg-orange-50 rounded-full">
-                <Clock className="h-6 w-6 text-orange-600" />
+              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+                <Clock className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
           </CardContent>
@@ -275,18 +283,18 @@ const UploadPage = () => {
       </div>
 
       <Tabs defaultValue="upload" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 rounded-xl">
-          <TabsTrigger value="upload" className="rounded-lg">Tải lên file</TabsTrigger>
-          <TabsTrigger value="create" className="rounded-lg">Tạo đề thi</TabsTrigger>
-          <TabsTrigger value="manage" className="rounded-lg">Quản lý file</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+          <TabsTrigger value="upload" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-gray-600 dark:text-gray-300">Tải lên file</TabsTrigger>
+          <TabsTrigger value="create" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-gray-600 dark:text-gray-300">Tạo đề thi</TabsTrigger>
+          <TabsTrigger value="manage" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-gray-600 dark:text-gray-300">Quản lý file</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4">
           {/* Test Type Selection */}
-          <Card className="rounded-2xl">
+          <Card className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle>Chọn loại bài test</CardTitle>
-              <CardDescription>Chọn loại bài test bạn muốn tạo</CardDescription>
+              <CardTitle className="text-gray-900 dark:text-white">Chọn loại bài test</CardTitle>
+              <CardDescription className="text-gray-600 dark:text-gray-300">Chọn loại bài test bạn muốn tạo</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -294,15 +302,17 @@ const UploadPage = () => {
                   <div
                     key={type.id}
                     className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md ${
-                      selectedTestType === type.id ? 'border-primary bg-primary/5' : 'border-gray-200'
+                      selectedTestType === type.id 
+                        ? 'border-primary bg-primary/5 dark:bg-primary/10' 
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750'
                     }`}
                     onClick={() => setSelectedTestType(type.id)}
                   >
                     <div className="flex items-center space-x-3">
                       <span className="text-2xl">{type.icon}</span>
                       <div>
-                        <p className="font-medium">{type.label}</p>
-                        <p className="text-sm text-gray-600">{type.description}</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{type.label}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{type.description}</p>
                       </div>
                     </div>
                   </div>
