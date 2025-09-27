@@ -347,6 +347,20 @@ const Navbar = () => {
                     </SheetContent>
                   </Sheet>
 
+                  {/* Admin access - chỉ hiển thị cho admin */}
+                  {(user.email === 'admin@example.com' || 
+                    user.tendangnhap === 'Admin' ||
+                    user.email?.includes('admin') ||
+                    user.id === 1) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate('/admin')}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Quản trị hệ thống</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
