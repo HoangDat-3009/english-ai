@@ -77,6 +77,22 @@ const App = () => (
                 {/* Có thể thêm các admin routes khác ở đây */}
               </Route>
 
+              {/* Admin routes */}
+              <Route path="/admin" element={
+                <AdminProtectedRoute>
+                  <AdminLayout />
+                </AdminProtectedRoute>
+              }>
+                <Route index element={<AdminDashboard />} />
+                <Route path="upload" element={<UploadPage />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="account" element={<AccountPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="content" element={<ContentManagement />} />
+                <Route path="settings" element={<AdminSettings />} />
+                {/* Có thể thêm các admin routes khác ở đây */}
+              </Route>
+
               {/* Route cho trang không tìm thấy */}
               <Route path="*" element={<NotFound />} />
             </Routes>
