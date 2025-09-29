@@ -86,12 +86,33 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 // ✅ CORS cấu hình cho phép tất cả origin
 builder.Services.AddCors(options =>
 {
+<<<<<<< HEAD
     options.AddDefaultPolicy(policyBuilder =>
     {
         policyBuilder.AllowAnyOrigin()
                      .AllowAnyHeader()
                      .AllowAnyMethod();
     });
+=======
+    options.AddPolicy("AllowOnlyEngace",
+        policy =>
+        {
+            policy.WithOrigins()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
+>>>>>>> 23b1174 (connect fe-be)
 });
 
 builder.Services.AddResponseCaching();
@@ -99,6 +120,30 @@ builder.Services.AddResponseCaching();
 var app = builder.Build();
 
 app.UseDeveloperExceptionPage();
+<<<<<<< HEAD
+=======
+app.UseHttpsRedirection();
+app.UseRouting();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.Use(async (context, next) =>
+    {
+        var origin = context.Request.Headers.Origin.ToString();
+
+        if (string.IsNullOrEmpty(origin))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsync("Access Denied.");
+            return;
+        }
+
+        await next();
+    });
+
+    app.UseCors("AllowOnlyEngace");
+}
+>>>>>>> 23b1174 (connect fe-be)
 
 if (app.Environment.IsDevelopment())
 {
