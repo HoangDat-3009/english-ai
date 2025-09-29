@@ -37,7 +37,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
         // Loại bỏ việc tự động đăng nhập admin mặc định
         // else {
-        //     // Nếu không có user đã lưu, tự động đăng nhập bằng admin mặc định
         //     setUser(defaultAdminUser);
         //     localStorage.setItem('user', JSON.stringify(defaultAdminUser));
         // }
