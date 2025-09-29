@@ -2,7 +2,7 @@
 class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'https://btl-d39f.onrender.com') {
+  constructor(baseUrl: string = 'https://localhost:5000') {
     this.baseUrl = baseUrl;
     console.log('Base URL:', this.baseUrl);
   }
@@ -60,7 +60,7 @@ class ApiService {
   }
 
   // POST request
-  post<T>(endpoint: string, data: any, options: RequestInit = {}): Promise<T> {
+  post<T, D = unknown>(endpoint: string, data: D, options: RequestInit = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -69,7 +69,7 @@ class ApiService {
   }
 
   // PUT request
-  put<T>(endpoint: string, data: any, options: RequestInit = {}): Promise<T> {
+  put<T, D = unknown>(endpoint: string, data: D, options: RequestInit = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'PUT',
@@ -113,4 +113,4 @@ class ApiService {
 }
 
 // Create a new instance with the local API URL
-export const apiService = new ApiService("https://btl-d39f.onrender.com");
+export const apiService = new ApiService("https://localhost:5000");
