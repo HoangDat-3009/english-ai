@@ -6,27 +6,23 @@ using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Swagger khi chạy môi trường dev
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
 }
 
-// Cấu hình controller
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
-// Dịch vụ cơ bản
 builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddHttpContextAccessor();
 HttpContextHelper.Configure(builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>());
 builder.Services.AddMemoryCache();
 
-// Swagger cấu hình chi tiết
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -71,7 +67,6 @@ builder.Services.AddSwaggerGen(c =>
     c.IncludeXmlComments(xmlPath);
 });
 
-// Cấu hình nén phản hồi
 builder.Services.AddResponseCompression(options =>
 {
     options.Providers.Add<GzipCompressionProvider>();
@@ -88,23 +83,13 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
     options.Level = System.IO.Compression.CompressionLevel.Fastest;
 });
 
-// ✅ CORS cấu hình
 builder.Services.AddCors(options =>
 {
-    // Chính sách chỉ cho phép từ domain EngBuddy (nếu sau này có FE deploy riêng)
-    options.AddPolicy("AllowOnlyEngBuddy", policy =>
+    options.AddDefaultPolicy(policyBuilder =>
     {
-        policy.WithOrigins()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-
-    // Chính sách cho phép tất cả (dành cho dev)
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policyBuilder.AllowAnyOrigin()
+                     .AllowAnyHeader()
+                     .AllowAnyMethod();
     });
 });
 
@@ -113,28 +98,6 @@ builder.Services.AddResponseCaching();
 var app = builder.Build();
 
 app.UseDeveloperExceptionPage();
-app.UseHttpsRedirection();
-app.UseRouting();
-
-// Nếu không ở chế độ phát triển, áp dụng bảo vệ origin
-if (!app.Environment.IsDevelopment())
-{
-    app.Use(async (context, next) =>
-    {
-        var origin = context.Request.Headers.Origin.ToString();
-
-        if (string.IsNullOrEmpty(origin))
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await context.Response.WriteAsync("Access Denied.");
-            return;
-        }
-
-        await next();
-    });
-
-    app.UseCors("AllowOnlyEngBuddy");
-}
 
 if (app.Environment.IsDevelopment())
 {
@@ -146,8 +109,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Dùng CORS, nén phản hồi, xác thực
-app.UseCors("AllowAll");
+app.UseHttpsRedirection();
+app.UseRouting();
+
+app.UseCors();
 app.UseResponseCompression();
 
 app.UseAuthentication();
