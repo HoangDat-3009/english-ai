@@ -88,7 +88,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowOnlyEngace",
         policy =>
         {
-            policy.WithOrigins(allowedOrigin)
+            policy.WithOrigins()
                   .AllowAnyMethod()
                   .AllowAnyHeader();
         });
@@ -119,7 +119,7 @@ if (!app.Environment.IsDevelopment())
     {
         var origin = context.Request.Headers.Origin.ToString();
 
-        if (string.IsNullOrEmpty(origin) || origin != allowedOrigin)
+        if (string.IsNullOrEmpty(origin))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsync("Access Denied.");
