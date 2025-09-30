@@ -6,23 +6,27 @@ using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Swagger khi chạy môi trường dev
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
 }
 
+// Cấu hình controller
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
+// Dịch vụ cơ bản
 builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddHttpContextAccessor();
 HttpContextHelper.Configure(builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>());
 builder.Services.AddMemoryCache();
 
+// Swagger cấu hình chi tiết
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -30,7 +34,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "EngBuddy APIs Documentation",
         Version = "v1.0.0",
-        Description = "Developed by ."
+        Description = "Developed by Nhóm 12."
     });
 
     c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
@@ -67,6 +71,7 @@ builder.Services.AddSwaggerGen(c =>
     c.IncludeXmlComments(xmlPath);
 });
 
+// Cấu hình nén phản hồi
 builder.Services.AddResponseCompression(options =>
 {
     options.Providers.Add<GzipCompressionProvider>();
@@ -83,26 +88,24 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
     options.Level = System.IO.Compression.CompressionLevel.Fastest;
 });
 
+// ✅ CORS cấu hình
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowOnlyEngBuddy",
-        policy =>
-        {
-            policy.WithOrigins()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        });
-});
+    // Chính sách chỉ cho phép từ domain EngBuddy (nếu sau này có FE deploy riêng)
+    options.AddPolicy("AllowOnlyEngBuddy", policy =>
+    {
+        policy.WithOrigins()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll",
-        policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        });
+    // Chính sách cho phép tất cả (dành cho dev)
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
 builder.Services.AddResponseCaching();
@@ -113,6 +116,7 @@ app.UseDeveloperExceptionPage();
 app.UseHttpsRedirection();
 app.UseRouting();
 
+// Nếu không ở chế độ phát triển, áp dụng bảo vệ origin
 if (!app.Environment.IsDevelopment())
 {
     app.Use(async (context, next) =>
@@ -129,7 +133,7 @@ if (!app.Environment.IsDevelopment())
         await next();
     });
 
-    app.UseCors("AllowOnlyEngace");
+    app.UseCors("AllowOnlyEngBuddy");
 }
 
 if (app.Environment.IsDevelopment())
@@ -140,16 +144,18 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "EngBuddy APIs Documentation v1.0.0");
         c.RoutePrefix = "swagger";
     });
-
-    app.UseCors("AllowAll");
 }
 
+// Dùng CORS, nén phản hồi, xác thực
+app.UseCors("AllowAll");
 app.UseResponseCompression();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
-
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+});
 
 app.Run();
