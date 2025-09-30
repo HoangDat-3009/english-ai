@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { LockKeyhole, User } from 'lucide-react';
+import { LockKeyhole, User, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ const Login: React.FC = () => {
         password: '',
         rememberMe: false,
     });
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -87,7 +88,7 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 px-4 py-8 ${theme === 'dark' ? 'dark' : ''}`}>
+        <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 dark:from-pink-950 dark:via-rose-950 dark:to-fuchsia-950 px-4 py-8 ${theme === 'dark' ? 'dark' : ''}`}>
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -129,41 +130,53 @@ const Login: React.FC = () => {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">
-                                    Mật khẩu
-                                </Label>
-                                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                                    Quên mật khẩu?
-                                </Link>
-                            </div>
+                            <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">
+                                Mật khẩu
+                            </Label>
                             <div className="relative">
                                 <LockKeyhole className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                                 <Input
                                     id="password"
                                     name="password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     placeholder="Nhập mật khẩu"
-                                    className="pl-10 py-6 rounded-xl text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                                    className="pl-10 pr-10 py-6 rounded-xl text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                                     value={formData.password}
                                     onChange={handleInputChange}
                                     disabled={isLoading}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                    disabled={isLoading}
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="h-5 w-5" />
+                                    ) : (
+                                        <Eye className="h-5 w-5" />
+                                    )}
+                                </button>
                             </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="rememberMe"
-                                checked={formData.rememberMe}
-                                onCheckedChange={handleCheckboxChange}
-                                disabled={isLoading}
-                            />
-                            <Label
-                                htmlFor="rememberMe"
-                                className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
-                            >
-                                Ghi nhớ đăng nhập
-                            </Label>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="rememberMe"
+                                    checked={formData.rememberMe}
+                                    onCheckedChange={handleCheckboxChange}
+                                    disabled={isLoading}
+                                />
+                                <Label
+                                    htmlFor="rememberMe"
+                                    className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
+                                >
+                                    Ghi nhớ đăng nhập
+                                </Label>
+                            </div>
+                            <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                                Quên mật khẩu?
+                            </Link>
                         </div>
                         <Button
                             type="submit"
