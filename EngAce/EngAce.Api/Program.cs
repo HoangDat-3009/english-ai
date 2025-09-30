@@ -30,7 +30,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "EngAce APIs Documentation",
         Version = "v1.0.0",
-        Description = "Developed by ."
+        Description = "Developed by Nhóm 12."
     });
 
     c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
@@ -83,26 +83,15 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
     options.Level = System.IO.Compression.CompressionLevel.Fastest;
 });
 
+// ✅ CORS cấu hình cho phép tất cả origin
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowOnlyEngace",
-        policy =>
-        {
-            policy.WithOrigins(allowedOrigin)
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        });
-});
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll",
-        policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        });
+    options.AddDefaultPolicy(policyBuilder =>
+    {
+        policyBuilder.AllowAnyOrigin()
+                     .AllowAnyHeader()
+                     .AllowAnyMethod();
+    });
 });
 
 builder.Services.AddResponseCaching();
@@ -110,46 +99,29 @@ builder.Services.AddResponseCaching();
 var app = builder.Build();
 
 app.UseDeveloperExceptionPage();
-app.UseHttpsRedirection();
-app.UseRouting();
-
-if (!app.Environment.IsDevelopment())
-{
-    app.Use(async (context, next) =>
-    {
-        var origin = context.Request.Headers.Origin.ToString();
-
-        if (string.IsNullOrEmpty(origin) || origin != allowedOrigin)
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await context.Response.WriteAsync("Access Denied.");
-            return;
-        }
-
-        await next();
-    });
-
-    app.UseCors("AllowOnlyEngace");
-}
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "EngAce APIs Documentation v1.0.0");
-        c.RoutePrefix = "swagger";
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Backend APIs");
     });
-
-    app.UseCors("AllowAll");
 }
 
+app.UseHttpsRedirection();
+app.UseRouting();
+
+// ✅ Dùng CORS đã cấu hình ở trên
+app.UseCors();
 app.UseResponseCompression();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
-
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+});
 
 app.Run();
