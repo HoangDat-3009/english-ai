@@ -159,7 +159,7 @@ const Register: React.FC = () => {
     };
 
     return (
-        <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-green-50 to-green-100 dark:from-gray-900 dark:to-gray-800 px-4 py-8 ${theme === 'dark' ? 'dark' : ''}`}>
+        <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 dark:from-pink-950 dark:via-rose-950 dark:to-fuchsia-950 px-4 py-8 ${theme === 'dark' ? 'dark' : ''}`}>
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
