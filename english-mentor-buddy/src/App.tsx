@@ -46,7 +46,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
 
               {/* Public routes */}
-              <Route path="/" element={<Login />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
               {/* Các routes chính - không còn bắt buộc đăng nhập */}
