@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { AtSign, LockKeyhole, User, Globe, Info } from 'lucide-react';
+import { AtSign, LockKeyhole, User, Globe, Info, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,8 @@ const Register: React.FC = () => {
         confirmPassword: '',
         agreeTerms: false,
     });
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -256,13 +258,25 @@ const Register: React.FC = () => {
                                 <Input
                                     id="password"
                                     name="password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     placeholder="Nhập mật khẩu"
-                                    className="pl-10 py-6 rounded-xl text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                                    className="pl-10 pr-10 py-6 rounded-xl text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                                     value={formData.password}
                                     onChange={handleInputChange}
                                     disabled={isLoading}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                    disabled={isLoading}
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="h-5 w-5" />
+                                    ) : (
+                                        <Eye className="h-5 w-5" />
+                                    )}
+                                </button>
                             </div>
                         </div>
 
@@ -276,13 +290,25 @@ const Register: React.FC = () => {
                                 <Input
                                     id="confirmPassword"
                                     name="confirmPassword"
-                                    type="password"
+                                    type={showConfirmPassword ? "text" : "password"}
                                     placeholder="Nhập lại mật khẩu"
-                                    className="pl-10 py-6 rounded-xl text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                                    className="pl-10 pr-10 py-6 rounded-xl text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                                     value={formData.confirmPassword}
                                     onChange={handleInputChange}
                                     disabled={isLoading}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                    disabled={isLoading}
+                                >
+                                    {showConfirmPassword ? (
+                                        <EyeOff className="h-5 w-5" />
+                                    ) : (
+                                        <Eye className="h-5 w-5" />
+                                    )}
+                                </button>
                             </div>
                         </div>
 
