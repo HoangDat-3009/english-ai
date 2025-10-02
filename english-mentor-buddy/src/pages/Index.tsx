@@ -75,13 +75,6 @@ const Index = () => {
               <p className="mx-auto max-w-[700px] text-slate-600 dark:text-slate-300 md:text-xl mt-4">
                 Công cụ học tiếng Anh thông minh giúp bạn tra từ, tạo bài tập và luyện tập với AI chỉ trong một nền tảng.
               </p>
-
-              {/* Thông báo không cần đăng nhập */}
-              <div className="mt-4 p-4 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-900/30 dark:to-rose-900/30 rounded-xl border border-pink-200 dark:border-pink-700 max-w-md shadow-lg backdrop-blur-sm">
-                <p className="text-sm text-pink-700 dark:text-pink-300 font-medium">
-                  ✅ Không cần đăng nhập - Sử dụng ngay!
-                </p>
-              </div>
             </motion.div>
 
             <motion.div
