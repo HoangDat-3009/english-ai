@@ -11,6 +11,7 @@ import DictionaryResult from "./pages/DictionaryResult";
 import Exercises from "./pages/Exercises";
 import Chat from "./pages/Chat";
 import EnglishTopicCards from "./pages/EnglishTopicCards";
+import ListeningExercise from "./pages/ListeningExercise";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import LoginAlt from "./pages/LoginAlt";
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/dictionary" element={<Dictionary />} />
               <Route path="/dictionary-result" element={<DictionaryResult />} />
               <Route path="/exercises" element={<Exercises />} />
+              <Route path="/listening-exercise" element={<ListeningExercise />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/topics" element={<EnglishTopicCards />} />
 

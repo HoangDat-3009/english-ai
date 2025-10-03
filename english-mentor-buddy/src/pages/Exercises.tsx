@@ -474,6 +474,36 @@ const Exercises: React.FC = () => {
               Thiết lập bài tập phù hợp với nhu cầu học tập của bạn với các chủ đề và dạng bài tập đa dạng.
             </p>
 
+            {/* Exercise Types */}
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-4 text-center dark:text-white">Chọn loại bài tập</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-200">
+                  <div className="text-center">
+                    <GraduationCap className="h-12 w-12 text-blue-600 mx-auto mb-3" />
+                    <h3 className="font-semibold text-lg mb-2">Bài tập trắc nghiệm</h3>
+                    <p className="text-gray-600 text-sm">Các câu hỏi trắc nghiệm đa dạng về ngữ pháp, từ vựng</p>
+                  </div>
+                </Card>
+                
+                <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-green-200"
+                      onClick={() => window.location.href = '/listening-exercise'}>
+                  <div className="text-center">
+                    <svg className="h-12 w-12 text-green-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M9 12a3 3 0 106 0v-6a3 3 0 10-6 0v6z" />
+                    </svg>
+                    <h3 className="font-semibold text-lg mb-2">Bài tập nghe</h3>
+                    <p className="text-gray-600 text-sm">Luyện tập kỹ năng nghe với các đoạn hội thoại thú vị</p>
+                  </div>
+                </Card>
+              </div>
+              
+              <div className="text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Hoặc tạo bài tập trắc nghiệm tùy chỉnh bên dưới</p>
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              </div>
+            </div>
+
             <div className="space-y-6">
               <div className="mb-4">
                 <Label htmlFor="topic" className="text-gray-700 dark:text-gray-300 mb-2 block">Nhập chủ đề bài tập...</Label>
