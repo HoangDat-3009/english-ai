@@ -57,7 +57,7 @@ namespace EngAce.Api.Controllers
 
             try
             {
-                var listeningExercise = await ListeningScope.GenerateExerciseAsync(request.Topic, request.QuestionTypes, request.Level, request.TotalQuestions, request.DurationInMinutes ?? 5, request.PreferredAccent ?? "American");
+                var listeningExercise = await ListeningScope.GenerateExerciseAsync(_accessKey, request.Topic, request.QuestionTypes, request.Level, request.TotalQuestions, request.DurationInMinutes ?? 5, request.PreferredAccent ?? "American");
                 
                 _cache.Set(cacheKey, listeningExercise, TimeSpan.FromMinutes(30));
                 
@@ -119,7 +119,16 @@ namespace EngAce.Api.Controllers
 
             try
             {
-                var result = ListeningScope.EvaluateAnswers(exercise, submission.Answers, submission.TimeSpent);
+                // Convert DTO to Entity
+                var answers = submission.Answers.Select(dto => new ListeningAnswer
+                {
+                    QuestionId = dto.QuestionId,
+                    SelectedOptionIndex = dto.SelectedOptionIndex,
+                    IsCorrect = false, // Will be set in EvaluateAnswers
+                    TimeSpentOnQuestion = dto.TimeSpentOnQuestion
+                }).ToList();
+
+                var result = ListeningScope.EvaluateAnswers(exercise, answers, submission.TimeSpent);
                 
                 return Ok(result);
             }
