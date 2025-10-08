@@ -7,8 +7,11 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   base: mode === 'production' ? '/english-mentor-buddy/' : '/',
   server: {
-    host: "::",
-    port: 8080,
+    // bind to localhost and use a different port to avoid conflicts with other local services
+    host: 'localhost',
+    port: 5173,
+    // use plain HTTP on localhost (Auth0 treats localhost as secure for dev)
+    https: false as any,
     proxy: {
       "/api": {
         target: "https://EngBuddy-d39f.onrender.com", // Địa chỉ server backend

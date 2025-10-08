@@ -10,12 +10,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/components/ThemeProvider';
 import { supabase } from '@/services/supabaseClient';
 import { useAuth } from '@/components/AuthContext';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { theme } = useTheme();
     const { login } = useAuth();
+    const { loginWithRedirect } = useAuth0();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
         username: '',
@@ -231,9 +233,16 @@ const Login: React.FC = () => {
                             variant="outline"
                             className="w-[calc(50%-6px)] py-4 text-sm font-medium bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200"
                             disabled={isLoading}
-                            onClick={() => {
-                                // TODO: Implement Google OAuth
-                                console.log('Google OAuth login');
+                            onClick={async () => {
+                                try {
+                                    setIsLoading(true);
+                                    await loginWithRedirect({ authorizationParams: { connection: 'google-oauth2' } });
+                                } catch (err) {
+                                    console.error('Auth0 Google login error', err);
+                                    toast({ title: 'Lỗi đăng nhập', description: 'Không thể đăng nhập bằng Google', variant: 'destructive' });
+                                } finally {
+                                    setIsLoading(false);
+                                }
                             }}
                         >
                             <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24">
@@ -263,9 +272,16 @@ const Login: React.FC = () => {
                             variant="outline"
                             className="w-[calc(50%-6px)] py-4 text-sm font-medium bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200"
                             disabled={isLoading}
-                            onClick={() => {
-                                // TODO: Implement Facebook OAuth
-                                console.log('Facebook OAuth login');
+                            onClick={async () => {
+                                try {
+                                    setIsLoading(true);
+                                    await loginWithRedirect({ authorizationParams: { connection: 'facebook' } });
+                                } catch (err) {
+                                    console.error('Auth0 Facebook login error', err);
+                                    toast({ title: 'Lỗi đăng nhập', description: 'Không thể đăng nhập bằng Facebook', variant: 'destructive' });
+                                } finally {
+                                    setIsLoading(false);
+                                }
                             }}
                         >
                             <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24">
