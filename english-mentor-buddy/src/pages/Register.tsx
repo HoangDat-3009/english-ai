@@ -146,7 +146,7 @@ const Register: React.FC = () => {
             });
 
             // Chuyển hướng về trang đăng nhập
-            navigate('/');
+            navigate('/Login');
 
         } catch (error: any) {
             console.error('Registration error:', error);
@@ -365,7 +365,7 @@ const Register: React.FC = () => {
                     <div className="mt-5 text-center">
                         <p className="text-gray-600 dark:text-gray-400">
                             Đã có tài khoản?{' '}
-                            <Link to="/" className="text-primary font-medium hover:underline">
+                            <Link to="/login" className="text-primary font-medium hover:underline">
                                 Đăng nhập
                             </Link>
                         </p>
