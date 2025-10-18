@@ -123,6 +123,15 @@ const StatisticsCards = React.memo(({ statistics, allUsers, isLoading }: { stati
           </div>
         </CardContent>
       </Card>
+
+      {/* Status Reason Dialog - For all status changes */}
+      <StatusReasonDialog
+        open={reasonDialogOpen}
+        onOpenChange={setReasonDialogOpen}
+        onConfirm={handleStatusChangeWithReason}
+        username={pendingStatusWithReason?.username || ''}
+        newStatus={pendingStatusWithReason?.newStatus || 'active'}
+      />
     </div>
   );
 });
