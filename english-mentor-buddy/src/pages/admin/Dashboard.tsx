@@ -1,18 +1,77 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { Users, BookOpen, Target, TrendingUp, Plus, Edit, Trash2, Eye, Clock } from 'lucide-react';
+import { Users, BookOpen, Target, TrendingUp, Plus, Edit, Trash2, Eye, Clock, AlertCircle } from 'lucide-react';
+import statisticsService, { SystemStatistics } from '@/services/statisticsService';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const AdminDashboard = () => {
-  // Statistics data matching english-admin
-  const stats = [
-    { label: "Tổng người dùng", value: "1,284", note: "+32 tuần này" },
-    { label: "Bài test", value: "86", note: "12 TOEIC • 24 Listening" },
-    { label: "Lượt làm bài", value: "9,420", note: "+8% MoM" },
-    { label: "Tỉ lệ hoàn thành", value: "76%", note: "-3%" },
-  ];
+  // State for statistics from API
+  const [statistics, setStatistics] = useState<SystemStatistics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch statistics from API
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await statisticsService.getSystemStatistics();
+        setStatistics(data);
+      } catch (err) {
+        console.error('Error fetching statistics:', err);
+        setError('Không thể tải dữ liệu thống kê. Vui lòng thử lại sau.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatistics();
+  }, []);
+
+  // Format number with comma separator
+  const formatNumber = (num: number): string => {
+    return num.toLocaleString('vi-VN');
+  };
+
+  // Statistics data from API
+  const stats = statistics ? [
+    { 
+      label: "Tổng người dùng", 
+      value: formatNumber(statistics.TotalUsers), 
+      note: "Người dùng trong hệ thống",
+      icon: Users,
+      color: "text-blue-600 dark:text-blue-400",
+      bgColor: "bg-blue-50 dark:bg-blue-900/20"
+    },
+    { 
+      label: "Bài test", 
+      value: formatNumber(statistics.TotalTests), 
+      note: `${statistics.TotalExercises} bài tập`,
+      icon: BookOpen,
+      color: "text-green-600 dark:text-green-400",
+      bgColor: "bg-green-50 dark:bg-green-900/20"
+    },
+    { 
+      label: "Lượt làm bài", 
+      value: formatNumber(statistics.TotalCompletions), 
+      note: "Tổng số lần hoàn thành",
+      icon: Target,
+      color: "text-purple-600 dark:text-purple-400",
+      bgColor: "bg-purple-50 dark:bg-purple-900/20"
+    },
+    { 
+      label: "Tổng bài tập", 
+      value: formatNumber(statistics.TotalExercises), 
+      note: "Bài tập trong hệ thống",
+      icon: TrendingUp,
+      color: "text-orange-600 dark:text-orange-400",
+      bgColor: "bg-orange-50 dark:bg-orange-900/20"
+    },
+  ] : [];
 
   // Mock data cho danh sách đề thi
   const tests = [
@@ -96,24 +155,57 @@ const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Cards - matching english-admin style */}
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive" className="rounded-xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Dashboard Cards - with real data from API */}
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map((s, i) => (
-          <motion.div 
-            key={s.label} 
-            initial={{ opacity: 0, y: 6 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            transition={{ delay: i * 0.05 }}
-          >
-            <Card className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+        {loading ? (
+          // Loading skeleton
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 animate-pulse">
               <CardHeader>
-                <CardDescription className="text-gray-600 dark:text-gray-400">{s.label}</CardDescription>
-                <CardTitle className="text-3xl text-gray-900 dark:text-white">{s.value}</CardTitle>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{s.note}</span>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
               </CardHeader>
             </Card>
-          </motion.div>
-        ))}
+          ))
+        ) : stats.length > 0 ? (
+          stats.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <motion.div 
+                key={s.label} 
+                initial={{ opacity: 0, y: 6 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ delay: i * 0.05 }}
+              >
+                <Card className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center justify-between mb-2">
+                      <CardDescription className="text-gray-600 dark:text-gray-400">{s.label}</CardDescription>
+                      <div className={`p-2 rounded-lg ${s.bgColor}`}>
+                        <Icon className={`h-4 w-4 ${s.color}`} />
+                      </div>
+                    </div>
+                    <CardTitle className="text-3xl text-gray-900 dark:text-white">{s.value}</CardTitle>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{s.note}</span>
+                  </CardHeader>
+                </Card>
+              </motion.div>
+            );
+          })
+        ) : (
+          <div className="col-span-4 text-center text-gray-500 dark:text-gray-400">
+            Không có dữ liệu thống kê
+          </div>
+        )}
       </div>
 
       {/* Danh sách đề thi */}
@@ -139,7 +231,9 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Tổng đề thi</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">86</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {loading ? '...' : statistics ? formatNumber(statistics.TotalTests) : '0'}
+                </p>
               </div>
             </div>
             
@@ -149,27 +243,33 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Lượt thi</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">9,420</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {loading ? '...' : statistics ? formatNumber(statistics.TotalCompletions) : '0'}
+                </p>
               </div>
             </div>
             
             <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
               <div className="p-2 bg-orange-100 dark:bg-orange-800 rounded-lg">
-                <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                <BookOpen className="h-4 w-4 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Trung bình</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">78%</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Bài tập</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {loading ? '...' : statistics ? formatNumber(statistics.TotalExercises) : '0'}
+                </p>
               </div>
             </div>
             
             <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
               <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-lg">
-                <Plus className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Mới tuần này</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">12</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Người dùng</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {loading ? '...' : statistics ? formatNumber(statistics.TotalUsers) : '0'}
+                </p>
               </div>
             </div>
           </div>
