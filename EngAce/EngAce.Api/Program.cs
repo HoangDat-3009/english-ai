@@ -69,7 +69,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "EngAce APIs Documentation",
+        Title = "EngBuddy APIs Documentation",
         Version = "v1.0.0",
         Description = "Developed by ."
     });
@@ -126,7 +126,7 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowOnlyEngace",
+    options.AddPolicy("AllowOnlyEngBuddy",
         policy =>
         {
             policy.WithOrigins()
@@ -213,7 +213,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "EngAce APIs Documentation v1.0.0");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "EngBuddy APIs Documentation v1.0.0");
         c.RoutePrefix = "swagger";
     });
 

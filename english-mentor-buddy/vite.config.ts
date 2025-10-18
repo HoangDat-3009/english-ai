@@ -15,8 +15,9 @@ export default defineConfig(({ mode }) => {
     // HTTPS is enabled via basicSsl plugin
     proxy: {
       "/api": {
-        target: env.VITE_API_TARGET || "http://localhost:5000", // Backend HTTP
+        target: "http://localhost:5283", // Local API endpoint
         changeOrigin: true,
+        secure: false,
       },
     },
   },
