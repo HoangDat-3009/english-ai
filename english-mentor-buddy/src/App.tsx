@@ -28,6 +28,7 @@ import TestsPage from "./pages/admin/TestsPage";
 import UploadPage from "./pages/admin/UploadPage";
 import AccountPage from "./pages/admin/AccountPage";
 import ProfilePage from "./pages/admin/ProfilePage";
+import TestStatistics from "./pages/TestStatistics";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/exercises" element={<Exercises />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/topics" element={<EnglishTopicCards />} />
+              <Route path="/test-stats" element={<TestStatistics />} />
 
               {/* Admin routes */}
               <Route path="/admin" element={

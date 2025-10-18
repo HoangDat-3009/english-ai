@@ -2,9 +2,10 @@
 class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'https://btl-d39f.onrender.com') {
+  constructor(baseUrl: string = '') {
+    // Use empty string for relative URLs (Vite proxy will handle routing)
     this.baseUrl = baseUrl;
-    console.log('Base URL:', this.baseUrl);
+    console.log('Base URL:', this.baseUrl || 'Using Vite proxy (relative URLs)');
   }
 
   // Get the base URL
@@ -60,7 +61,7 @@ class ApiService {
   }
 
   // POST request
-  post<T>(endpoint: string, data: any, options: RequestInit = {}): Promise<T> {
+  post<T>(endpoint: string, data: unknown, options: RequestInit = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -69,7 +70,7 @@ class ApiService {
   }
 
   // PUT request
-  put<T>(endpoint: string, data: any, options: RequestInit = {}): Promise<T> {
+  put<T>(endpoint: string, data: unknown, options: RequestInit = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'PUT',
@@ -112,5 +113,7 @@ class ApiService {
   }
 }
 
-// Create a new instance with the local API URL
-export const apiService = new ApiService("https://btl-d39f.onrender.com");
+// Create a new instance with empty baseUrl (use Vite proxy)
+export const apiService = new ApiService("");
+
+export default apiService;
