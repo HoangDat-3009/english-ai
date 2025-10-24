@@ -1,42 +1,41 @@
-import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Book, GraduationCap, MessageCircle, User, Sun, Moon, Globe, Settings, LogOut, UserCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/services/supabaseClient';
+import { motion } from 'framer-motion';
+import { Book, Globe, GraduationCap, LogOut, MessageCircle, Moon, Settings, Sun, TrendingUp, Trophy, User, UserCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeProvider';
 import { Button } from './ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-} from './ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from './ui/dialog';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-} from './ui/sheet';
-import { useAuth } from './AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { supabase } from '@/services/supabaseClient';
-import { useToast } from '@/hooks/use-toast';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from './ui/sheet';
 
 const Navbar = () => {
   const location = useLocation();
@@ -58,6 +57,8 @@ const Navbar = () => {
     { name: 'Exercises', path: '/exercises', icon: GraduationCap, color: 'text-fuchsia-600' },
     { name: 'AI Chat', path: '/chat', icon: MessageCircle, color: 'text-rose-600' },
     { name: 'Topics', path: '/topics', icon: Globe, color: 'text-pink-500' },
+    { name: 'Progress', path: '/progress', icon: TrendingUp, color: 'text-blue-600' },
+    { name: 'Leaderboard', path: '/leaderboard', icon: Trophy, color: 'text-yellow-600' },
   ];
 
   const handleLogout = () => {

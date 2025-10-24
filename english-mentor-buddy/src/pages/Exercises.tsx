@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { GraduationCap, ArrowLeft, Clock, ArrowRight, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+
 import Header from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
-  exerciseService,
-  ExerciseGenerationParams,
-  ExerciseSet,
-  Question,
-  AssignmentType
+    AssignmentType,
+    ExerciseGenerationParams,
+    exerciseService,
+    ExerciseSet
 } from '@/services/exerciseService';
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Clock, GraduationCap, Sparkles } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import ReadingExercises from './ReadingExercises';
 
 // Suggested topics
 const suggestedTopics = [
@@ -251,6 +253,40 @@ const Exercises: React.FC = () => {
 
   const [selectedQuestionTypes, setSelectedQuestionTypes] = useState<AssignmentType[]>([]);
 
+  const handleSubmitExercise = useCallback(async () => {
+    if (!exerciseSet) return;
+
+    try {
+      setIsLoading(true);
+
+      console.log('SUBMISSION DATA:');
+      console.log('Exercise Set:', JSON.stringify(exerciseSet, null, 2));
+      console.log('User Answers:', JSON.stringify(answers, null, 2));
+
+      const result = await exerciseService.submitAnswers(exerciseSet, answers);
+
+      console.log('SUBMISSION RESULT:');
+      console.log(JSON.stringify(result, null, 2));
+
+      setSubmissionResult(result);
+      setIsLoading(false);
+      setShowExercise(false);
+      toast({
+        title: 'Đã nộp bài',
+        description: 'Bài tập đã được nộp thành công',
+        variant: 'default'
+      });
+    } catch (err) {
+      console.error('Error submitting exercise:', err);
+      toast({
+        title: 'Không thể nộp bài',
+        description: 'Vui lòng thử lại sau',
+        variant: 'destructive'
+      });
+      setIsLoading(false);
+    }
+  }, [exerciseSet, answers, toast]);
+
   // Timer effect
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -262,7 +298,7 @@ const Exercises: React.FC = () => {
       handleSubmitExercise();
     }
     return () => clearInterval(timer);
-  }, [showExercise, timeLeft]);
+  }, [showExercise, timeLeft, handleSubmitExercise]);
 
   // Format time display
   const formatTime = (seconds: number) => {
@@ -355,40 +391,6 @@ const Exercises: React.FC = () => {
     }
   };
 
-  const handleSubmitExercise = async () => {
-    if (!exerciseSet) return;
-
-    try {
-      setIsLoading(true);
-
-      console.log('SUBMISSION DATA:');
-      console.log('Exercise Set:', JSON.stringify(exerciseSet, null, 2));
-      console.log('User Answers:', JSON.stringify(answers, null, 2));
-
-      const result = await exerciseService.submitAnswers(exerciseSet, answers);
-
-      console.log('SUBMISSION RESULT:');
-      console.log(JSON.stringify(result, null, 2));
-
-      setSubmissionResult(result);
-      setIsLoading(false);
-      setShowExercise(false);
-      toast({
-        title: 'Đã nộp bài',
-        description: 'Bài tập đã được nộp thành công',
-        variant: 'default'
-      });
-    } catch (err) {
-      console.error('Error submitting exercise:', err);
-      toast({
-        title: 'Không thể nộp bài',
-        description: 'Vui lòng thử lại sau',
-        variant: 'destructive'
-      });
-      setIsLoading(false);
-    }
-  };
-
   // Progress percentage calculation
   const progressPercentage = (currentQuestion / totalQuestions) * 100;
 
@@ -459,152 +461,167 @@ const Exercises: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-pink-50 to-pink-100 dark:from-gray-900 dark:to-gray-800">
       <Header />
-      <main className="flex-1 container max-w-screen-md mx-auto py-8 px-4 animate-fade-in">
-        {!showExercise ? (
-          // Exercise creation form
-          <>
-            <div className="flex justify-center mb-8">
-              <div className="w-24 h-24 bg-engace-pink rounded-2xl flex items-center justify-center">
-                <GraduationCap size={48} color="white" />
-              </div>
-            </div>
-
-            <h1 className="text-4xl font-bold text-center mb-2 dark:text-white">BÀI TẬP</h1>
-            <p className="text-center text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-              Thiết lập bài tập phù hợp với nhu cầu học tập của bạn với các chủ đề và dạng bài tập đa dạng.
-            </p>
-
-            <div className="space-y-6">
-              <div className="mb-4">
-                <Label htmlFor="topic" className="text-gray-700 dark:text-gray-300 mb-2 block">Nhập chủ đề bài tập...</Label>
-                <Input
-                  id="topic"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Nhập chủ đề bài tập..."
-                  className="text-lg py-6 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                />
-              </div>
-
-              <div className="mb-4">
-                <div className="flex items-center mb-2">
-                  <Sparkles size={16} className="text-gray-600 dark:text-gray-400 mr-2" />
-                  <Label className="text-gray-700 dark:text-gray-300 font-medium">Chủ đề gợi ý</Label>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {suggestedTopics.map((suggestedTopic, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      className="bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => setTopic(suggestedTopic)}
-                    >
-                      {suggestedTopic}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <Label className="text-gray-700 dark:text-gray-300 mb-2 block">Loại câu hỏi</Label>
-                <QuestionTypesSelector
-                  selectedTypes={selectedQuestionTypes}
-                  onChange={setSelectedQuestionTypes}
-                />
-              </div>
-
-              <div className="mb-4">
-                <Label htmlFor="questionCount" className="text-gray-700 dark:text-gray-300 mb-2 block">Số lượng câu hỏi</Label>
-                <Input
-                  id="questionCount"
-                  type="number"
-                  min={5}
-                  max={20}
-                  value={totalQuestions}
-                  onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 10)}
-                  className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                />
-              </div>
-
-              <Button
-                className="w-full py-6 text-lg font-semibold"
-                onClick={handleCreateExercise}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Đang tạo bài tập...' : 'Tạo bài tập'}
-              </Button>
-            </div>
-          </>
-        ) : (
-          // Exercise questions
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <Button
-                variant="ghost"
-                className="text-gray-600 dark:text-gray-400"
-                onClick={() => setShowExercise(false)}
-              >
-                <ArrowLeft className="mr-2" size={16} />
-                Quay lại
-              </Button>
-              <div className="flex items-center text-gray-600 dark:text-gray-400">
-                <Clock size={16} className="mr-1" />
-                <span>{formatTime(timeLeft)}</span>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <Progress value={progressPercentage} className="h-2" />
-              <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-400">
-                <span>Câu {currentQuestion}/{totalQuestions}</span>
-                <span>{Math.round(progressPercentage)}%</span>
-              </div>
-            </div>
-
-            <Card className="p-6 mb-6">
-              <h3 className="text-xl font-semibold mb-4 dark:text-white">{question.Question}</h3>
-              <div className="space-y-3">
-                {Array.isArray(question.Options) && question.Options.map((option, index) => (
-                  <div
-                    key={index}
-                    className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedAnswer === option
-                      ? 'bg-blue-50 border-blue-500 dark:bg-blue-900/30 dark:border-blue-400'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    onClick={() => handleSelectAnswer(option)}
-                  >
-                    <p className="dark:text-white">{option}</p>
+      <main className="flex-1 container max-w-screen-lg mx-auto py-8 px-4 animate-fade-in">
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="general">General Exercises</TabsTrigger>
+            <TabsTrigger value="reading">📖 Reading Exercises</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="general" className="mt-4">
+            <div className="max-w-screen-md mx-auto">
+              {!showExercise ? (
+                // Exercise creation form
+                <>
+                  <div className="flex justify-center mb-8">
+                    <div className="w-24 h-24 bg-engace-pink rounded-2xl flex items-center justify-center">
+                      <GraduationCap size={48} color="white" />
+                    </div>
                   </div>
-                ))}
-              </div>
-            </Card>
 
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={goToPreviousQuestion}
-                disabled={currentQuestion === 1}
-              >
-                <ArrowLeft className="mr-2" size={16} />
-                Câu trước
-              </Button>
+                  <h1 className="text-4xl font-bold text-center mb-2 dark:text-white">BÀI TẬP</h1>
+                  <p className="text-center text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
+                    Thiết lập bài tập phù hợp với nhu cầu học tập của bạn với các chủ đề và dạng bài tập đa dạng.
+                  </p>
 
-              {currentQuestion < totalQuestions ? (
-                <Button onClick={goToNextQuestion}>
-                  Câu tiếp
-                  <ArrowRight className="ml-2" size={16} />
-                </Button>
+                  <div className="space-y-6">
+                    <div className="mb-4">
+                      <Label htmlFor="topic" className="text-gray-700 dark:text-gray-300 mb-2 block">Nhập chủ đề bài tập...</Label>
+                      <Input
+                        id="topic"
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        placeholder="Nhập chủ đề bài tập..."
+                        className="text-lg py-6 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                      />
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="flex items-center mb-2">
+                        <Sparkles size={16} className="text-gray-600 dark:text-gray-400 mr-2" />
+                        <Label className="text-gray-700 dark:text-gray-300 font-medium">Chủ đề gợi ý</Label>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestedTopics.map((suggestedTopic, index) => (
+                          <Button
+                            key={index}
+                            variant="outline"
+                            className="bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onClick={() => setTopic(suggestedTopic)}
+                          >
+                            {suggestedTopic}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <Label className="text-gray-700 dark:text-gray-300 mb-2 block">Loại câu hỏi</Label>
+                      <QuestionTypesSelector
+                        selectedTypes={selectedQuestionTypes}
+                        onChange={setSelectedQuestionTypes}
+                      />
+                    </div>
+
+                    <div className="mb-4">
+                      <Label htmlFor="questionCount" className="text-gray-700 dark:text-gray-300 mb-2 block">Số lượng câu hỏi</Label>
+                      <Input
+                        id="questionCount"
+                        type="number"
+                        min={5}
+                        max={20}
+                        value={totalQuestions}
+                        onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 10)}
+                        className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                      />
+                    </div>
+
+                    <Button
+                      className="w-full py-6 text-lg font-semibold"
+                      onClick={handleCreateExercise}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Đang tạo bài tập...' : 'Tạo bài tập'}
+                    </Button>
+                  </div>
+                </>
               ) : (
-                <Button
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={handleSubmitExercise}
-                >
-                  Nộp bài
-                </Button>
+                // Exercise questions
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <Button
+                      variant="ghost"
+                      className="text-gray-600 dark:text-gray-400"
+                      onClick={() => setShowExercise(false)}
+                    >
+                      <ArrowLeft className="mr-2" size={16} />
+                      Quay lại
+                    </Button>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Clock size={16} className="mr-1" />
+                      <span>{formatTime(timeLeft)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <Progress value={progressPercentage} className="h-2" />
+                    <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      <span>Câu {currentQuestion}/{totalQuestions}</span>
+                      <span>{Math.round(progressPercentage)}%</span>
+                    </div>
+                  </div>
+
+                  <Card className="p-6 mb-6">
+                    <h3 className="text-xl font-semibold mb-4 dark:text-white">{question.Question}</h3>
+                    <div className="space-y-3">
+                      {Array.isArray(question.Options) && question.Options.map((option, index) => (
+                        <div
+                          key={index}
+                          className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedAnswer === option
+                            ? 'bg-blue-50 border-blue-500 dark:bg-blue-900/30 dark:border-blue-400'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }`}
+                          onClick={() => handleSelectAnswer(option)}
+                        >
+                          <p className="dark:text-white">{option}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                  <div className="flex justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={goToPreviousQuestion}
+                      disabled={currentQuestion === 1}
+                    >
+                      <ArrowLeft className="mr-2" size={16} />
+                      Câu trước
+                    </Button>
+
+                    {currentQuestion < totalQuestions ? (
+                      <Button onClick={goToNextQuestion}>
+                        Câu tiếp
+                        <ArrowRight className="ml-2" size={16} />
+                      </Button>
+                    ) : (
+                      <Button
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={handleSubmitExercise}
+                      >
+                        Nộp bài
+                      </Button>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        )}
+          </TabsContent>
+          
+          <TabsContent value="reading" className="mt-4">
+            <ReadingExercises />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
