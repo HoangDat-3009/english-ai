@@ -1,9 +1,8 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import FeatureCard from '@/components/FeatureCard';
-import { Book, GraduationCap, MessageCircle, Globe } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
+import { motion } from 'framer-motion';
+import { Book, Globe, GraduationCap, MessageCircle, TrendingUp, Trophy } from 'lucide-react';
+import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 
 const features = [
   {
@@ -37,6 +36,22 @@ const features = [
     path: '/topics',
     color: 'text-slate-600',
     bgColor: 'bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950/50 dark:to-gray-950/50',
+  },
+  {
+    title: 'Tiến độ học tập',
+    description: 'Theo dõi quá trình học tập của bạn với biểu đồ chi tiết, thống kê điểm số và các mục tiêu đạt được.',
+    icon: TrendingUp,
+    path: '/progress',
+    color: 'text-blue-600',
+    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/50 dark:to-cyan-950/50',
+  },
+  {
+    title: 'Bảng xếp hạng',
+    description: 'Cạnh tranh với những người học khác, xem thứ hạng của bạn và động lực phấn đấu hơn nữa.',
+    icon: Trophy,
+    path: '/leaderboard',
+    color: 'text-yellow-600',
+    bgColor: 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/50 dark:to-orange-950/50',
   }
 
 ];

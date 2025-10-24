@@ -83,24 +83,16 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
     options.Level = System.IO.Compression.CompressionLevel.Fastest;
 });
 
-<<<<<<< HEAD
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policyBuilder =>
-=======
 // ✅ CORS cấu hình
 builder.Services.AddCors(options =>
 {
     // Policy cho phép tất cả
     options.AddPolicy("AllowAll", policy =>
->>>>>>> 9cd833f (Fix merge Program.cs before rebase)
     {
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
-<<<<<<< HEAD
-=======
 
     // Policy chỉ cho phép origin EngAce (bạn cần thêm domain cụ thể vào WithOrigins)
     options.AddPolicy("AllowOnlyEngace", policy =>
@@ -109,7 +101,6 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
->>>>>>> 9cd833f (Fix merge Program.cs before rebase)
 });
 
 builder.Services.AddResponseCaching();
@@ -117,8 +108,6 @@ builder.Services.AddResponseCaching();
 var app = builder.Build();
 
 app.UseDeveloperExceptionPage();
-<<<<<<< HEAD
-=======
 
 if (!app.Environment.IsDevelopment())
 {
@@ -138,7 +127,6 @@ if (!app.Environment.IsDevelopment())
 
     app.UseCors("AllowOnlyEngace");
 }
->>>>>>> 9cd833f (Fix merge Program.cs before rebase)
 
 if (app.Environment.IsDevelopment())
 {
@@ -155,11 +143,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
-<<<<<<< HEAD
-
-app.UseCors();
-=======
->>>>>>> 9cd833f (Fix merge Program.cs before rebase)
 app.UseResponseCompression();
 
 app.UseAuthentication();
