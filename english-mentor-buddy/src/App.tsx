@@ -1,21 +1,24 @@
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route } from "react-router-dom"; // Loại bỏ BrowserRouter không dùng
 import { AnimatePresence } from "framer-motion";
+import { HashRouter, Route, Routes } from "react-router-dom"; // Loại bỏ BrowserRouter không dùng
+import DataConnectionTest from "./components/DataConnectionTest";
+import DataSyncTest from "./components/DataSyncTest";
 import { ThemeProvider } from "./components/ThemeProvider";
-import Index from "./pages/Index";
+import Chat from "./pages/Chat";
 import Dictionary from "./pages/Dictionary";
 import DictionaryResult from "./pages/DictionaryResult";
-import Exercises from "./pages/Exercises";
-import Chat from "./pages/Chat";
 import EnglishTopicCards from "./pages/EnglishTopicCards";
-import NotFound from "./pages/NotFound";
+import Exercises from "./pages/Exercises";
+import Index from "./pages/Index";
+import Leaderboard from "./pages/Leaderboard";
 import Login from "./pages/Login";
-import LoginAlt from "./pages/LoginAlt";
+import NotFound from "./pages/NotFound";
+import Progress from "./pages/Progress";
+import ReadingExercises from "./pages/ReadingExercises";
 import Register from "./pages/Register";
-import ProtectedRoute from "./components/ProtectedRoute"; // Nhập ProtectedRoute
 
 const queryClient = new QueryClient();
 
@@ -32,7 +35,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
 
               {/* Public routes */}
-              <Route path="/" element={<Login />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
               {/* Các routes chính - không còn bắt buộc đăng nhập */}
@@ -40,8 +43,15 @@ const App = () => (
               <Route path="/dictionary" element={<Dictionary />} />
               <Route path="/dictionary-result" element={<DictionaryResult />} />
               <Route path="/exercises" element={<Exercises />} />
+              <Route path="/exercises/reading" element={<ReadingExercises />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/topics" element={<EnglishTopicCards />} />
+              <Route path="/progress" element={<Progress />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              
+              {/* Test routes for data synchronization */}
+              <Route path="/data-sync-test" element={<DataSyncTest />} />
+              <Route path="/data-connection-test" element={<DataConnectionTest />} />
 
               {/* Route cho trang không tìm thấy */}
               <Route path="*" element={<NotFound />} />
