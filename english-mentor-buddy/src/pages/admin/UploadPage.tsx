@@ -1,15 +1,16 @@
-import React, { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { FileRow } from '@/components/admin/FileRow';
+import { SectionBox } from '@/components/admin/SectionBox';
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileText, Plus, Minus, Save, Eye, Download, Clock, Users, Folder, Settings, X, CheckCircle, LucideIcon } from 'lucide-react';
-import { SectionBox } from '@/components/admin/SectionBox';
-import { FileRow } from '@/components/admin/FileRow';
+import { Textarea } from "@/components/ui/textarea";
+import { apiService } from '@/services/api';
+import { CheckCircle, Clock, Eye, FileText, LucideIcon, Minus, Plus, Save, Upload, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 const UploadPage = () => {
   const [testType, setTestType] = useState('');
@@ -38,26 +39,38 @@ const UploadPage = () => {
   // File upload handlers
   const handleFileSelect = (uploadType: string, files: FileList | null) => {
     if (!files) return;
-    
+
     const fileArray = Array.from(files);
     setSelectedFiles(prev => ({
       ...prev,
       [uploadType]: fileArray
     }));
 
-    // Simulate upload progress
+    // Start real upload using apiService with progress callback
+    const fd = new FormData();
+    fileArray.forEach((f) => fd.append('files', f));
+    fd.append('testType', selectedTestType || uploadType);
+
     setUploadProgress(prev => ({ ...prev, [uploadType]: 0 }));
-    
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        const currentProgress = prev[uploadType] || 0;
-        if (currentProgress >= 100) {
-          clearInterval(interval);
-          return prev;
-        }
-        return { ...prev, [uploadType]: currentProgress + 10 };
-      });
-    }, 200);
+
+    apiService.postFormDataWithProgress('/api/admin/upload', fd, (pct) => {
+      setUploadProgress(prev => ({ ...prev, [uploadType]: pct }));
+    }).then((res: any) => {
+      setUploadProgress(prev => ({ ...prev, [uploadType]: 100 }));
+      // If server returns metadata, add to uploadedFiles list
+      if (res?.files && Array.isArray(res.files)) {
+        const newFiles = res.files.map((f: any) => ({
+          name: f.originalName || f.storedName,
+          size: formatFileSize(f.size || 0),
+          date: new Date().toISOString().split('T')[0]
+        }));
+        setUploadedFiles(prev => [...newFiles, ...prev]);
+      }
+    }).catch((err) => {
+      console.error('Upload failed', err);
+      setUploadProgress(prev => ({ ...prev, [uploadType]: undefined }));
+      // TODO: show user-visible error (toast)
+    });
   };
 
   const handleFileRemove = (uploadType: string, fileIndex: number) => {
