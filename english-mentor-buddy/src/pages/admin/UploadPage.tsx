@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from '@/hooks/use-toast';
 import { apiService } from '@/services/api';
 import { CheckCircle, Clock, Eye, FileText, LucideIcon, Minus, Plus, Save, Upload, X } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -22,7 +23,7 @@ const UploadPage = () => {
   ]);
 
   // File upload states
-  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
+  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number | undefined}>({});
   const [selectedFiles, setSelectedFiles] = useState<{[key: string]: File[]}>({});
   const fileInputRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
 
@@ -37,6 +38,8 @@ const UploadPage = () => {
   ];
 
   // File upload handlers
+  const { success, error } = useToast();
+
   const handleFileSelect = (uploadType: string, files: FileList | null) => {
     if (!files) return;
 
@@ -57,6 +60,7 @@ const UploadPage = () => {
       setUploadProgress(prev => ({ ...prev, [uploadType]: pct }));
     }).then((res: any) => {
       setUploadProgress(prev => ({ ...prev, [uploadType]: 100 }));
+      success('Upload thành công', `Đã tải lên ${fileArray.length} file.`);
       // If server returns metadata, add to uploadedFiles list
       if (res?.files && Array.isArray(res.files)) {
         const newFiles = res.files.map((f: any) => ({
@@ -69,7 +73,7 @@ const UploadPage = () => {
     }).catch((err) => {
       console.error('Upload failed', err);
       setUploadProgress(prev => ({ ...prev, [uploadType]: undefined }));
-      // TODO: show user-visible error (toast)
+      error('Upload thất bại', err?.message || 'Có lỗi xảy ra khi tải file lên');
     });
   };
 
