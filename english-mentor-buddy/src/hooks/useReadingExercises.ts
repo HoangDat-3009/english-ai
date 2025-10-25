@@ -1,23 +1,23 @@
-import { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  readingService, 
-  type ReadingExercise, 
-  type UserResult 
-} from '@/services/exerciseService';
 import { useToast } from '@/hooks/use-toast';
+import {
+    databaseStatsService,
+    type ReadingExercise,
+    type UserResult
+} from '@/services/databaseStatsService';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 export const useReadingExercises = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // 1. LẤY BÀI TẬP
+  // 1. LẤY BÀI TẬP TỪ .NET API (bao gồm admin uploaded + AI generated)
   const { data: exercises = [], isLoading } = useQuery({
     queryKey: ['reading-exercises-main'],
-    queryFn: () => readingService.getReadingExercises(),
+    queryFn: () => databaseStatsService.getReadingExercises(),
   });
 
-  // 2. SINH AI
+  // 2. SINH AI THÔNG QUA .NET API (Backend sẽ call Gemini)
   const generateMutation = useMutation({
     mutationFn: ({
       topic,
@@ -27,34 +27,41 @@ export const useReadingExercises = () => {
       topic: string;
       level: 'Beginner' | 'Intermediate' | 'Advanced';
       type: 'Part 5' | 'Part 6' | 'Part 7';
-    }) => readingService.generateReadingExercise(topic, level, type),
-    onSuccess: (newExercise) => {
+    }) => databaseStatsService.generateReadingExercise(topic, level, type),
+    onSuccess: (newExercise: ReadingExercise) => {
       // THÊM VÀO DANH SÁCH
       queryClient.setQueryData<ReadingExercise[]>(['reading-exercises-main'], (old) => 
-        [...(old || []), newExercise]
+        old ? [...old, newExercise] : [newExercise]
       );
       toast({
-        title: 'Exercise Generated',
-        description: 'New AI-generated exercise has been created successfully.',
+        title: 'AI Exercise Generated!',
+        description: `New ${newExercise.type} exercise "${newExercise.name}" created by Gemini AI.`,
       });
     },
     onError: (error) => {
       toast({
-        title: 'Generation Failed',
-        description: error instanceof Error ? error.message : 'Failed to generate exercise',
+        title: 'AI Generation Failed',
+        description: error instanceof Error ? error.message : 'Failed to generate exercise with AI',
         variant: 'destructive',
       });
     },
   });
 
-  // 3. SUBMIT KẾT QUẢ
+  // 3. SUBMIT KẾT QUẢ VÀO .NET API
   const submitMutation = useMutation({
     mutationFn: ({ exerciseId, answers }: { exerciseId: number; answers: number[] }) =>
-      readingService.submitReadingResult(1, exerciseId, answers), // userId=1 tạm
+      databaseStatsService.submitReadingResult(1, exerciseId, answers), // userId=1 tạm
     onSuccess: (result: UserResult) => {
       toast({
         title: 'Results Saved',
-        description: `Score: ${result.score}/${result.totalQuestions}`,
+        description: `Score: ${result.score}/${result.totalQuestions} - Great job!`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Submit Failed',
+        description: error instanceof Error ? error.message : 'Failed to save results',
+        variant: 'destructive',
       });
     },
   });
