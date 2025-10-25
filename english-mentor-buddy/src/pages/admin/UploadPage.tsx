@@ -74,6 +74,16 @@ const UploadPage = () => {
       console.error('Upload failed', err);
       setUploadProgress(prev => ({ ...prev, [uploadType]: undefined }));
       error('Upload thất bại', err?.message || 'Có lỗi xảy ra khi tải file lên');
+      // Fallback: lưu local để quản lý tạm thời khi backend chưa sẵn sàng
+      try {
+        const fallbackFiles = fileArray.map((f) => ({
+          name: f.name,
+          size: formatFileSize(f.size || 0),
+          date: new Date().toISOString().split('T')[0]
+        }));
+        setUploadedFiles(prev => [...fallbackFiles, ...prev]);
+        error('Đã lưu tạm file cục bộ', 'File đã được lưu tạm trong trang quản lý.');
+      } catch {}
     });
   };
 
