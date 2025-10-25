@@ -1,3 +1,9 @@
+// 🌐 BASE API SERVICE - Core HTTP client cho .NET backend integration  
+// ✅ READY FOR GIT: Configured for .NET API endpoints với error handling
+// 🔄 TODO DEPLOY: Cập nhật baseUrl từ localhost sang production URL
+// 🛡️ Features: Axios wrapper, error handling, request/response interceptors
+// 📡 Endpoints: User stats, leaderboard, exercises, AI generation
+
 // Base API service for making HTTP requests
 class ApiService {
   private baseUrl: string;
@@ -112,5 +118,7 @@ class ApiService {
   }
 }
 
-// Create a new instance with the local API URL
-export const apiService = new ApiService("https://localhost:5000");
+// Create a new instance with the .NET API URL
+export const apiService = new ApiService(
+  import.meta.env.VITE_API_URL || "https://localhost:7001"
+);

@@ -1,10 +1,16 @@
+// 📝 READING EXERCISE CARD - Interactive TOEIC exercise interface
+// ✅ READY FOR GIT: Hoàn thành giao diện làm bài với timer và scoring
+// 🎯 TODO BACKEND: Tích hợp API để lưu kết quả và cập nhật progress
+// 🎮 Features: Multiple choice, timer, scoring, result feedback, progress tracking
+// 📊 TOEIC Format: Supports Parts 5, 6, 7 với authentic question types
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useReadingExercises } from "@/hooks/useReadingExercises";
-import type { ReadingExercise } from "@/services/exerciseService";
+import type { ReadingExercise } from "@/services/databaseStatsService";
 import { ArrowLeft, CheckCircle2, Database, Sparkles, XCircle } from "lucide-react";
 import { useState } from "react";
 

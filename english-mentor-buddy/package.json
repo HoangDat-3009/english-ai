@@ -1,7 +1,8 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "english-mentor-buddy",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "🎯 English learning platform với Progress, Leaderboard, AI-generated TOEIC exercises",
   "type": "module",
   "scripts": {
     "dev": "vite",
