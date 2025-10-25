@@ -6,7 +6,7 @@ interface FileRowProps {
   fileName: string;
   fileSize: string;
   uploadDate: string;
-  status?: 'uploaded' | 'processing' | 'error';
+  status?: 'uploaded' | 'processing' | 'error' | 'local';
   onDelete?: () => void;
   onDownload?: () => void;
   onRetry?: () => void;
@@ -29,6 +29,8 @@ export const FileRow = ({
         return <Badge variant="secondary" className="bg-yellow-500 dark:bg-yellow-600 text-white">Đang xử lý</Badge>;
       case 'error':
         return <Badge variant="destructive" className="bg-red-500 dark:bg-red-600 text-white">Lỗi</Badge>;
+      case 'local':
+        return <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800">Cục bộ</Badge>;
       default:
         return null;
     }
