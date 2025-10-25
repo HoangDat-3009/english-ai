@@ -13,6 +13,49 @@ class ApiService {
     console.log('Base URL:', this.baseUrl);
   }
 
+  // POST FormData with upload progress callback (uses XMLHttpRequest)
+  postFormDataWithProgress<T = any>(endpoint: string, formData: FormData, onProgress?: (percent: number) => void, headers?: Record<string, string>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      try {
+        const url = `${this.baseUrl}${endpoint}`;
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+
+        // Set optional headers (e.g., Authorization)
+        if (headers) {
+          Object.entries(headers).forEach(([k, v]) => {
+            try { xhr.setRequestHeader(k, v); } catch { /* ignore */ }
+          });
+        }
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            onProgress(pct);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = xhr.responseText ? JSON.parse(xhr.responseText) : ({} as T);
+              resolve(data as T);
+            } catch (err) {
+              resolve({} as T);
+            }
+          } else {
+            reject(new Error(`Server responded with status ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during file upload'));
+        xhr.send(formData);
+      } catch (ex) {
+        reject(ex as Error);
+      }
+    });
+  }
+
   // Get the base URL
   getBaseUrl(): string {
     return this.baseUrl;
