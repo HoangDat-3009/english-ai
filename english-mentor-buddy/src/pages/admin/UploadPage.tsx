@@ -60,12 +60,12 @@ const UploadPage = () => {
 
     apiService.postFormDataWithProgress('/api/admin/upload', fd, (pct) => {
       setUploadProgress(prev => ({ ...prev, [uploadType]: pct }));
-    }).then((res: any) => {
+    }).then((res: { files?: Array<{ originalName?: string; storedName?: string; size?: number }> }) => {
       setUploadProgress(prev => ({ ...prev, [uploadType]: 100 }));
       success('Upload thành công', `Đã tải lên ${fileArray.length} file.`);
       // If server returns metadata, add to uploadedFiles list
       if (res?.files && Array.isArray(res.files)) {
-        const newFiles = res.files.map((f: any) => ({
+        const newFiles = res.files.map((f) => ({
           name: f.originalName || f.storedName,
           size: formatFileSize(f.size || 0),
           date: new Date().toISOString().split('T')[0]
@@ -89,7 +89,9 @@ const UploadPage = () => {
         }));
         setUploadedFiles(prev => [...fallbackFiles, ...prev]);
         error('Đã lưu tạm file cục bộ', 'File đã được lưu tạm trong trang quản lý.');
-      } catch {}
+      } catch (fallbackError) {
+        console.warn('Could not save fallback files:', fallbackError);
+      }
     });
   };
 
@@ -107,7 +109,7 @@ const UploadPage = () => {
 
     apiService.postFormDataWithProgress('/api/admin/upload', fd, (pct) => {
       setUploadProgress(prev => ({ ...prev, [id]: pct }));
-    }).then((res: any) => {
+    }).then((res: { files?: Array<{ originalName?: string; storedName?: string; size?: number }> }) => {
       // update uploadedFiles entry status -> uploaded
       setUploadedFiles(prev => prev.map(it => it.id === id ? { ...it, status: 'uploaded' } : it));
       // remove fallback map entry
@@ -761,7 +763,8 @@ const UploadPage = () => {
             <CardContent>
               <div className="space-y-6">
                 {questions.map((q) => (
-                  <SectionBox key={q.id} className="space-y-4 relative">
+                  <div key={q.id}>
+                    <SectionBox className="space-y-4 relative">
                     <div className="flex items-center justify-between">
                       <Label className="text-base font-medium flex items-center">
                         <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm mr-2">
@@ -807,7 +810,8 @@ const UploadPage = () => {
                         </div>
                       ))}
                     </div>
-                  </SectionBox>
+                    </SectionBox>
+                  </div>
                 ))}
               </div>
             </CardContent>
@@ -848,7 +852,7 @@ const UploadPage = () => {
                         fileName={file.name}
                         fileSize={file.size}
                         uploadDate={file.date}
-                        status={file.status as any}
+                        status={file.status as 'uploaded' | 'processing' | 'error' | 'local'}
                         onDelete={() => {
                           setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
                           if (file.id) {

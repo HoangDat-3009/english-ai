@@ -14,7 +14,7 @@ class ApiService {
   }
 
   // POST FormData with upload progress callback (uses XMLHttpRequest)
-  postFormDataWithProgress<T = any>(endpoint: string, formData: FormData, onProgress?: (percent: number) => void, headers?: Record<string, string>): Promise<T> {
+  postFormDataWithProgress<T = unknown>(endpoint: string, formData: FormData, onProgress?: (percent: number) => void, headers?: Record<string, string>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       try {
         const url = `${this.baseUrl}${endpoint}`;
