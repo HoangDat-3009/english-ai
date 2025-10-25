@@ -1,0 +1,60 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# 🚨 IMPORTANT: Environment & Security Files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# 📦 Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# 🏗️ Production Build
+/dist
+/build
+*.tsbuildinfo
+
+# 🔧 Development & Debugging
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# 💻 IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 🖥️ Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 🔄 Runtime & Cache
+.cache/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# 📊 Coverage & Testing
+coverage/
+*.lcov
+
+# 🚀 Deployment & Hosting
+.vercel/
+.netlify/
+
+# 🎯 Project Specific
+*.tmp
+*.temp
+.temp/
