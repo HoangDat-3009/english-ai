@@ -17,10 +17,12 @@ const UploadPage = () => {
   const [testType, setTestType] = useState('');
   const [selectedTestType, setSelectedTestType] = useState('');
   const [questions, setQuestions] = useState([{ id: 1, question: '', options: ['', '', '', ''], correct: 0 }]);
-  const [uploadedFiles, setUploadedFiles] = useState([
-    { name: 'TOEIC_Part1_Audio.mp3', size: '2.4MB', date: '2024-03-10' },
-    { name: 'Reading_Questions.pdf', size: '1.8MB', date: '2024-03-09' }
+  interface UploadedFileItem { id?: string; name: string; size: string; date: string; status?: 'uploaded' | 'processing' | 'error' | 'local' }
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileItem[]>([
+    { name: 'TOEIC_Part1_Audio.mp3', size: '2.4MB', date: '2024-03-10', status: 'uploaded' },
+    { name: 'Reading_Questions.pdf', size: '1.8MB', date: '2024-03-09', status: 'uploaded' }
   ]);
+  const [fallbackFilesMap, setFallbackFilesMap] = useState<Record<string, File[]>>({});
 
   // File upload states
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number | undefined}>({});
@@ -76,14 +78,49 @@ const UploadPage = () => {
       error('Upload thất bại', err?.message || 'Có lỗi xảy ra khi tải file lên');
       // Fallback: lưu local để quản lý tạm thời khi backend chưa sẵn sàng
       try {
+        const fallbackId = `local-${Date.now()}`;
+        setFallbackFilesMap(prev => ({ ...prev, [fallbackId]: fileArray }));
         const fallbackFiles = fileArray.map((f) => ({
+          id: fallbackId,
           name: f.name,
           size: formatFileSize(f.size || 0),
-          date: new Date().toISOString().split('T')[0]
+          date: new Date().toISOString().split('T')[0],
+          status: 'local' as const
         }));
         setUploadedFiles(prev => [...fallbackFiles, ...prev]);
         error('Đã lưu tạm file cục bộ', 'File đã được lưu tạm trong trang quản lý.');
       } catch {}
+    });
+  };
+
+  // Retry upload for a fallback/local entry
+  const retryUpload = (id?: string) => {
+    if (!id) return;
+    const files = fallbackFilesMap[id];
+    if (!files || files.length === 0) return;
+
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f));
+
+    // mark progress
+    setUploadProgress(prev => ({ ...prev, [id]: 0 }));
+
+    apiService.postFormDataWithProgress('/api/admin/upload', fd, (pct) => {
+      setUploadProgress(prev => ({ ...prev, [id]: pct }));
+    }).then((res: any) => {
+      // update uploadedFiles entry status -> uploaded
+      setUploadedFiles(prev => prev.map(it => it.id === id ? { ...it, status: 'uploaded' } : it));
+      // remove fallback map entry
+      setFallbackFilesMap(prev => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+      success('Upload thành công', 'Đã tải lại file thành công.');
+    }).catch((err) => {
+      console.error('Retry upload failed', err);
+      error('Upload lại thất bại', err?.message || 'Không thể tải lại file');
+      setUploadProgress(prev => ({ ...prev, [id]: undefined }));
     });
   };
 
@@ -806,18 +843,24 @@ const UploadPage = () => {
                 {/* Files List */}
                 <div className="space-y-2">
                   {uploadedFiles.map((file, index) => (
-                    <FileRow
-                      key={index}
-                      fileName={file.name}
-                      fileSize={file.size}
-                      uploadDate={file.date}
-                      onDelete={() => {
-                        setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
-                      }}
-                      onDownload={() => {
-                        // Handle download
-                      }}
-                    />
+                    <div key={file.id ?? index}>
+                      <FileRow
+                        fileName={file.name}
+                        fileSize={file.size}
+                        uploadDate={file.date}
+                        status={file.status as any}
+                        onDelete={() => {
+                          setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
+                          if (file.id) {
+                            setFallbackFilesMap(prev => { const c = { ...prev }; delete c[file.id!]; return c; });
+                          }
+                        }}
+                        onDownload={() => {
+                          // Handle download
+                        }}
+                        onRetry={file.id ? () => retryUpload(file.id) : undefined}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
