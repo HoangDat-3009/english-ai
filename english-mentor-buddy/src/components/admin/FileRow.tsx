@@ -1,7 +1,6 @@
-import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Trash2, Download } from "lucide-react";
+import { Download, FileText, RefreshCw, Trash2 } from "lucide-react";
 
 interface FileRowProps {
   fileName: string;
@@ -10,6 +9,7 @@ interface FileRowProps {
   status?: 'uploaded' | 'processing' | 'error';
   onDelete?: () => void;
   onDownload?: () => void;
+  onRetry?: () => void;
 }
 
 export const FileRow = ({ 
@@ -49,6 +49,11 @@ export const FileRow = ({
       </div>
       
       <div className="flex space-x-1">
+        {onRetry && (
+          <Button variant="outline" size="sm" onClick={onRetry} className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">
+            <RefreshCw className="h-3 w-3" />
+          </Button>
+        )}
         {onDownload && (
           <Button variant="outline" size="sm" onClick={onDownload} className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">
             <Download className="h-3 w-3" />
