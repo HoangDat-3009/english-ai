@@ -18,7 +18,8 @@ export const FileRow = ({
   uploadDate, 
   status = 'uploaded',
   onDelete,
-  onDownload 
+  onDownload,
+  onRetry 
 }: FileRowProps) => {
   const getStatusBadge = () => {
     switch (status) {

@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect } from "react";
-import { textToSpeech, speechToText } from "@/services/elevenLabsService";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, Send, Book, Coffee, Briefcase, Plane, Users, Heart, Globe, GraduationCap, ShoppingCart, Utensils, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
+import { speechToText, textToSpeech } from "@/services/elevenLabsService";
+import { Briefcase, Coffee, Globe, GraduationCap, Heart, MessageCircle, Mic, MicOff, Plane, Send, ShoppingCart, Users, Utensils, Volume2, VolumeX } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Topic {
     id: string;
@@ -125,7 +125,7 @@ export default function EnglishTopicCards() {
             };
             audio.play();
         } catch (err) {
-            alert("Lỗi phát âm bằng ElevenLabs: " + (err as any).message);
+            alert("Lỗi phát âm bằng ElevenLabs: " + (err as Error).message);
             setTtsLoading(false);
         }
     };
@@ -135,7 +135,7 @@ export default function EnglishTopicCards() {
     const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
     // Text-to-Speech function
-    const speakText = (text: string) => {
+    const speakText = useCallback((text: string) => {
         if (!isAudioEnabled || !('speechSynthesis' in window)) return;
 
         // Stop any current speech
@@ -162,7 +162,7 @@ export default function EnglishTopicCards() {
 
         speechSynthesisRef.current = utterance;
         window.speechSynthesis.speak(utterance);
-    };
+    }, [isAudioEnabled]);
 
     // Speech-to-Text function
     const startRecording = async () => {
@@ -263,7 +263,7 @@ export default function EnglishTopicCards() {
             // Delay to ensure message is rendered
             setTimeout(() => speakText(lastMessage.content), 500);
         }
-    }, [messages, isAudioEnabled]);
+    }, [messages, isAudioEnabled, speakText]);
 
     const handleTopicClick = (topic: Topic) => {
         setSelectedTopic(topic);

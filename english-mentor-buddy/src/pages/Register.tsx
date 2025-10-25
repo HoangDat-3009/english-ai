@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate, Link } from 'react-router-dom';
-import { AtSign, LockKeyhole, User, Globe, Info } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { useTheme } from '@/components/ThemeProvider';
 import { supabase } from '@/services/supabaseClient'; // Nhập Supabase client
+import { motion } from 'framer-motion';
+import { AtSign, Globe, LockKeyhole, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Register: React.FC = () => {
     const navigate = useNavigate();
@@ -120,8 +120,8 @@ const Register: React.FC = () => {
             }
 
             return data;
-        } catch (error: any) {
-            throw new Error(error.message || 'Đã xảy ra lỗi khi đăng ký');
+        } catch (error: unknown) {
+            throw new Error((error as Error).message || 'Đã xảy ra lỗi khi đăng ký');
         }
     };
 
@@ -146,11 +146,11 @@ const Register: React.FC = () => {
             // Chuyển hướng về trang đăng nhập
             navigate('/');
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Registration error:', error);
             toast({
                 title: "Đăng ký thất bại",
-                description: error.message || "Đã xảy ra lỗi khi đăng ký tài khoản",
+                description: (error as Error).message || "Đã xảy ra lỗi khi đăng ký tài khoản",
                 variant: "destructive",
             });
         } finally {
