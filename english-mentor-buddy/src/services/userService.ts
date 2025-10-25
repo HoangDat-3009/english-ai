@@ -7,6 +7,67 @@ export interface User {
   Phone?: string;
   Role: string; // 'admin', 'student', 'teacher'
   Status: string; // 'active', 'inactive', 'banned'
+  FullName?: string; // Full name from UserProfile
+}
+
+export interface UserProfile {
+  UserID: number;
+  Username: string;
+  Email: string;
+  Phone?: string;
+  Role: string;
+  Status: string;
+  // Profile fields
+  FullName?: string;
+  AvatarURL?: string;
+  DOB?: string; // ISO date string
+  Gender?: 'male' | 'female' | 'other';
+  Address?: string;
+  Bio?: string;
+  PreferredLevel?: string;
+  LearningGoal?: string;
+  Timezone?: string;
+  Locale?: string;
+  CreatedAt?: string;
+  UpdatedAt?: string;
+  // Preference fields
+  EmailNotify?: boolean;
+  DarkMode?: boolean;
+}
+
+export interface UserStatistics {
+  TotalStudents: number;
+  ActiveStudents: number;
+  NewThisMonth: number;
+  ActiveLearners: number;
+  InactiveLong: number;
+}
+
+export interface StatusReason {
+  ReasonCode: string;
+  ReasonName: string;
+  Description: string | null;
+  IsTemporary: boolean;
+}
+
+export interface StatusHistory {
+  HistoryID: number;
+  FromStatus: string | null;
+  ToStatus: string;
+  ReasonCode: string | null;
+  ReasonName: string | null;
+  ReasonNote: string | null;
+  ExpiresAt: string | null;
+  ChangedByUserID: number | null;
+  ChangedByUsername: string | null;
+  ChangedAt: string;
+}
+
+export interface UpdateStatusPayload {
+  status: string;
+  reasonCode?: string;
+  reasonNote?: string;
+  changedByUserID?: number;
 }
 
 class UserService {
@@ -41,6 +102,21 @@ class UserService {
   }
 
   /**
+   * Get user profile with full details
+   */
+  async getUserProfile(id: number): Promise<UserProfile> {
+    try {
+      const response = await apiService.request<UserProfile>(`/api/Users/${id}/profile`, {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error(`Error fetching user profile ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Get users by role
    */
   async getUsersByRole(role: string): Promise<User[]> {
@@ -56,20 +132,85 @@ class UserService {
   }
 
   /**
-   * Update user status
+   * Get all available status reason codes
    */
-  async updateUserStatus(userId: number, newStatus: string): Promise<{ message: string; userId: number; newStatus: string }> {
+  async getStatusReasons(): Promise<StatusReason[]> {
     try {
+      const response = await apiService.request<StatusReason[]>('/api/Users/status-reasons', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error fetching status reasons:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get status change history for a user
+   */
+  async getUserStatusHistory(userId: number): Promise<StatusHistory[]> {
+    try {
+      const response = await apiService.request<StatusHistory[]>(
+        `/api/Users/${userId}/status-history`,
+        {
+          method: 'GET',
+        }
+      );
+      return response;
+    } catch (error) {
+      console.error(`Error fetching status history for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update user status with reason
+   */
+  async updateUserStatus(
+    userId: number, 
+    newStatus: string,
+    reasonCode?: string,
+    reasonNote?: string,
+    changedByUserID?: number
+  ): Promise<{ message: string; userId: number; newStatus: string }> {
+    try {
+      const payload: UpdateStatusPayload = {
+        status: newStatus,
+      };
+
+      if (reasonCode) {
+        payload.reasonCode = reasonCode;
+      }
+
+      if (reasonNote) {
+        payload.reasonNote = reasonNote;
+      }
+
+      if (changedByUserID) {
+        payload.changedByUserID = changedByUserID;
+      }
+
       const response = await apiService.request<{ message: string; userId: number; newStatus: string }>(
         `/api/Users/${userId}/status`,
         {
           method: 'PATCH',
-          body: JSON.stringify({ status: newStatus }),
+          body: JSON.stringify(payload),
         }
       );
       return response;
     } catch (error) {
       console.error(`Error updating user ${userId} status:`, error);
+      throw error;
+    }
+  }
+
+  async getUserStatistics(): Promise<UserStatistics> {
+    try {
+      const response = await apiService.request<UserStatistics>('/api/Users/statistics');
+      return response;
+    } catch (error) {
+      console.error('Error fetching user statistics:', error);
       throw error;
     }
   }

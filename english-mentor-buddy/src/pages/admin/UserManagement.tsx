@@ -1,21 +1,45 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MoreHorizontal, Mail, UserCheck, UserX, AlertCircle, RefreshCw, Users as UsersIcon, Shield, GraduationCap, Ban } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Mail, UserCheck, UserX, AlertCircle, RefreshCw, Users as UsersIcon, Shield, GraduationCap, Ban, History, User as UserIcon, TrendingUp, BookOpen, AlertTriangle, BarChart3, Search, Filter } from 'lucide-react';
 import { toast } from 'sonner';
-import userService, { User } from '@/services/userService';
+import userService, { User, UserStatistics } from '@/services/userService';
 import { StatusReasonDialog } from '@/components/StatusReasonDialog';
 import { ConfirmStatusDialog } from '@/components/ConfirmStatusDialog';
+import { UserStatusHistoryDialog } from '@/components/UserStatusHistoryDialog';
+import { UserProfileDialog } from '@/components/UserProfileDialog';
 
 const UserManagement = () => {
+  const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<User[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]); // Store all users for stats
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]); // Filtered users for search
+  const [searchQuery, setSearchQuery] = useState(''); // Search query
+  const [statusFilter, setStatusFilter] = useState<string>('all'); // Status filter
+  const [statistics, setStatistics] = useState<UserStatistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<string>('all'); // 'all', 'admin', 'student', 'teacher'
+  const [filter, setFilter] = useState<string>('student'); // Default to show students only
   const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
   
   // Status reason dialog state
@@ -26,6 +50,17 @@ const UserManagement = () => {
     currentStatus: string;
     newStatus: 'active' | 'inactive' | 'banned';
   } | null>(null);
+  
+  // User status history dialog state
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [selectedUserForHistory, setSelectedUserForHistory] = useState<{
+    userId: number;
+    username: string;
+  } | null>(null);
+  
+  // User profile dialog state
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [selectedUserForProfile, setSelectedUserForProfile] = useState<number | null>(null);
   
   // Confirm dialog state (not used anymore, keeping for backward compatibility)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -45,6 +80,10 @@ const UserManagement = () => {
       setLoading(true);
       setError(null);
       
+      // Fetch statistics
+      const stats = await userService.getUserStatistics();
+      setStatistics(stats);
+      
       let data: User[];
       if (filter === 'all') {
         data = await userService.getAllUsers();
@@ -53,6 +92,7 @@ const UserManagement = () => {
       }
       
       setUsers(data);
+      setFilteredUsers(data); // Initialize filtered users
       
       // Always fetch all users for stats calculation
       if (filter !== 'all') {
@@ -73,6 +113,32 @@ const UserManagement = () => {
     fetchUsers();
   }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Handle search query change
+  useEffect(() => {
+    let filtered = users;
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(user => user.Status === statusFilter);
+    }
+
+    // Apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(user => {
+        const fullName = (user.FullName || '').toLowerCase();
+        const username = user.Username.toLowerCase();
+        const userId = user.UserID.toString();
+        
+        return fullName.includes(query) || 
+               username.includes(query) || 
+               userId.includes(query);
+      });
+    }
+
+    setFilteredUsers(filtered);
+  }, [searchQuery, statusFilter, users]);
+
   // Handle initial status change click (show reason dialog for ALL status changes)
   const handleStatusChangeClick = (userId: number, username: string, currentStatus: string, newStatus: 'active' | 'inactive' | 'banned') => {
     if (currentStatus === newStatus) return;
@@ -85,7 +151,13 @@ const UserManagement = () => {
   };
 
   // Execute the actual status change after confirmation
-  const executeStatusChange = useCallback(async (userId: number, username: string, newStatus: string, reason?: string) => {
+  const executeStatusChange = useCallback(async (
+    userId: number, 
+    username: string, 
+    newStatus: string, 
+    reasonNote?: string,
+    reasonCode?: string
+  ) => {
     // Prevent concurrent executions
     if (isExecutingRef.current) {
       console.log('Already executing, skipping...');
@@ -103,7 +175,18 @@ const UserManagement = () => {
       setUpdatingUserId(userId);
       setError(null);
 
-      await userService.updateUserStatus(userId, newStatus);
+      // Use provided reasonCode, fallback to 'OTHER' if not provided
+      const finalReasonCode = reasonCode || 'OTHER';
+      // TODO: Get changedByUserID from auth context (logged-in admin)
+      const changedByUserID = 1; // Temporary hardcode
+
+      await userService.updateUserStatus(
+        userId, 
+        newStatus, 
+        finalReasonCode, 
+        reasonNote, 
+        changedByUserID
+      );
 
       // Update local state for both filtered users and all users
       setUsers(prevUsers =>
@@ -118,8 +201,19 @@ const UserManagement = () => {
         )
       );
 
+      // Refresh statistics after status change
+      try {
+        const stats = await userService.getUserStatistics();
+        setStatistics(stats);
+      } catch (statErr) {
+        console.error('Error refreshing statistics:', statErr);
+      }
+
       // Success - no toast notification, UI updates automatically
-      console.log(`✅ Status updated successfully for user ${userId} to ${newStatus}${reason ? ` with reason: ${reason}` : ''}`);
+      console.log(`✅ Status updated successfully for user ${userId} to ${newStatus}`, {
+        reasonCode: finalReasonCode,
+        reasonNote
+      });
     } catch (err) {
       console.error('Error updating user status:', err);
       setError('Không thể cập nhật trạng thái. Vui lòng thử lại sau.');
@@ -151,19 +245,32 @@ const UserManagement = () => {
   }, [pendingStatusChange, executeStatusChange]);
 
   // Handle status change with reason
-  const handleStatusChangeWithReason = useCallback((reason: string) => {
-    console.log('handleStatusChangeWithReason called:', { pendingStatusWithReason, reason });
+  const handleStatusChangeWithReason = useCallback((reasonCode: string, reasonNote: string) => {
+    console.log('handleStatusChangeWithReason called:', { pendingStatusWithReason, reasonCode, reasonNote });
     if (pendingStatusWithReason) {
       executeStatusChange(
         pendingStatusWithReason.userId,
         pendingStatusWithReason.username,
         pendingStatusWithReason.newStatus,
-        reason
+        reasonNote, // Pass reasonNote
+        reasonCode  // Pass reasonCode
       );
       setPendingStatusWithReason(null);
       setReasonDialogOpen(false); // Close dialog explicitly
     }
   }, [pendingStatusWithReason, executeStatusChange]);
+
+  // Handle open status history dialog
+  const handleOpenHistory = (userId: number, username: string) => {
+    setSelectedUserForHistory({ userId, username });
+    setHistoryDialogOpen(true);
+  };
+
+  // Handle open profile dialog
+  const handleOpenProfile = (userId: number) => {
+    setSelectedUserForProfile(userId);
+    setProfileDialogOpen(true);
+  };
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; className: string }> = {
@@ -186,11 +293,6 @@ const UserManagement = () => {
         label: 'Quản trị viên', 
         className: 'bg-purple-500 dark:bg-purple-600 text-white',
         icon: Shield
-      },
-      'teacher': { 
-        label: 'Giáo viên', 
-        className: 'bg-blue-500 dark:bg-blue-600 text-white',
-        icon: GraduationCap
       },
       'student': { 
         label: 'Học viên', 
@@ -222,7 +324,6 @@ const UserManagement = () => {
   const userStats = {
     total: allUsers.length,
     admin: allUsers.filter(u => u.Role === 'admin').length,
-    teacher: allUsers.filter(u => u.Role === 'teacher').length,
     student: allUsers.filter(u => u.Role === 'student').length,
     active: allUsers.filter(u => u.Status === 'active').length,
   };
@@ -257,14 +358,15 @@ const UserManagement = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Tổng học viên */}
         <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Tổng người dùng</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Tổng học viên</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading ? '...' : userStats.total}
+                  {loading || !statistics ? '...' : statistics.TotalStudents}
                 </p>
               </div>
               <UsersIcon className="h-8 w-8 text-blue-500" />
@@ -272,103 +374,103 @@ const UserManagement = () => {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Quản trị viên</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading ? '...' : userStats.admin}
-                </p>
-              </div>
-              <Shield className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Giáo viên</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading ? '...' : userStats.teacher}
-                </p>
-              </div>
-              <GraduationCap className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Học viên</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading ? '...' : userStats.student}
-                </p>
-              </div>
-              <UsersIcon className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* Đang hoạt động */}
         <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Đang hoạt động</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading ? '...' : userStats.active}
+                  {loading || !statistics ? '...' : statistics.ActiveStudents}
                 </p>
               </div>
               <UserCheck className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
+
+        {/* Mới tháng này */}
+        <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Mới tháng này</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {loading || !statistics ? '...' : statistics.NewThisMonth}
+                </p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Filter Buttons */}
-      <div className="flex gap-2">
-        <Button 
-          variant={filter === 'all' ? 'default' : 'outline'}
-          onClick={() => setFilter('all')}
-          className="rounded-xl"
-        >
-          Tất cả ({userStats.total})
-        </Button>
-        <Button 
-          variant={filter === 'admin' ? 'default' : 'outline'}
-          onClick={() => setFilter('admin')}
-          className="rounded-xl"
-        >
-          <Shield className="h-4 w-4 mr-1" />
-          Admin ({userStats.admin})
-        </Button>
-        <Button 
-          variant={filter === 'teacher' ? 'default' : 'outline'}
-          onClick={() => setFilter('teacher')}
-          className="rounded-xl"
-        >
-          <GraduationCap className="h-4 w-4 mr-1" />
-          Giáo viên ({userStats.teacher})
-        </Button>
-        <Button 
-          variant={filter === 'student' ? 'default' : 'outline'}
-          onClick={() => setFilter('student')}
-          className="rounded-xl"
-        >
-          <UsersIcon className="h-4 w-4 mr-1" />
-          Học viên ({userStats.student})
-        </Button>
-      </div>
+      {/* Tabs for User List and Statistics */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 bg-gray-100 dark:bg-gray-800 p-1">
+          <TabsTrigger 
+            value="users" 
+            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:dark:bg-gray-700 data-[state=active]:shadow-md data-[state=active]:font-semibold"
+          >
+            <UsersIcon className="h-4 w-4" />
+            Danh sách học viên
+          </TabsTrigger>
+          <TabsTrigger 
+            value="statistics" 
+            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:dark:bg-gray-700 data-[state=active]:shadow-md data-[state=active]:font-semibold"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Biểu đồ thống kê
+          </TabsTrigger>
+        </TabsList>
 
-      <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+        {/* Tab 1: User List */}
+        <TabsContent value="users" className="mt-6">
+          <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
         <CardHeader>
-          <CardTitle className="text-gray-900 dark:text-white">
-            Danh sách người dùng
-          </CardTitle>
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Tìm kiếm theo tên, username hoặc ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Lọc theo trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  <div className="flex items-center gap-2">
+                    <UsersIcon className="h-4 w-4" />
+                    Tất cả
+                  </div>
+                </SelectItem>
+                <SelectItem value="active">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-green-600" />
+                    Hoạt động
+                  </div>
+                </SelectItem>
+                <SelectItem value="inactive">
+                  <div className="flex items-center gap-2">
+                    <UserX className="h-4 w-4 text-yellow-600" />
+                    Tạm khóa
+                  </div>
+                </SelectItem>
+                <SelectItem value="banned">
+                  <div className="flex items-center gap-2">
+                    <Ban className="h-4 w-4 text-red-600" />
+                    Bị cấm
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -386,16 +488,16 @@ const UserManagement = () => {
                 </div>
               ))}
             </div>
-          ) : users.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <div className="text-center py-12">
               <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
               <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Không có người dùng nào
+                {searchQuery ? 'Không tìm thấy người dùng phù hợp' : 'Không có người dùng nào'}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {users.map((user, index) => (
+              {filteredUsers.map((user, index) => (
                 <div 
                   key={user.UserID} 
                   className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -423,19 +525,10 @@ const UserManagement = () => {
                     
                     {/* User Info */}
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-900 dark:text-white">{user.Username}</p>
-                        {getRoleBadge(user.Role)}
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        <Mail className="inline h-3 w-3 mr-1" />
-                        {user.Email}
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {user.FullName || user.Username}
                       </p>
-                      {user.Phone && (
-                        <p className="text-xs text-gray-500 dark:text-gray-500">
-                          📞 {user.Phone}
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400">@{user.Username}</p>
                     </div>
                   </div>
                   
@@ -509,15 +602,38 @@ const UserManagement = () => {
                       </Button>
                     </div>
 
-                    {/* More Options Button */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                      title="Thêm tùy chọn"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    {/* More Options Dropdown Menu */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>Tùy chọn</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        
+                        <DropdownMenuItem 
+                          onClick={() => handleOpenProfile(user.UserID)}
+                          className="cursor-pointer"
+                        >
+                          <UserIcon className="mr-2 h-4 w-4" />
+                          <span>Xem thông tin chi tiết</span>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuItem 
+                          onClick={() => handleOpenHistory(user.UserID, user.Username)}
+                          className="cursor-pointer"
+                        >
+                          <History className="mr-2 h-4 w-4" />
+                          <span>Lịch sử thay đổi trạng thái</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -525,6 +641,31 @@ const UserManagement = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        {/* Tab 2: Statistics & Charts */}
+        <TabsContent value="statistics" className="mt-6">
+          {/* Charts Placeholder */}
+          <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-gray-900 dark:text-white">
+                Biểu đồ thống kê
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <BarChart3 className="h-16 w-16 text-gray-400" />
+                <p className="text-gray-600 dark:text-gray-400 text-center">
+                  Biểu đồ thống kê đang được phát triển
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 text-center max-w-md">
+                  Sẽ hiển thị các biểu đồ về xu hướng tăng trưởng học viên, phân bố trạng thái, và hoạt động học tập
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Status Reason Dialog - For all status changes */}
       <StatusReasonDialog
@@ -533,6 +674,21 @@ const UserManagement = () => {
         onConfirm={handleStatusChangeWithReason}
         username={pendingStatusWithReason?.username || ''}
         newStatus={pendingStatusWithReason?.newStatus || 'active'}
+      />
+
+      {/* User Status History Dialog */}
+      <UserStatusHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        userId={selectedUserForHistory?.userId || 0}
+        username={selectedUserForHistory?.username || ''}
+      />
+
+      {/* User Profile Dialog */}
+      <UserProfileDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        userId={selectedUserForProfile || 0}
       />
     </div>
   );

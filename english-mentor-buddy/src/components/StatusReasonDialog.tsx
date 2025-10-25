@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import userService, { StatusReason } from '@/services/userService';
+import { Loader2 } from 'lucide-react';
 
 interface StatusReasonDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (reason: string) => void;
+  onConfirm: (reasonCode: string, reasonNote: string) => void;
   username: string;
   newStatus: 'active' | 'inactive' | 'banned';
 }
@@ -65,32 +74,70 @@ export const StatusReasonDialog: React.FC<StatusReasonDialogProps> = ({
   username,
   newStatus,
 }) => {
-  const [reason, setReason] = useState('');
+  const [reasonCode, setReasonCode] = useState('');
+  const [reasonNote, setReasonNote] = useState('');
+  const [availableReasons, setAvailableReasons] = useState<StatusReason[]>([]);
+  const [loadingReasons, setLoadingReasons] = useState(false);
   const config = statusConfig[newStatus];
 
+  // Fetch available reasons when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchReasons();
+    }
+  }, [open]);
+
+  const fetchReasons = async () => {
+    try {
+      setLoadingReasons(true);
+      const reasons = await userService.getStatusReasons();
+      setAvailableReasons(reasons);
+      
+      // Auto-select first reason if available
+      if (reasons.length > 0) {
+        setReasonCode(reasons[0].ReasonCode);
+      }
+    } catch (error) {
+      console.error('Error fetching status reasons:', error);
+      // Fallback reasons if API fails
+      setAvailableReasons([
+        { ReasonCode: 'OTHER', ReasonName: 'Lý do khác', Description: null, IsTemporary: false }
+      ]);
+      setReasonCode('OTHER');
+    } finally {
+      setLoadingReasons(false);
+    }
+  };
+
   const handleConfirm = () => {
-    if (reason.trim()) {
-      const trimmedReason = reason.trim();
-      setReason(''); // Reset immediately
-      onConfirm(trimmedReason);
+    if (reasonCode && reasonNote.trim()) {
+      const trimmedNote = reasonNote.trim();
+      // Reset immediately
+      setReasonCode('');
+      setReasonNote('');
+      onConfirm(reasonCode, trimmedNote);
     }
   };
 
   const handleCancel = () => {
-    setReason('');
+    setReasonCode('');
+    setReasonNote('');
     onOpenChange(false);
   };
 
-  // Reset reason when dialog closes
-  React.useEffect(() => {
+  // Reset when dialog closes
+  useEffect(() => {
     if (!open) {
-      setReason('');
+      setReasonCode('');
+      setReasonNote('');
     }
   }, [open]);
 
+  const selectedReason = availableReasons.find(r => r.ReasonCode === reasonCode);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle className={config.titleColor}>
             {config.title}
@@ -98,25 +145,68 @@ export const StatusReasonDialog: React.FC<StatusReasonDialogProps> = ({
           <DialogDescription>
             {config.description} <strong>"{username}"</strong>.
             <br />
-            Vui lòng ghi rõ lý do để lưu vào hệ thống.
+            Vui lòng chọn lý do và ghi rõ chi tiết để lưu vào hệ thống.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
+          {/* Reason Code Dropdown */}
           <div className="grid gap-2">
-            <Label htmlFor="reason" className="text-left font-semibold">
+            <Label htmlFor="reasonCode" className="text-left font-semibold">
+              Loại lý do <span className="text-red-500">*</span>
+            </Label>
+            {loadingReasons ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Đang tải danh sách lý do...
+              </div>
+            ) : (
+              <Select
+                value={reasonCode}
+                onValueChange={setReasonCode}
+                disabled={availableReasons.length === 0}
+              >
+                <SelectTrigger id="reasonCode" className="rounded-lg">
+                  <SelectValue placeholder="Chọn lý do..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableReasons.map((reason) => (
+                    <SelectItem key={reason.ReasonCode} value={reason.ReasonCode}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{reason.ReasonName}</span>
+                        {reason.Description && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {reason.Description}
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {selectedReason?.Description && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 italic">
+                💡 {selectedReason.Description}
+              </p>
+            )}
+          </div>
+
+          {/* Reason Note Textarea */}
+          <div className="grid gap-2">
+            <Label htmlFor="reasonNote" className="text-left font-semibold">
               {config.reasonLabel} <span className="text-red-500">*</span>
             </Label>
             <Textarea
-              id="reason"
+              id="reasonNote"
               placeholder={config.reasonPlaceholder}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              value={reasonNote}
+              onChange={(e) => setReasonNote(e.target.value)}
               className="min-h-[100px] resize-none"
               maxLength={500}
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 text-right">
-              {reason.length}/500 ký tự
+              {reasonNote.length}/500 ký tự
             </p>
           </div>
 
@@ -138,7 +228,7 @@ export const StatusReasonDialog: React.FC<StatusReasonDialogProps> = ({
           <Button
             variant={config.buttonVariant}
             onClick={handleConfirm}
-            disabled={!reason.trim()}
+            disabled={!reasonCode || !reasonNote.trim() || loadingReasons}
             className="rounded-lg"
           >
             {config.buttonText}
