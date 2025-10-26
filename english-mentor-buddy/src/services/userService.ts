@@ -43,6 +43,20 @@ export interface UserStatistics {
   InactiveLong: number;
 }
 
+export interface PaginationInfo {
+  CurrentPage: number;
+  PageSize: number;
+  TotalCount: number;
+  TotalPages: number;
+  HasPrevious: boolean;
+  HasNext: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  Data: T[];
+  Pagination: PaginationInfo;
+}
+
 export interface StatusReason {
   ReasonCode: string;
   ReasonName: string;
@@ -72,16 +86,59 @@ export interface UpdateStatusPayload {
 
 class UserService {
   /**
-   * Get all users
+   * Get users with pagination
    */
-  async getAllUsers(): Promise<User[]> {
+  async getUsers(page: number = 1, pageSize: number = 10, role?: string, search?: string, status?: string): Promise<PaginatedResponse<User>> {
     try {
-      const response = await apiService.request<User[]>('/api/Users', {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
+      if (role) {
+        params.append('role', role);
+      }
+      if (search) {
+        params.append('search', search);
+      }
+      if (status) {
+        params.append('status', status);
+      }
+
+      const response = await apiService.request<PaginatedResponse<User>>(`/api/Users?${params.toString()}`, {
         method: 'GET',
       });
       return response;
     } catch (error) {
       console.error('Error fetching users:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all users (backward compatibility)
+   */
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const response = await apiService.request<PaginatedResponse<User>>('/api/Users?pageSize=1000', {
+        method: 'GET',
+      });
+      return response.Data;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get users by role (backward compatibility)
+   */
+  async getUsersByRole(role: string): Promise<User[]> {
+    try {
+      const response = await apiService.request<PaginatedResponse<User>>(`/api/Users?role=${role}&pageSize=1000`, {
+        method: 'GET',
+      });
+      return response.Data;
+    } catch (error) {
+      console.error('Error fetching users by role:', error);
       throw error;
     }
   }
@@ -112,21 +169,6 @@ class UserService {
       return response;
     } catch (error) {
       console.error(`Error fetching user profile ${id}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get users by role
-   */
-  async getUsersByRole(role: string): Promise<User[]> {
-    try {
-      const response = await apiService.request<User[]>(`/api/Users/role/${role}`, {
-        method: 'GET',
-      });
-      return response;
-    } catch (error) {
-      console.error(`Error fetching users by role ${role}:`, error);
       throw error;
     }
   }
