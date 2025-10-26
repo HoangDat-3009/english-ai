@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
+import * as XLSX from 'xlsx';
 import {
   Select,
   SelectContent,
@@ -21,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Mail, UserCheck, UserX, AlertCircle, RefreshCw, Users as UsersIcon, Shield, GraduationCap, Ban, History, User as UserIcon, TrendingUp, BookOpen, AlertTriangle, BarChart3, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MoreHorizontal, Mail, UserCheck, UserX, AlertCircle, RefreshCw, Users as UsersIcon, Shield, GraduationCap, Ban, History, User as UserIcon, TrendingUp, BookOpen, AlertTriangle, BarChart3, Search, Filter, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import userService, { User, UserStatistics, PaginationInfo } from '@/services/userService';
 import { StatusReasonDialog } from '@/components/StatusReasonDialog';
@@ -415,6 +416,110 @@ const UserManagement = () => {
     return username.substring(0, 2).toUpperCase();
   };
 
+  // Export to Excel function
+  const handleExportToExcel = async () => {
+    try {
+      setSearchLoading(true);
+      toast.info('Đang chuẩn bị dữ liệu xuất file...');
+
+      // Fetch all users with current filters
+      // Backend limits to 100 per request, so we need to fetch multiple times
+      const allUsers: User[] = [];
+      let currentPage = 1;
+      let hasMore = true;
+      const pageSize = 100; // Maximum allowed by backend
+
+      while (hasMore) {
+        const response = await userService.getUsers(
+          currentPage, 
+          pageSize,
+          filter, 
+          searchQuery || undefined, 
+          statusFilter !== 'all' ? statusFilter : undefined
+        );
+
+        if (response.Data && response.Data.length > 0) {
+          allUsers.push(...response.Data);
+          
+          // Check if there are more pages
+          if (currentPage < response.Pagination.TotalPages) {
+            currentPage++;
+            toast.info(`Đang tải trang ${currentPage}/${response.Pagination.TotalPages}...`);
+          } else {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (!allUsers || allUsers.length === 0) {
+        toast.warning('Không có dữ liệu để xuất');
+        setSearchLoading(false);
+        return;
+      }
+
+      toast.info(`Đang xuất ${allUsers.length} học viên...`);
+
+      // Prepare data for Excel
+      const excelData = allUsers.map((user, index) => ({
+        'STT': index + 1,
+        'ID': user.UserID,
+        'Họ và tên': user.FullName || '',
+        'Username': user.Username,
+        'Email': user.Email || '',
+        'Số điện thoại': user.Phone || '',
+        'Vai trò': user.Role === 'admin' ? 'Quản trị viên' : 'Học viên',
+        'Trạng thái': user.Status === 'active' ? 'Hoạt động' : 
+                      user.Status === 'inactive' ? 'Không hoạt động' : 'Bị cấm'
+      }));
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Danh sách học viên');
+
+      // Auto-size columns
+      const maxWidth = 30;
+      const colWidths = Object.keys(excelData[0] || {}).map(key => ({
+        wch: Math.min(
+          maxWidth,
+          Math.max(
+            key.length,
+            ...excelData.map(row => String(row[key as keyof typeof row] || '').length)
+          )
+        )
+      }));
+      ws['!cols'] = colWidths;
+
+      // Generate filename based on filters
+      let filename = 'Danh_sach_hoc_vien';
+      
+      if (statusFilter !== 'all') {
+        const statusName = statusFilter === 'active' ? 'hoat_dong' : 
+                          statusFilter === 'inactive' ? 'tam_khoa' : 'bi_cam';
+        filename += `_${statusName}`;
+      }
+      
+      if (searchQuery) {
+        filename += `_tim_kiem`;
+      }
+      
+      filename += `_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}`;
+      filename += '.xlsx';
+
+      // Download file
+      XLSX.writeFile(wb, filename);
+
+      toast.success(`Đã xuất ${allUsers.length} học viên thành công!`);
+      setSearchLoading(false);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Lỗi khi xuất file Excel');
+      setSearchLoading(false);
+    }
+  };
+
   // Pagination handlers
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.TotalPages) {
@@ -485,16 +590,10 @@ const UserManagement = () => {
             Quản lý tài khoản và thông tin người dùng
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => fetchUsers(pagination.CurrentPage)} variant="outline" disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Làm mới
-          </Button>
-          <Button>
-            <Mail className="mr-2 h-4 w-4" />
-            Gửi thông báo
-          </Button>
-        </div>
+        <Button onClick={() => fetchUsers(pagination.CurrentPage)} variant="outline" disabled={loading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Làm mới
+        </Button>
       </div>
 
       {/* Statistics Cards - Memoized to prevent re-render during search/pagination */}
@@ -523,51 +622,57 @@ const UserManagement = () => {
         <TabsContent value="users" className="mt-6">
           <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              {searchLoading && (
-                <RefreshCw className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500 animate-spin" />
-              )}
-              <Input
-                placeholder="Tìm kiếm theo tên, username hoặc ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`pl-10 ${searchLoading ? 'pr-10' : ''}`}
-              />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 flex-1">
+              <div className="relative flex-1 max-w-xl">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                {searchLoading && (
+                  <RefreshCw className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500 animate-spin" />
+                )}
+                <Input
+                  placeholder="Tìm kiếm theo tên, username hoặc ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`pl-10 ${searchLoading ? 'pr-10' : ''}`}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Lọc theo trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    <div className="flex items-center gap-2">
+                      <UsersIcon className="h-4 w-4" />
+                      Tất cả
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="active">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-4 w-4 text-green-600" />
+                      Hoạt động
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="inactive">
+                    <div className="flex items-center gap-2">
+                      <UserX className="h-4 w-4 text-yellow-600" />
+                      Tạm khóa
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="banned">
+                    <div className="flex items-center gap-2">
+                      <Ban className="h-4 w-4 text-red-600" />
+                      Bị cấm
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Lọc theo trạng thái" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  <div className="flex items-center gap-2">
-                    <UsersIcon className="h-4 w-4" />
-                    Tất cả
-                  </div>
-                </SelectItem>
-                <SelectItem value="active">
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-green-600" />
-                    Hoạt động
-                  </div>
-                </SelectItem>
-                <SelectItem value="inactive">
-                  <div className="flex items-center gap-2">
-                    <UserX className="h-4 w-4 text-yellow-600" />
-                    Tạm khóa
-                  </div>
-                </SelectItem>
-                <SelectItem value="banned">
-                  <div className="flex items-center gap-2">
-                    <Ban className="h-4 w-4 text-red-600" />
-                    Bị cấm
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <Button variant="default" onClick={handleExportToExcel} disabled={searchLoading}>
+              <Download className="mr-2 h-4 w-4" />
+              Xuất file
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
