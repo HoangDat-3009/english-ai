@@ -21,13 +21,65 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Mail, UserCheck, UserX, AlertCircle, RefreshCw, Users as UsersIcon, Shield, GraduationCap, Ban, History, User as UserIcon, TrendingUp, BookOpen, AlertTriangle, BarChart3, Search, Filter } from 'lucide-react';
+import { MoreHorizontal, Mail, UserCheck, UserX, AlertCircle, RefreshCw, Users as UsersIcon, Shield, GraduationCap, Ban, History, User as UserIcon, TrendingUp, BookOpen, AlertTriangle, BarChart3, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import userService, { User, UserStatistics } from '@/services/userService';
+import userService, { User, UserStatistics, PaginationInfo } from '@/services/userService';
 import { StatusReasonDialog } from '@/components/StatusReasonDialog';
 import { ConfirmStatusDialog } from '@/components/ConfirmStatusDialog';
 import { UserStatusHistoryDialog } from '@/components/UserStatusHistoryDialog';
 import { UserProfileDialog } from '@/components/UserProfileDialog';
+
+// Memoized Statistics Cards component to prevent re-render
+const StatisticsCards = React.memo(({ statistics, isLoading }: { statistics: UserStatistics | null, isLoading: boolean }) => (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {/* Tổng học viên */}
+    <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Tổng học viên</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              {isLoading || !statistics ? '...' : statistics.TotalStudents}
+            </p>
+          </div>
+          <UsersIcon className="h-8 w-8 text-blue-500" />
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Đang hoạt động */}
+    <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Đang hoạt động</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              {isLoading || !statistics ? '...' : statistics.ActiveStudents}
+            </p>
+          </div>
+          <UserCheck className="h-8 w-8 text-green-500" />
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Mới tháng này */}
+    <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Mới tháng này</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              {isLoading || !statistics ? '...' : statistics.NewThisMonth}
+            </p>
+          </div>
+          <TrendingUp className="h-8 w-8 text-purple-500" />
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+));
+
+StatisticsCards.displayName = 'StatisticsCards';
 
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('users');
@@ -37,7 +89,17 @@ const UserManagement = () => {
   const [searchQuery, setSearchQuery] = useState(''); // Search query
   const [statusFilter, setStatusFilter] = useState<string>('all'); // Status filter
   const [statistics, setStatistics] = useState<UserStatistics | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    CurrentPage: 1,
+    PageSize: 8,
+    TotalCount: 0,
+    TotalPages: 0,
+    HasPrevious: false,
+    HasNext: false
+  });
+  const [loading, setLoading] = useState(true); // Initial full page load
+  const [paginationLoading, setPaginationLoading] = useState(false); // Loading when changing pages
+  const [searchLoading, setSearchLoading] = useState(false); // Loading when searching
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('student'); // Default to show students only
   const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
@@ -74,70 +136,103 @@ const UserManagement = () => {
   // Prevent duplicate toasts with ref
   const isExecutingRef = useRef(false); // Prevent concurrent executions
 
-  // Fetch users from API
-  const fetchUsers = async () => {
+  // Fetch initial data (statistics and all users) - only once
+  const fetchInitialData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
+      console.log('[UserManagement] Fetching initial data...');
       
       // Fetch statistics
       const stats = await userService.getUserStatistics();
       setStatistics(stats);
+      console.log('[UserManagement] Statistics fetched:', stats);
       
-      let data: User[];
-      if (filter === 'all') {
-        data = await userService.getAllUsers();
-      } else {
-        data = await userService.getUsersByRole(filter);
-      }
-      
-      setUsers(data);
-      setFilteredUsers(data); // Initialize filtered users
-      
-      // Always fetch all users for stats calculation
-      if (filter !== 'all') {
-        const allData = await userService.getAllUsers();
-        setAllUsers(allData);
-      } else {
-        setAllUsers(data);
-      }
+      // Fetch all users for stats calculation
+      const allData = await userService.getAllUsers();
+      setAllUsers(allData);
+      console.log('[UserManagement] All users fetched:', allData.length);
     } catch (err) {
-      console.error('Error fetching users:', err);
+      console.error('[UserManagement] Error fetching initial data:', err);
+    }
+  }, []);
+
+  // Fetch users from API (paginated)
+  const fetchUsers = useCallback(async (page: number = 1, isInitialLoad: boolean = false) => {
+    try {
+      // Use different loading state based on whether it's initial load or pagination
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setPaginationLoading(true);
+      }
+      setError(null);
+      
+      console.log('[UserManagement] Fetching users, page:', page, 'filter:', filter, 'search:', searchQuery, 'status:', statusFilter);
+      
+      // Fetch paginated users with search query and status filter
+      const response = await userService.getUsers(
+        page, 
+        8, 
+        filter === 'all' ? undefined : filter,
+        searchQuery || undefined,
+        statusFilter === 'all' ? undefined : statusFilter
+      );
+      console.log('[UserManagement] Users fetched:', response);
+      setUsers(response.Data);
+      setPagination(response.Pagination);
+    } catch (err) {
+      console.error('[UserManagement] Error fetching users:', err);
       setError('Không thể tải danh sách người dùng. Vui lòng thử lại sau.');
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      } else {
+        setPaginationLoading(false);
+      }
     }
-  };
+  }, [filter, searchQuery, statusFilter]);
 
+  // Initial load
   useEffect(() => {
-    fetchUsers();
-  }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchInitialData(); // Fetch stats and all users once
+    fetchUsers(1, true); // Fetch first page with initial load flag
+  }, [fetchInitialData, fetchUsers]);
 
-  // Handle search query change
+  // Sync filteredUsers with users (no client-side filtering needed, all done server-side)
   useEffect(() => {
-    let filtered = users;
+    setFilteredUsers(users);
+  }, [users]);
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(user => user.Status === statusFilter);
+  // Debounce search query - trigger API call when user stops typing
+  useEffect(() => {
+    // Show loading immediately when user types
+    if (searchQuery) {
+      setSearchLoading(true);
     }
 
-    // Apply search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(user => {
-        const fullName = (user.FullName || '').toLowerCase();
-        const username = user.Username.toLowerCase();
-        const userId = user.UserID.toString();
-        
-        return fullName.includes(query) || 
-               username.includes(query) || 
-               userId.includes(query);
-      });
-    }
+    const timer = setTimeout(() => {
+      // Reset to page 1 when search query changes
+      fetchUsers(1, false);
+      setSearchLoading(false);
+    }, 300); // 300ms debounce - faster response
 
-    setFilteredUsers(filtered);
-  }, [searchQuery, statusFilter, users]);
+    return () => {
+      clearTimeout(timer);
+      setSearchLoading(false);
+    };
+  }, [searchQuery, fetchUsers]);
+
+  // Status filter change - immediately trigger API call (no debounce)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    // Skip on first render to avoid double fetch
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
+    // Reset to page 1 when status filter changes
+    fetchUsers(1, false);
+  }, [statusFilter, fetchUsers]);
 
   // Handle initial status change click (show reason dialog for ALL status changes)
   const handleStatusChangeClick = (userId: number, username: string, currentStatus: string, newStatus: 'active' | 'inactive' | 'banned') => {
@@ -320,6 +415,51 @@ const UserManagement = () => {
     return username.substring(0, 2).toUpperCase();
   };
 
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.TotalPages) {
+      fetchUsers(newPage);
+    }
+  };
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const current = pagination?.CurrentPage || 1;
+    const total = pagination?.TotalPages || 0;
+
+    if (total <= 1) return pages;
+
+    // Always show first page
+    pages.push(1);
+
+    // Show pages around current page
+    const start = Math.max(2, current - 2);
+    const end = Math.min(total - 1, current + 2);
+
+    // Add ellipsis after first page if needed
+    if (start > 2) {
+      pages.push('...');
+    }
+
+    // Add pages around current
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    // Add ellipsis before last page if needed
+    if (end < total - 1) {
+      pages.push('...');
+    }
+
+    // Always show last page if total > 1
+    if (total > 1) {
+      pages.push(total);
+    }
+
+    return pages;
+  };
+
   // Calculate stats from ALL users, not filtered users
   const userStats = {
     total: allUsers.length,
@@ -346,7 +486,7 @@ const UserManagement = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={fetchUsers} variant="outline" disabled={loading}>
+          <Button onClick={() => fetchUsers(pagination.CurrentPage)} variant="outline" disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Làm mới
           </Button>
@@ -357,53 +497,8 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Tổng học viên */}
-        <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Tổng học viên</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading || !statistics ? '...' : statistics.TotalStudents}
-                </p>
-              </div>
-              <UsersIcon className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Đang hoạt động */}
-        <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Đang hoạt động</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading || !statistics ? '...' : statistics.ActiveStudents}
-                </p>
-              </div>
-              <UserCheck className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Mới tháng này */}
-        <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Mới tháng này</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {loading || !statistics ? '...' : statistics.NewThisMonth}
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Statistics Cards - Memoized to prevent re-render during search/pagination */}
+      <StatisticsCards statistics={statistics} isLoading={loading} />
 
       {/* Tabs for User List and Statistics */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -431,11 +526,14 @@ const UserManagement = () => {
           <div className="flex items-center gap-4">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              {searchLoading && (
+                <RefreshCw className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500 animate-spin" />
+              )}
               <Input
                 placeholder="Tìm kiếm theo tên, username hoặc ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className={`pl-10 ${searchLoading ? 'pr-10' : ''}`}
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -496,7 +594,17 @@ const UserManagement = () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 relative">
+              {/* Pagination loading overlay */}
+              {paginationLoading && (
+                <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                    <span className="text-sm font-medium">Đang tải...</span>
+                  </div>
+                </div>
+              )}
+              
               {filteredUsers.map((user, index) => (
                 <div 
                   key={user.UserID} 
@@ -506,7 +614,7 @@ const UserManagement = () => {
                   <div className="flex items-center space-x-4">
                     {/* STT (Số thứ tự) */}
                     <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-semibold text-sm">
-                      {index + 1}
+                      {((pagination?.CurrentPage || 1) - 1) * (pagination?.PageSize || 8) + index + 1}
                     </div>
                     
                     {/* ID Badge */}
@@ -637,6 +745,63 @@ const UserManagement = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!loading && filteredUsers.length > 0 && (pagination?.TotalPages || 0) > 1 && (
+            <div className="mt-6 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                {/* Hiển thị {(((pagination?.CurrentPage || 1) - 1) * (pagination?.PageSize || 8)) + 1} - {Math.min((pagination?.CurrentPage || 1) * (pagination?.PageSize || 8), pagination?.TotalCount || 0)} trong tổng số {pagination?.TotalCount || 0} học viên */}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Previous Page */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange((pagination?.CurrentPage || 1) - 1)}
+                  disabled={!pagination?.HasPrevious}
+                  className="h-8 w-8 p-0"
+                  title="Trang trước"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                {/* Page Numbers */}
+                {getPageNumbers().map((page, index) => (
+                  <React.Fragment key={index}>
+                    {page === '...' ? (
+                      <span className="px-2 text-gray-500">...</span>
+                    ) : (
+                      <Button
+                        variant={page === pagination?.CurrentPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(page as number)}
+                        className={`h-8 w-8 p-0 ${
+                          page === pagination?.CurrentPage 
+                            ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                            : ''
+                        }`}
+                      >
+                        {page}
+                      </Button>
+                    )}
+                  </React.Fragment>
+                ))}
+
+                {/* Next Page */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange((pagination?.CurrentPage || 1) + 1)}
+                  disabled={!pagination?.HasNext}
+                  className="h-8 w-8 p-0"
+                  title="Trang sau"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

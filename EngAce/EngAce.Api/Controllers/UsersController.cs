@@ -26,11 +26,21 @@ namespace EngAce.Api.Controllers
         }
 
         /// <summary>
-        /// Get all users from the system
+        /// Get all users from the system with pagination
         /// </summary>
-        /// <returns>List of users</returns>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Items per page (default: 10)</param>
+        /// <param name="role">Filter by role (optional)</param>
+        /// <param name="search">Search by name, username, or ID (optional)</param>
+        /// <param name="status">Filter by status: active, inactive, banned (optional)</param>
+        /// <returns>Paginated list of users</returns>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        public async Task<ActionResult> GetUsers(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? role = null,
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null)
         {
             try
             {
@@ -42,20 +52,66 @@ namespace EngAce.Api.Controllers
                     return StatusCode(500, "Database connection not configured");
                 }
 
+                if (page < 1) page = 1;
+                if (pageSize < 1) pageSize = 10;
+                if (pageSize > 100) pageSize = 100;
+
                 var users = new List<dynamic>();
+                int totalCount = 0;
 
                 using (var connection = new MySqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
-                    var query = @"SELECT u.UserID, u.Username, u.Email, u.Phone, u.Role, u.Status, 
+                    // Build WHERE clause
+                    var whereConditions = new List<string>();
+                    if (!string.IsNullOrEmpty(role))
+                        whereConditions.Add("u.Role = @Role");
+                    
+                    if (!string.IsNullOrEmpty(search))
+                        whereConditions.Add("(up.FullName LIKE @Search OR u.Username LIKE @Search OR u.UserID LIKE @Search)");
+                    
+                    if (!string.IsNullOrEmpty(status))
+                        whereConditions.Add("u.Status = @Status");
+                    
+                    var whereClause = whereConditions.Count > 0 ? "WHERE " + string.Join(" AND ", whereConditions) : "";
+
+                    // Get total count
+                    var countQuery = $"SELECT COUNT(*) FROM User u LEFT JOIN UserProfile up ON u.UserID = up.UserID {whereClause}";
+                    using (var countCommand = new MySqlCommand(countQuery, connection))
+                    {
+                        if (!string.IsNullOrEmpty(role))
+                            countCommand.Parameters.AddWithValue("@Role", role);
+                        if (!string.IsNullOrEmpty(search))
+                            countCommand.Parameters.AddWithValue("@Search", $"%{search}%");
+                        if (!string.IsNullOrEmpty(status))
+                            countCommand.Parameters.AddWithValue("@Status", status);
+                        
+                        totalCount = Convert.ToInt32(await countCommand.ExecuteScalarAsync());
+                    }
+
+                    // Get paginated data
+                    var offset = (page - 1) * pageSize;
+                    var query = $@"SELECT u.UserID, u.Username, u.Email, u.Phone, u.Role, u.Status, 
                                          up.FullName
                                   FROM User u
                                   LEFT JOIN UserProfile up ON u.UserID = up.UserID
-                                  ORDER BY u.UserID DESC";
+                                  {whereClause}
+                                  ORDER BY u.UserID DESC
+                                  LIMIT @PageSize OFFSET @Offset";
 
                     using (var command = new MySqlCommand(query, connection))
                     {
+                        if (!string.IsNullOrEmpty(role))
+                            command.Parameters.AddWithValue("@Role", role);
+                        if (!string.IsNullOrEmpty(search))
+                            command.Parameters.AddWithValue("@Search", $"%{search}%");
+                        if (!string.IsNullOrEmpty(status))
+                            command.Parameters.AddWithValue("@Status", status);
+                        
+                        command.Parameters.AddWithValue("@PageSize", pageSize);
+                        command.Parameters.AddWithValue("@Offset", offset);
+
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
@@ -80,8 +136,23 @@ namespace EngAce.Api.Controllers
                     }
                 }
 
-                _logger.LogInformation("Retrieved {Count} users", users.Count);
-                return Ok(users);
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+                _logger.LogInformation("Retrieved {Count} users (page {Page}/{TotalPages})", users.Count, page, totalPages);
+                
+                return Ok(new
+                {
+                    Data = users,
+                    Pagination = new
+                    {
+                        CurrentPage = page,
+                        PageSize = pageSize,
+                        TotalCount = totalCount,
+                        TotalPages = totalPages,
+                        HasPrevious = page > 1,
+                        HasNext = page < totalPages
+                    }
+                });
             }
             catch (MySqlException ex)
             {
