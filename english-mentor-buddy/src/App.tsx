@@ -1,33 +1,33 @@
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route } from "react-router-dom"; // Loại bỏ BrowserRouter không dùng
 import { AnimatePresence } from "framer-motion";
+import { HashRouter, Route, Routes } from "react-router-dom"; // Loại bỏ BrowserRouter không dùng
 import { ThemeProvider } from "./components/ThemeProvider";
-import Index from "./pages/Index";
+import Chat from "./pages/Chat";
 import Dictionary from "./pages/Dictionary";
 import DictionaryResult from "./pages/DictionaryResult";
-import Exercises from "./pages/Exercises";
-import Chat from "./pages/Chat";
 import EnglishTopicCards from "./pages/EnglishTopicCards";
-import NotFound from "./pages/NotFound";
+import Exercises from "./pages/Exercises";
+import Index from "./pages/Index";
+import Leaderboard from "./pages/Leaderboard";
 import Login from "./pages/Login";
-import LoginAlt from "./pages/LoginAlt";
+import NotFound from "./pages/NotFound";
+import Progress from "./pages/Progress";
+import ReadingExercises from "./pages/ReadingExercises";
 import Register from "./pages/Register";
-import ProtectedRoute from "./components/ProtectedRoute"; // Nhập ProtectedRoute
 
 // Admin imports
-import AdminLayout from "./layouts/admin/AdminLayout.tsx";
 import AdminProtectedRoute from "./components/admin/AdminProtectedRoute";
-import AdminDashboard from "./pages/admin/Dashboard";
-import UserManagement from "./pages/admin/UserManagement";
-import ContentManagement from "./pages/admin/ContentManagement";
-import AdminSettings from "./pages/admin/Settings";
-import TestsPage from "./pages/admin/TestsPage";
-import UploadPage from "./pages/admin/UploadPage";
+import AdminLayout from "./layouts/admin/AdminLayout.tsx";
 import AccountPage from "./pages/admin/AccountPage";
+import ContentManagement from "./pages/admin/ContentManagement";
+import AdminDashboard from "./pages/admin/Dashboard";
 import ProfilePage from "./pages/admin/ProfilePage";
+import AdminSettings from "./pages/admin/Settings";
+import UploadPage from "./pages/admin/UploadPage";
+import UserManagement from "./pages/admin/UserManagement";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +54,9 @@ const App = () => (
               <Route path="/exercises" element={<Exercises />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/topics" element={<EnglishTopicCards />} />
+              <Route path="/progress" element={<Progress />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/reading-exercises" element={<ReadingExercises />} />
 
               {/* Admin routes */}
               <Route path="/admin" element={
