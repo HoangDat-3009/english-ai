@@ -75,7 +75,7 @@ export interface ReadingExercise {
   content: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
   type: 'Part 5' | 'Part 6' | 'Part 7';
-  sourceType: 'uploaded' | 'ai';
+  sourceType: 'manual' | 'ai';
   topic?: string;
   questions: Question[];
   timeLimit?: number; // Optional time limit
@@ -169,7 +169,7 @@ class DatabaseStatsService {
         content: string;
         level: 'Beginner' | 'Intermediate' | 'Advanced';
         type: 'Part 5' | 'Part 6' | 'Part 7';
-        sourceType: 'uploaded' | 'ai';
+        sourceType: 'manual' | 'ai';
         topic?: string;
         questions: string | Question[];
         createdAt: string;
@@ -177,14 +177,75 @@ class DatabaseStatsService {
         createdBy?: string; // Admin who uploaded
       }
       
-      const response = await apiService.get<DBReadingExercise[]>(endpoint);
-      return response.map((exercise) => ({
-        ...exercise,
-        id: exercise.exerciseId, // Map exerciseId to id for frontend compatibility
-        questions: typeof exercise.questions === 'string' 
-          ? JSON.parse(exercise.questions) 
-          : exercise.questions
-      }));
+      interface BackendExercise {
+        id?: number;
+        exerciseId?: number;
+        Name?: string; // Backend uses capital N
+        name?: string; // Frontend uses lowercase n
+        Content?: string; // Backend uses capital C
+        content?: string; // Frontend uses lowercase c
+        Level?: 'Beginner' | 'Intermediate' | 'Advanced'; // Backend capital L
+        level?: 'Beginner' | 'Intermediate' | 'Advanced'; // Frontend lowercase l
+        Type?: 'Part 5' | 'Part 6' | 'Part 7'; // Backend capital T
+        type?: 'Part 5' | 'Part 6' | 'Part 7'; // Frontend lowercase t
+        SourceType?: 'manual' | 'ai'; // Backend capital S
+        sourceType?: 'manual' | 'ai'; // Frontend lowercase s
+        topic?: string;
+        createdAt?: string;
+        updatedAt?: string;
+        createdBy?: string;
+      }
+
+      // Define backend question structure
+      interface BackendQuestion {
+        Id?: number;
+        QuestionText?: string;
+        question?: string;
+        Options?: string[];
+        options?: string[];
+        correctAnswer?: number;
+        Explanation?: string;
+        explanation?: string;
+      }
+
+      interface BackendExerciseWithQuestions extends BackendExercise {
+        Questions?: BackendQuestion[];
+        questions?: BackendQuestion[];
+      }
+
+      const response = await apiService.get<BackendExerciseWithQuestions[]>(endpoint);
+      return response.map((exercise) => {
+        // Convert backend questions to frontend format
+        const backendQuestions = exercise.Questions || exercise.questions || [];
+        const convertedQuestions: Question[] = backendQuestions.map((q) => ({
+          question: q.QuestionText || q.question || 'Question not available',
+          options: q.Options || q.options || [],
+          correctAnswer: q.correctAnswer ?? -1,
+          explanation: q.Explanation || q.explanation
+        }));
+
+        // DEBUG: Log sourceType from backend
+        console.log('🔍 Exercise from backend:', {
+          name: exercise.Name || exercise.name,
+          backendSourceType: exercise.SourceType,
+          lowercaseSourceType: exercise.sourceType,
+          finalSourceType: (exercise.SourceType || exercise.sourceType || 'manual')
+        });
+
+        return {
+          ...exercise,
+          id: exercise.id || exercise.exerciseId || 0,
+          exerciseId: exercise.id || exercise.exerciseId || 0,
+          name: exercise.Name || exercise.name || 'Untitled Exercise',
+          content: exercise.Content || exercise.content || 'No content available',
+          level: exercise.Level || exercise.level || 'Beginner',
+          type: exercise.Type || exercise.type || 'Part 7',
+          sourceType: (exercise.SourceType || exercise.sourceType || 'manual') as 'manual' | 'ai',
+          questions: convertedQuestions,
+          createdAt: exercise.createdAt || new Date().toISOString(),
+          updatedAt: exercise.updatedAt || new Date().toISOString()
+        };
+      });
     } catch (error) {
       console.error('Error fetching reading exercises:', error);
       return this.getMockReadingExercises();
@@ -220,11 +281,15 @@ class DatabaseStatsService {
       }
       
       // .NET Controller sẽ call Gemini API và return exercise
-      const response = await apiService.post<GenerateResponse>('/api/ReadingExercise/generate-with-ai', {
-        topic,
+      const response = await apiService.post<GenerateResponse>('/api/ReadingExercise/create-with-ai', {
+        name: `${type}: ${topic} - ${level} Level`,
+        content: `Practice ${type.toLowerCase()} exercises focused on ${topic.toLowerCase()} at ${level.toLowerCase()} level.`,
         level,
-        type,
-        userId: 'current-user' // Pass current user ID
+        type, 
+        description: `AI-generated ${type} exercise about ${topic}`,
+        estimatedMinutes: type === 'Part 5' ? 15 : type === 'Part 6' ? 20 : 30,
+        createdBy: 'AI Generator',
+        questionCount: 5
       });
       
       return {
@@ -251,7 +316,7 @@ class DatabaseStatsService {
         completedAt: string;
       }
 
-      const response = await apiService.post<UserResult>('/api/UserResult', {
+      const response = await apiService.post<UserResult>('/api/ReadingExercise/submit-result', {
         userId,
         exerciseId,
         answers,
@@ -399,7 +464,7 @@ class DatabaseStatsService {
         content: 'Complete the sentences by choosing the best answer for each blank.',
         level: 'Beginner',
         type: 'Part 5',
-        sourceType: 'uploaded',
+        sourceType: 'manual',
         topic: 'Grammar & Vocabulary',
         timeLimit: 900, // 15 minutes
         questions: [
@@ -511,7 +576,7 @@ Sarah Martinez
 Security Manager`,
         level: 'Intermediate',
         type: 'Part 6',
-        sourceType: 'uploaded',
+        sourceType: 'manual',
         topic: 'Workplace Security',
         timeLimit: 800, // 13 minutes
         questions: [
@@ -676,7 +741,7 @@ Best regards,
 Mark Thompson`,
         level: 'Advanced',
         type: 'Part 7',
-        sourceType: 'uploaded',
+        sourceType: 'manual',
         topic: 'Business Partnership',
         timeLimit: 2700, // 45 minutes
         questions: [
@@ -885,7 +950,7 @@ The company offers a confidential Employee Assistance Program providing:
 Services are provided at no cost to employees and their immediate family members. All consultations are strictly confidential and do not affect employment status or performance evaluations.`,
         level: 'Intermediate',
         type: 'Part 7',
-        sourceType: 'uploaded',
+        sourceType: 'manual',
         topic: 'Company Policies',
         timeLimit: 3000, // 50 minutes
         questions: [

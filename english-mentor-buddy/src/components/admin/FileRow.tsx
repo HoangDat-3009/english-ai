@@ -35,7 +35,7 @@ export const FileRow = ({
         return null;
     }
   };
-
+  
   return (
     <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600">
       <div className="flex items-center space-x-3">
@@ -50,7 +50,7 @@ export const FileRow = ({
         </div>
         {getStatusBadge()}
       </div>
-      
+    
       <div className="flex space-x-1">
         {onRetry && (
           <Button variant="outline" size="sm" onClick={onRetry} className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">

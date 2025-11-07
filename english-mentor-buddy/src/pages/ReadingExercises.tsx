@@ -11,8 +11,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useReadingExercises } from "@/hooks/useReadingExercises";
+import { adminUploadService } from "@/services/adminUploadService";
 import { Database, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Level = 'Beginner' | 'Intermediate' | 'Advanced';
 type Type = 'Part 5' | 'Part 6' | 'Part 7';
@@ -26,6 +27,13 @@ const ReadingExercises = () => {
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState<Level>("Intermediate");
   const [type, setType] = useState<Type>("Part 7");
+  const [adminExerciseCount, setAdminExerciseCount] = useState<number>(0);
+
+  // Check admin uploaded exercises count
+  useEffect(() => {
+    const count = adminUploadService.getAdminExercises().length;
+    setAdminExerciseCount(count);
+  }, [exercises]);
 
   const filteredExercises = exercises.filter((exercise) => {
     const levelMatch = filterLevel === "all" || exercise.level === filterLevel;
@@ -54,6 +62,21 @@ const ReadingExercises = () => {
 
   return (
     <div className="space-y-6">
+      {/* Admin Upload Notification */}
+      {adminExerciseCount > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4 text-green-600" />
+            <span className="text-sm font-medium text-green-800">
+              📚 {adminExerciseCount} bài tập Reading từ Admin Upload đã được đồng bộ thành công!
+            </span>
+          </div>
+          <p className="text-xs text-green-600 mt-1">
+            Các bài tập được tạo từ trang Admin sẽ tự động xuất hiện ở đây với nhãn "Admin Upload".
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold mb-2 bg-gradient-accent bg-clip-text text-transparent">
@@ -152,15 +175,15 @@ const ReadingExercises = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredExercises.map((exercise) => (
+            {filteredExercises.map((exercise, index) => (
               <Card
-                key={exercise.id}
+                key={exercise.id || `exercise-${index}`}
                 className="p-6 cursor-pointer hover:shadow-elegant transition-all hover:-translate-y-1"
-                onClick={() => setSelectedExercise(String(exercise.id))}
+                onClick={() => setSelectedExercise(String(exercise.id || index))}
               >
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-lg">{exercise.name}</h3>
+                    <h3 className="font-semibold text-lg">{exercise.name || 'Untitled Exercise'}</h3>
                     <div className="flex items-center gap-1">
                       {exercise.sourceType === 'ai' ? (
                         <>
@@ -176,7 +199,7 @@ const ReadingExercises = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="secondary">{exercise.type}</Badge>
+                    <Badge variant="secondary">{exercise.type || 'Unknown'}</Badge>
                     <Badge
                       variant={
                         exercise.level === "Beginner"
@@ -186,14 +209,14 @@ const ReadingExercises = () => {
                           : "destructive"
                       }
                     >
-                      {exercise.level}
+                      {exercise.level || 'Unknown'}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
-                      {exercise.questions.length} questions
+                      {exercise.questions?.length || 0} questions
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-3">
-                    {exercise.content.substring(0, 150)}...
+                    {exercise.content ? exercise.content.substring(0, 150) : 'No content available'}...
                   </p>
                 </div>
               </Card>

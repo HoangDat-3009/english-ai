@@ -1,5 +1,4 @@
-import { FileRow } from '@/components/admin/FileRow';
-import { SectionBox } from '@/components/admin/SectionBox';
+import { AdminReadingExercisesManager } from '@/components/admin/AdminReadingExercisesManager';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,25 +8,46 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/hooks/use-toast';
-import { apiService } from '@/services/api';
-import { CheckCircle, Clock, Eye, FileText, LucideIcon, Minus, Plus, Save, Upload, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useReadingExercises } from '@/hooks/useReadingExercises';
+import { adminUploadService } from '@/services/adminUploadService';
+import { CheckCircle, Clock, Eye, FileText, Minus, Plus, Save, Upload } from 'lucide-react';
+import { useState } from 'react';
 
 const UploadPage = () => {
   const [testType, setTestType] = useState('');
   const [selectedTestType, setSelectedTestType] = useState('');
   const [questions, setQuestions] = useState([{ id: 1, question: '', options: ['', '', '', ''], correct: 0 }]);
-  interface UploadedFileItem { id?: string; name: string; size: string; date: string; status?: 'uploaded' | 'processing' | 'error' | 'local' }
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileItem[]>([
-    { name: 'TOEIC_Part1_Audio.mp3', size: '2.4MB', date: '2024-03-10', status: 'uploaded' },
-    { name: 'Reading_Questions.pdf', size: '1.8MB', date: '2024-03-09', status: 'uploaded' }
-  ]);
-  const [fallbackFilesMap, setFallbackFilesMap] = useState<Record<string, File[]>>({});
+  
+  // NEW: 2-Step Process States
+  const [createdExerciseId, setCreatedExerciseId] = useState<number | null>(null);
+  const [step1Complete, setStep1Complete] = useState(false);
+  const [isCreatingPassage, setIsCreatingPassage] = useState(false);
+  const [isAddingQuestions, setIsAddingQuestions] = useState(false);
+  // uploadMethod removed - only text input now
 
-  // File upload states
-  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number | undefined}>({});
-  const [selectedFiles, setSelectedFiles] = useState<{[key: string]: File[]}>({});
-  const fileInputRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
+  
+  // Exercise creation states
+  const [exerciseTitle, setExerciseTitle] = useState('');
+  const [exerciseLevel, setExerciseLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Intermediate');
+  const [exercisePartType, setExercisePartType] = useState<'Part 5' | 'Part 6' | 'Part 7'>('Part 6');
+  const [exerciseDescription, setExerciseDescription] = useState('');
+  
+  // NEW: Part 7 - 2 passages
+  const [passage1, setPassage1] = useState('');
+  const [passage2, setPassage2] = useState('');
+  const [isDualPassage, setIsDualPassage] = useState(false);
+  // uploadMethod removed - always use text input
+  const uploadMethod: 'text' | 'file' = 'text';
+
+  // Helper function for estimated minutes
+  const getEstimatedMinutes = (partType: string): number => {
+    switch (partType) {
+      case 'Part 5': return 15;
+      case 'Part 6': return 20; 
+      case 'Part 7': return 30;
+      default: return 20;
+    }
+  };
 
   const testTypes = [
     { id: 'toeic-full', label: 'TOEIC Full Test', icon: '📝', description: 'Đề thi TOEIC đầy đủ (Listening + Reading)' },
@@ -40,253 +60,243 @@ const UploadPage = () => {
   ];
 
   // File upload handlers
-  const { success, error } = useToast();
+  const { toast: toastFunc } = useToast();
+  const success = (title: string, description: string) => toastFunc({ title, description, variant: 'default' });
+  const error = (title: string, description: string) => toastFunc({ title, description, variant: 'destructive' });
+  const { refreshExercises } = useReadingExercises();
 
-  const handleFileSelect = (uploadType: string, files: FileList | null) => {
-    if (!files) return;
-
-    const fileArray = Array.from(files);
-    setSelectedFiles(prev => ({
-      ...prev,
-      [uploadType]: fileArray
-    }));
-
-    // Start real upload using apiService with progress callback
-    const fd = new FormData();
-    fileArray.forEach((f) => fd.append('files', f));
-    fd.append('testType', selectedTestType || uploadType);
-
-    setUploadProgress(prev => ({ ...prev, [uploadType]: 0 }));
-
-    apiService.postFormDataWithProgress('/api/admin/upload', fd, (pct) => {
-      setUploadProgress(prev => ({ ...prev, [uploadType]: pct }));
-    }).then((res: { files?: Array<{ originalName?: string; storedName?: string; size?: number }> }) => {
-      setUploadProgress(prev => ({ ...prev, [uploadType]: 100 }));
-      success('Upload thành công', `Đã tải lên ${fileArray.length} file.`);
-      // If server returns metadata, add to uploadedFiles list
-      if (res?.files && Array.isArray(res.files)) {
-        const newFiles = res.files.map((f) => ({
-          name: f.originalName || f.storedName,
-          size: formatFileSize(f.size || 0),
-          date: new Date().toISOString().split('T')[0]
-        }));
-        setUploadedFiles(prev => [...newFiles, ...prev]);
-      }
-    }).catch((err) => {
-      console.error('Upload failed', err);
-      setUploadProgress(prev => ({ ...prev, [uploadType]: undefined }));
-      error('Upload thất bại', err?.message || 'Có lỗi xảy ra khi tải file lên');
-      // Fallback: lưu local để quản lý tạm thời khi backend chưa sẵn sàng
-      try {
-        const fallbackId = `local-${Date.now()}`;
-        setFallbackFilesMap(prev => ({ ...prev, [fallbackId]: fileArray }));
-        const fallbackFiles = fileArray.map((f) => ({
-          id: fallbackId,
-          name: f.name,
-          size: formatFileSize(f.size || 0),
-          date: new Date().toISOString().split('T')[0],
-          status: 'local' as const
-        }));
-        setUploadedFiles(prev => [...fallbackFiles, ...prev]);
-        error('Đã lưu tạm file cục bộ', 'File đã được lưu tạm trong trang quản lý.');
-      } catch (fallbackError) {
-        console.warn('Could not save fallback files:', fallbackError);
-      }
-    });
+  // handleUploadFile removed - only text input now
+  // no-op stub kept for legacy JSX references (upload UI removed)
+  const handleUploadFile = (file: File) => {
+    // upload file functionality has been removed - keep stub to avoid TSX compile errors
+    console.debug('handleUploadFile called but upload is disabled', file?.name);
   };
 
-  // Retry upload for a fallback/local entry
-  const retryUpload = (id?: string) => {
-    if (!id) return;
-    const files = fallbackFilesMap[id];
-    if (!files || files.length === 0) return;
+  // NEW: Step 1 - Create Passage
+  const handleCreatePassage = async () => {
+    // Validate basic info
+    if (!exerciseTitle.trim()) {
+      error('Thiếu thông tin', 'Vui lòng nhập tiêu đề');
+      return;
+    }
 
-    const fd = new FormData();
-    files.forEach(f => fd.append('files', f));
+    // Validate passage content based on type
+    let finalContent = '';
+    if (exercisePartType === 'Part 7' && isDualPassage) {
+      if (!passage1.trim() || !passage2.trim()) {
+        error('Thiếu thông tin', 'Vui lòng nhập đầy đủ 2 đoạn văn cho Part 7');
+        return;
+      }
+      finalContent = `[PASSAGE 1]\n${passage1}\n\n[PASSAGE 2]\n${passage2}`;
+    } else {
+      if (!exerciseDescription.trim()) {
+        error('Thiếu thông tin', 'Vui lòng nhập nội dung đoạn văn');
+        return;
+      }
+      finalContent = exerciseDescription;
+    }
 
-    // mark progress
-    setUploadProgress(prev => ({ ...prev, [id]: 0 }));
-
-    apiService.postFormDataWithProgress('/api/admin/upload', fd, (pct) => {
-      setUploadProgress(prev => ({ ...prev, [id]: pct }));
-    }).then((res: { files?: Array<{ originalName?: string; storedName?: string; size?: number }> }) => {
-      // update uploadedFiles entry status -> uploaded
-      setUploadedFiles(prev => prev.map(it => it.id === id ? { ...it, status: 'uploaded' } : it));
-      // remove fallback map entry
-      setFallbackFilesMap(prev => {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
+    setIsCreatingPassage(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5283'}/api/ReadingExercise/create-passage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: exerciseTitle,
+          content: finalContent,
+          partType: exercisePartType,
+          level: exerciseLevel,
+          createdBy: 'Admin'
+        })
       });
-      success('Upload thành công', 'Đã tải lại file thành công.');
-    }).catch((err) => {
-      console.error('Retry upload failed', err);
-      error('Upload lại thất bại', err?.message || 'Không thể tải lại file');
-      setUploadProgress(prev => ({ ...prev, [id]: undefined }));
-    });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to create passage' }));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      const exerciseId = result.exerciseId;
+      
+      setCreatedExerciseId(exerciseId);
+      setStep1Complete(true);
+      
+      success('✅ Bước 1 hoàn thành!', `Đoạn văn đã được tạo với ID: ${exerciseId}. Bây giờ hãy thêm câu hỏi!`);
+      
+      // Auto-generate questions template based on Part Type
+      const questionCount = exercisePartType === 'Part 6' ? 4 : 5;
+      const newQuestions = Array.from({ length: questionCount }, (_, i) => ({
+        id: i + 1,
+        question: exercisePartType === 'Part 6' 
+          ? `Question ${i + 1} (chọn từ phù hợp cho chỗ trống ${i + 1})`
+          : `Question ${i + 1}`,
+        options: ['', '', '', ''],
+        correct: 0
+      }));
+      setQuestions(newQuestions);
+
+    } catch (err: unknown) {
+      console.error('Create passage failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra';
+      error('❌ Tạo đoạn văn thất bại', errorMessage);
+    } finally {
+      setIsCreatingPassage(false);
+    }
   };
 
-  const handleFileRemove = (uploadType: string, fileIndex: number) => {
-    setSelectedFiles(prev => ({
-      ...prev,
-      [uploadType]: prev[uploadType]?.filter((_, index) => index !== fileIndex) || []
-    }));
+  // NEW: Step 2 - Add Questions
+  const handleAddQuestions = async () => {
+    if (!createdExerciseId) {
+      error('Chưa có Exercise ID', 'Vui lòng hoàn thành bước 1 trước');
+      return;
+    }
+
+    // Validate questions
+    const hasEmptyQuestions = questions.some(q => !q.question.trim() || q.options.some(opt => !opt.trim()));
+    if (hasEmptyQuestions) {
+      error('Câu hỏi chưa đầy đủ', 'Vui lòng điền đầy đủ tất cả câu hỏi và đáp án');
+      return;
+    }
+
+    setIsAddingQuestions(true);
+    try {
+      const questionsPayload = questions.map((q, index) => ({
+        questionText: q.question,
+        optionA: q.options[0],
+        optionB: q.options[1],
+        optionC: q.options[2],
+        optionD: q.options[3],
+        correctAnswer: q.correct,
+        explanation: `Explanation for question ${index + 1}`,
+        orderNumber: index + 1
+      }));
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5283'}/api/ReadingExercise/${createdExerciseId}/add-questions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questions: questionsPayload
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to add questions' }));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      success('🎉 Hoàn thành!', `Bài tập đã được tạo thành công với ${questions.length} câu hỏi! Exercise đã được activate.`);
+      
+      // Refresh exercises list
+      refreshExercises();
+      
+      // Reset form
+      setExerciseTitle('');
+      setExerciseDescription('');
+      setPassage1('');
+      setPassage2('');
+      setIsDualPassage(false);
+      setQuestions([{ id: 1, question: '', options: ['', '', '', ''], correct: 0 }]);
+      setCreatedExerciseId(null);
+      setStep1Complete(false);
+
+    } catch (err: unknown) {
+      console.error('Add questions failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra';
+      error('❌ Thêm câu hỏi thất bại', errorMessage);
+    } finally {
+      setIsAddingQuestions(false);
+    }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // Create file upload component
-  const FileUploadArea = ({ 
-    uploadType, 
-    title, 
-    description, 
-    acceptedTypes, 
-    maxSize, 
-    icon: Icon,
-    borderColor = "border-gray-300",
-    iconColor = "text-gray-400",
-    required = false
-  }: {
-    uploadType: string;
-    title: string;
-    description: string;
-    acceptedTypes: string;
-    maxSize: string;
-    icon: LucideIcon;
-    borderColor?: string;
-    iconColor?: string;
-    required?: boolean;
-  }) => {
-    const files = selectedFiles[uploadType] || [];
-    const progress = uploadProgress[uploadType];
-    const isUploading = progress !== undefined && progress < 100;
-    const isCompleted = progress === 100;
-
-    return (
-      <SectionBox>
-        <h3 className="text-lg font-medium mb-4 flex items-center">
-          <Icon className="mr-2 h-5 w-5" />
-          {title}
-          <Badge variant={required ? "secondary" : "outline"} className="ml-2">
-            {required ? "Required" : "Optional"}
-          </Badge>
-        </h3>
-        
-        <div className="space-y-3">
-          <div 
-            className={`border-2 border-dashed ${borderColor} rounded-lg p-6 text-center transition-colors hover:bg-gray-50 cursor-pointer`}
-            onClick={() => fileInputRefs.current[uploadType]?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
-            }}
-            onDragLeave={(e) => {
-              e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
-              handleFileSelect(uploadType, e.dataTransfer.files);
-            }}
-          >
-            <input
-              ref={(ref) => fileInputRefs.current[uploadType] = ref}
-              type="file"
-              multiple
-              accept={acceptedTypes}
-              onChange={(e) => handleFileSelect(uploadType, e.target.files)}
-              className="hidden"
-            />
-            
-            {isCompleted ? (
-              <CheckCircle className={`mx-auto h-12 w-12 text-green-500`} />
-            ) : (
-              <Icon className={`mx-auto h-12 w-12 ${iconColor}`} />
-            )}
-            
-            <p className="mt-2 text-sm text-gray-600">
-              {isCompleted ? 'Upload thành công!' : description}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">{acceptedTypes} (tối đa {maxSize})</p>
-            
-            {isUploading && (
-              <div className="mt-3">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                    style={{ width: `${progress}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{progress}% hoàn thành</p>
-              </div>
-            )}
-          </div>
-
-          {/* Display selected files */}
-          {files.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">File đã chọn:</h4>
-              {files.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">{file.name}</p>
-                      <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleFileRemove(uploadType, index);
-                    }}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </SectionBox>
-    );
-  };
-
-  const addQuestion = () => {
-    const newId = Math.max(...questions.map(q => q.id), 0) + 1; // Generate incremental ID
-    const newQuestion = { 
-      id: newId,
-      question: '', 
-      options: ['', '', '', ''], 
-      correct: 0 
-    };
-    setQuestions([newQuestion, ...questions]); // Add to beginning of array
-  };
-
-  const removeQuestion = (id: number) => {
-    setQuestions(questions.filter(q => q.id !== id));
-  };
-
-  const updateQuestion = (id: number, field: string, value: string | number) => {
-    setQuestions(questions.map(q => 
-      q.id === id ? { ...q, [field]: value } : q
-    ));
-  };
-
+  // Question management functions
   const updateOption = (questionId: number, optionIndex: number, value: string) => {
     setQuestions(questions.map(q => 
       q.id === questionId 
         ? { ...q, options: q.options.map((opt, idx) => idx === optionIndex ? value : opt) }
         : q
+    ));
+  };
+
+  // Create Reading Exercise from uploaded content
+  const createReadingExerciseFromUpload = async () => {
+    if (!exerciseTitle.trim()) {
+      error('Tên bài test không được để trống', 'Vui lòng nhập tên bài test.');
+      return;
+    }
+
+    if (questions.length === 0 || !questions[0].question.trim()) {
+      error('Cần ít nhất 1 câu hỏi', 'Vui lòng tạo ít nhất một câu hỏi cho bài test.');
+      return;
+    }
+
+    try {
+      // Determine test type based on selected test type
+      let exerciseType: 'Part 5' | 'Part 6' | 'Part 7' = 'Part 7';
+      if (selectedTestType === 'grammar' || selectedTestType === 'vocabulary') {
+        exerciseType = 'Part 5';
+      } else if (selectedTestType === 'reading') {
+        exerciseType = 'Part 7';
+      }
+
+      // Create content from questions
+      const content = questions.map((q, index) => {
+        const optionsText = q.options.map((opt, optIdx) => 
+          `${String.fromCharCode(65 + optIdx)}) ${opt}`
+        ).join('\n');
+        
+        return `${index + 1}. ${q.question}\n${optionsText}\nCorrect Answer: ${String.fromCharCode(65 + q.correct)}`;
+      }).join('\n\n');
+
+      // Create exercise using admin upload service (now async)
+      const exercise = await adminUploadService.createExerciseFromUpload(
+        exerciseTitle,
+        `${exerciseDescription}\n\n${content}`,
+        exerciseLevel,
+        exerciseType,
+        'Admin Manual Input'
+      );
+
+      success('Bài test đã được tạo!', `Bài test "${exercise.name}" đã được lưu thành công vào database và sẽ xuất hiện trong trang Reading Exercises.`);
+      
+      // Refresh Reading Exercises data
+      refreshExercises();
+      
+      // Reset form
+      setExerciseTitle('');
+      setExerciseDescription('');
+      setQuestions([{ id: 1, question: '', options: ['', '', '', ''], correct: 0 }]);
+      
+    } catch (err) {
+      console.error('Error creating reading exercise:', err);
+      error('Không thể tạo bài test', 'Có lỗi xảy ra khi tạo bài test. Vui lòng thử lại.');
+    }
+  };
+
+  // Question management functions
+  const addQuestion = () => {
+    const newId = Math.max(...questions.map(q => q.id)) + 1;
+    setQuestions(prev => [...prev, { id: newId, question: '', options: ['', '', '', ''], correct: 0 }]);
+  };
+
+  const removeQuestion = (id: number) => {
+    setQuestions(prev => prev.filter(q => q.id !== id));
+  };
+
+  const updateQuestion = (id: number, field: string, value: string | number) => {
+    setQuestions(prev => prev.map(q => 
+      q.id === id ? { ...q, [field]: value } : q
+    ));
+  };
+
+  const updateQuestionOption = (id: number, optionIndex: number, value: string) => {
+    setQuestions(prev => prev.map(q => 
+      q.id === id ? { ...q, options: q.options.map((opt, idx) => idx === optionIndex ? value : opt) } : q
     ));
   };
 
@@ -350,400 +360,346 @@ const UploadPage = () => {
 
       <Tabs defaultValue="upload" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
-          <TabsTrigger value="upload" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-gray-600 dark:text-gray-300">Tải lên file</TabsTrigger>
+          <TabsTrigger value="upload" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-gray-600 dark:text-gray-300">Upload File Hoàn Chỉnh</TabsTrigger>
           <TabsTrigger value="create" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-gray-600 dark:text-gray-300">Tạo đề thi</TabsTrigger>
-          <TabsTrigger value="manage" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-gray-600 dark:text-gray-300">Quản lý file</TabsTrigger>
+          <TabsTrigger value="reading" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-gray-600 dark:text-gray-300">Quản lý Reading Tests</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4">
-          {/* Test Type Selection */}
-          <Card className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          {/* NEW: Simplified 2-Step Upload for Part 6/7 Only - TEXT INPUT ONLY */}
+          <Card className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
             <CardHeader>
-              <CardTitle className="text-gray-900 dark:text-white">Chọn loại bài test</CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-300">Chọn loại bài test bạn muốn tạo</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm">MỚI</span>
+                Tạo bài tập Part 6/7 - Quy trình 2 bước (Nhập text)
+              </CardTitle>
+              <CardDescription>
+                <strong>Bước 1:</strong> Nhập đoạn văn → <strong>Bước 2:</strong> Thêm câu hỏi
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {testTypes.map((type) => (
-                  <div
-                    key={type.id}
-                    className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md ${
-                      selectedTestType === type.id 
-                        ? 'border-primary bg-primary/5 dark:bg-primary/10' 
-                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750'
-                    }`}
-                    onClick={() => setSelectedTestType(type.id)}
+            <CardContent className="space-y-6">
+              {/* Method Selection Toggle - REMOVED, only text input now */}
+
+              {/* Step 1: Enter Text ONLY */}
+              <div className="p-4 bg-white rounded-xl border-2 border-green-300">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">1</span>
+                  <h3 className="text-lg font-semibold">
+                    Bước 1: Nhập đoạn văn Reading
+                  </h3>
+                  <Badge variant="secondary">Part 6 & 7</Badge>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="passageTitle">Tiêu đề bài tập</Label>
+                    <Input 
+                      id="passageTitle" 
+                      placeholder="VD: Company Meeting Notice"
+                      value={exerciseTitle}
+                      onChange={(e) => setExerciseTitle(e.target.value)}
+                      className="border-2"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="passagePartType">Part Type</Label>
+                      <Select value={exercisePartType} onValueChange={(value: 'Part 5' | 'Part 6' | 'Part 7') => setExercisePartType(value)}>
+                        <SelectTrigger className="border-2">
+                          <SelectValue placeholder="Chọn Part" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Part 6">Part 6 - Text Completion (4 câu)</SelectItem>
+                          <SelectItem value="Part 7">Part 7 - Reading Comprehension (5-10 câu)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="passageLevel">Cấp độ</Label>
+                      <Select value={exerciseLevel} onValueChange={(value: 'Beginner' | 'Intermediate' | 'Advanced') => setExerciseLevel(value)}>
+                        <SelectTrigger className="border-2">
+                          <SelectValue placeholder="Chọn cấp độ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Beginner">Beginner (A1-A2)</SelectItem>
+                          <SelectItem value="Intermediate">Intermediate (B1-B2)</SelectItem>
+                          <SelectItem value="Advanced">Advanced (C1-C2)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Enter Text - Single or Dual Passages */}
+                    <div className="space-y-4">
+                      {/* Part 7 - Dual Passage Toggle */}
+                      {exercisePartType === 'Part 7' && (
+                        <div className="flex items-center space-x-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <input
+                            type="checkbox"
+                            id="dualPassage"
+                            checked={isDualPassage}
+                            onChange={(e) => setIsDualPassage(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <label htmlFor="dualPassage" className="text-sm font-medium cursor-pointer">
+                            📄 Part 7 - Dual Passage (2 đoạn văn liên quan)
+                          </label>
+                        </div>
+                      )}
+
+                      {/* Single Passage (Part 6 OR Part 7 Single) */}
+                      {(!isDualPassage || exercisePartType !== 'Part 7') && (
+                        <div className="space-y-2">
+                          <Label htmlFor="passageContent">Đoạn văn Reading</Label>
+                          <Textarea 
+                            id="passageContent" 
+                            placeholder={exercisePartType === 'Part 6' 
+                              ? "Nhập đoạn văn có chỗ trống (___) cho Part 6...\n\nVí dụ:\nDear Team Members,\n\nWe are pleased to announce that our company (1) _____ be moving to a new office..."
+                              : "Nhập đoạn văn reading cho Part 7...\n\nVí dụ:\nCompany Meeting Notice\n\nDate: Friday, March 15th\nTime: 2:00 PM - 4:00 PM..."}
+                            value={exerciseDescription}
+                            onChange={(e) => setExerciseDescription(e.target.value)}
+                            rows={12}
+                            className="text-sm border-2"
+                            style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                          />
+                          <p className="text-xs text-gray-500">
+                            {exercisePartType === 'Part 6' 
+                              ? "💡 Đánh dấu chỗ trống bằng (1) ___, (2) ___, (3) ___, (4) ___"
+                              : "💡 Nhập toàn bộ đoạn văn, email, thông báo, hoặc bài báo"}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Dual Passage (Part 7 Only) */}
+                      {isDualPassage && exercisePartType === 'Part 7' && (
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="passage1">📄 Đoạn văn 1</Label>
+                            <Textarea 
+                              id="passage1" 
+                              placeholder="Nhập đoạn văn thứ nhất...\n\nVí dụ:\nMemo\nTo: All Staff\nFrom: HR Department\nDate: March 10, 2024\n\nSubject: New Office Policy..."
+                              value={passage1}
+                              onChange={(e) => setPassage1(e.target.value)}
+                              rows={8}
+                              className="text-sm border-2 border-blue-300"
+                              style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="passage2">📄 Đoạn văn 2 (liên quan đến đoạn 1)</Label>
+                            <Textarea 
+                              id="passage2" 
+                              placeholder="Nhập đoạn văn thứ hai...\n\nVí dụ:\nEmail Response\nFrom: john.smith@company.com\nTo: hr@company.com\nDate: March 11, 2024\n\nDear HR Team,\nRegarding the new policy..."
+                              value={passage2}
+                              onChange={(e) => setPassage2(e.target.value)}
+                              rows={8}
+                              className="text-sm border-2 border-blue-300"
+                              style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                            />
+                          </div>
+
+                          <p className="text-xs text-gray-500 bg-yellow-50 p-2 rounded border border-yellow-200">
+                            💡 <strong>Part 7 Dual Passage:</strong> 2 đoạn văn có liên quan (ví dụ: email + reply, memo + announcement, article + review)
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                  {/* Submit Button */}
+                  <Button 
+                    className="w-full rounded-xl bg-green-600 hover:bg-green-700"
+                    disabled={
+                      isCreatingPassage || 
+                      step1Complete || 
+                      (!isDualPassage && !exerciseDescription.trim()) ||
+                      (isDualPassage && (!passage1.trim() || !passage2.trim()))
+                    }
+                    size="lg"
+                    onClick={handleCreatePassage}
                   >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{type.icon}</span>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{type.label}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{type.description}</p>
+                    {isCreatingPassage ? (
+                      <>
+                        <Clock className="mr-2 h-5 w-5 animate-spin" />
+                        Đang tạo...
+                      </>
+                    ) : step1Complete ? (
+                      <>
+                        <CheckCircle className="mr-2 h-5 w-5" />
+                        ✅ Đã hoàn thành - Exercise ID: {createdExerciseId}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="mr-2 h-5 w-5" />
+                        Tạo đoạn văn (Bước 1)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Step 2: Add Questions */}
+              <div className={`p-4 bg-white rounded-xl border-2 ${step1Complete ? 'border-orange-500' : 'border-orange-300 opacity-60'}`}>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className={`${step1Complete ? 'bg-orange-500' : 'bg-gray-400'} text-white w-8 h-8 rounded-full flex items-center justify-center font-bold`}>2</span>
+                  <h3 className="text-lg font-semibold">Bước 2: Thêm câu hỏi</h3>
+                  {step1Complete ? (
+                    <Badge variant="default" className="bg-green-500">Sẵn sàng - Exercise ID: {createdExerciseId}</Badge>
+                  ) : (
+                    <Badge variant="outline">Sau khi hoàn thành bước 1</Badge>
+                  )}
+                </div>
+
+                {!step1Complete ? (
+                  <p className="text-sm text-gray-600 mb-4">
+                    Sau khi tạo đoạn văn, bạn sẽ nhận được Exercise ID để thêm câu hỏi.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-green-600 font-medium mb-4">
+                      ✅ Bước 1 hoàn thành! Bây giờ hãy thêm {exercisePartType === 'Part 6' ? '4' : '5-10'} câu hỏi:
+                    </p>
+
+                    {/* Questions Form */}
+                    {questions.map((q, index) => (
+                      <div key={q.id} className="space-y-3 p-4 border rounded-xl bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-base font-medium flex items-center">
+                            <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm mr-2">
+                              Câu {index + 1}
+                            </span>
+                          </Label>
+                          {questions.length > 1 && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => removeQuestion(q.id)}
+                              className="text-red-600 hover:text-red-700 rounded-xl"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <Input
+                            placeholder={exercisePartType === 'Part 6' 
+                              ? `Question ${index + 1} (chọn từ phù hợp cho chỗ trống ${index + 1})`
+                              : `Question ${index + 1}: What is the main idea?`}
+                            value={q.question}
+                            onChange={(e) => updateQuestion(q.id, 'question', e.target.value)}
+                            className="rounded-xl"
+                          />
+                          
+                          <div className="grid gap-2 md:grid-cols-2">
+                            {q.options.map((option, optIndex) => (
+                              <div key={optIndex} className="flex items-center space-x-2">
+                                <span className="text-sm font-medium w-6">{String.fromCharCode(65 + optIndex)})</span>
+                                <Input
+                                  placeholder={exercisePartType === 'Part 6' 
+                                    ? `${String.fromCharCode(65 + optIndex)}) will/would/should...`
+                                    : `Đáp án ${String.fromCharCode(65 + optIndex)}`}
+                                  value={option}
+                                  onChange={(e) => updateQuestionOption(q.id, optIndex, e.target.value)}
+                                  className="rounded-xl flex-1"
+                                />
+                                <input
+                                  type="radio"
+                                  name={`correct-${q.id}`}
+                                  checked={q.correct === optIndex}
+                                  onChange={() => updateQuestion(q.id, 'correct', optIndex)}
+                                  className="w-4 h-4"
+                                  title="Đáp án đúng"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Add/Remove Question Buttons */}
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="rounded-xl flex-1"
+                        onClick={addQuestion}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Thêm câu hỏi
+                      </Button>
+                      {questions.length > 1 && (
+                        <Button 
+                          variant="outline" 
+                          className="rounded-xl text-red-600 hover:text-red-700"
+                          onClick={() => removeQuestion(questions[questions.length - 1].id)}
+                        >
+                          <Minus className="mr-2 h-4 w-4" />
+                          Xóa câu cuối
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Submit Questions Button */}
+                    <Button 
+                      className="w-full rounded-xl bg-orange-600 hover:bg-orange-700" 
+                      size="lg"
+                      onClick={handleAddQuestions}
+                      disabled={isAddingQuestions || questions.some(q => !q.question.trim() || q.options.some(opt => !opt.trim()))}
+                    >
+                      {isAddingQuestions ? (
+                        <>
+                          <Clock className="mr-2 h-5 w-5 animate-spin" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          Hoàn thành - Thêm {questions.length} câu hỏi (Bước 2)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {!step1Complete && (
+                  <div className="bg-gray-50 p-4 rounded-lg border">
+                    <p className="text-xs text-gray-500 mb-3">Mẫu câu hỏi sẽ nhập ở bước 2:</p>
+                    <div className="space-y-2 text-xs">
+                      <div className="bg-white p-2 rounded border">
+                        <strong>Question 1:</strong> (chọn từ phù hợp cho chỗ trống 1)<br/>
+                        A) will<br/>
+                        B) would<br/>
+                        C) should<br/>
+                        D) could<br/>
+                        <strong className="text-green-600">✓ Correct: A</strong>
                       </div>
                     </div>
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/* Info Box */}
+              <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                  ℹ️ Quy trình mới (Không cần file):
+                </h4>
+                <ul className="text-sm text-gray-600 space-y-1.5">
+                  <li>✅ <strong>Bước 1:</strong> Nhập đoạn văn → Nhận Exercise ID</li>
+                  <li>✅ <strong>Bước 2:</strong> Dùng Exercise ID thêm 4 câu hỏi (Part 6) hoặc nhiều hơn (Part 7)</li>
+                  <li>✅ <strong>Tự động active:</strong> Sau khi thêm câu hỏi, bài tập sẵn sàng cho học viên</li>
+                  <li>🚫 <strong>Bỏ Part 5:</strong> Không hỗ trợ upload file cho Part 5 nữa</li>
+                  <li>💡 <strong>Đơn giản:</strong> Chỉ nhập text trực tiếp, không cần upload file</li>
+                </ul>
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {selectedTestType && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Thông tin bài test</CardTitle>
-                <CardDescription>Nhập thông tin chi tiết cho bài test</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Tên bài test</Label>
-                    <Input id="title" placeholder="VD: TOEIC 2025 - Đề 01" />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="level">Cấp độ</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn cấp độ" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="beginner">Beginner</SelectItem>
-                        <SelectItem value="intermediate">Intermediate</SelectItem>
-                        <SelectItem value="advanced">Advanced</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Mô tả</Label>
-                  <Textarea id="description" placeholder="Mô tả chi tiết về bài test..." />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="duration">Thời gian (phút)</Label>
-                    <Input id="duration" type="number" placeholder="120" />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="questions">Số câu hỏi</Label>
-                    <Input id="questions" type="number" placeholder="200" />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="points">Điểm tối đa</Label>
-                    <Input id="points" type="number" placeholder="990" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Dynamic Upload Sections based on Test Type */}
-          {selectedTestType === 'toeic-full' && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>TOEIC Full Test - Upload Files</CardTitle>
-                <CardDescription>Upload files cho từng part của TOEIC</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {/* Part 1-4 Listening */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="toeic-audio"
-                      title="🎧 Part 1-4 Audio"
-                      description="Kéo thả file audio hoặc click để chọn"
-                      acceptedTypes="audio/*,.mp3,.wav,.m4a"
-                      maxSize="100MB"
-                      icon={Upload}
-                      borderColor="border-blue-300"
-                      iconColor="text-blue-400"
-                      required={true}
-                    />
-
-                    <FileUploadArea
-                      uploadType="toeic-reading"
-                      title="📖 Part 5-7 Passage"
-                      description="Kéo thả file reading hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx,.json,.txt"
-                      maxSize="20MB"
-                      icon={FileText}
-                      borderColor="border-green-300"
-                      iconColor="text-green-400"
-                      required={true}
-                    />
-                  </div>
-
-                  {/* Answer Keys */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="toeic-answer-key"
-                      title="📋 Answer Key (csv/json)"
-                      description="Kéo thả file đáp án hoặc click để chọn"
-                      acceptedTypes=".csv,.json"
-                      maxSize="5MB"
-                      icon={FileText}
-                      borderColor="border-purple-300"
-                      iconColor="text-purple-400"
-                      required={true}
-                    />
-
-                    <FileUploadArea
-                      uploadType="toeic-questions"
-                      title="📑 Bảng câu hỏi (csv/json)"
-                      description="Kéo thả file câu hỏi hoặc click để chọn"
-                      acceptedTypes=".csv,.json"
-                      maxSize="10MB"
-                      icon={FileText}
-                      borderColor="border-orange-300"
-                      iconColor="text-orange-400"
-                      required={false}
-                    />
-                  </div>
-
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">� Hướng dẫn upload TOEIC Full Test:</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      <li>✓ Part 1-4 Audio: File âm thanh cho phần Listening (200 câu đầu)</li>
-                      <li>✓ Part 5-7 Reading: Đoạn văn và câu hỏi cho phần Reading (200 câu cuối)</li>
-                      <li>✓ Answer Key: File CSV/JSON chứa đáp án từ câu 1-200</li>
-                      <li>✓ Question Bank: Chi tiết câu hỏi và các lựa chọn A, B, C, D</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedTestType === 'listening' && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Listening Test - Upload Files</CardTitle>
-                <CardDescription>Upload file âm thanh và câu hỏi cho bài test nghe</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="listening-audio"
-                      title="🎧 Audio Files"
-                      description="Kéo thả file audio hoặc click để chọn"
-                      acceptedTypes="audio/*,.mp3,.wav,.m4a"
-                      maxSize="100MB"
-                      icon={Upload}
-                      borderColor="border-blue-300"
-                      iconColor="text-blue-400"
-                      required={true}
-                    />
-
-                    <FileUploadArea
-                      uploadType="listening-questions"
-                      title="📝 Questions & Answer Key"
-                      description="Kéo thả file câu hỏi hoặc click để chọn"
-                      acceptedTypes=".json,.csv,.pdf"
-                      maxSize="10MB"
-                      icon={FileText}
-                      borderColor="border-green-300"
-                      iconColor="text-green-400"
-                      required={true}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedTestType === 'reading' && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Reading Test - Upload Files</CardTitle>
-                <CardDescription>Upload đoạn văn và câu hỏi cho bài test đọc</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="reading-passages"
-                      title="📖 Reading Passages"
-                      description="Kéo thả file đoạn văn hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx,.txt"
-                      maxSize="20MB"
-                      icon={FileText}
-                      borderColor="border-blue-300"
-                      iconColor="text-blue-400"
-                      required={true}
-                    />
-
-                    <FileUploadArea
-                      uploadType="reading-questions"
-                      title="❓ Questions & Answer Key"
-                      description="Kéo thả file câu hỏi hoặc click để chọn"
-                      acceptedTypes=".json,.csv"
-                      maxSize="5MB"
-                      icon={FileText}
-                      borderColor="border-green-300"
-                      iconColor="text-green-400"
-                      required={true}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedTestType === 'speaking' && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Speaking Test - Upload Files</CardTitle>
-                <CardDescription>Upload prompt và rubric cho bài test nói</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="speaking-prompts"
-                      title="🗣️ Speaking Prompts"
-                      description="Kéo thả file đề bài hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx,.json"
-                      maxSize="10MB"
-                      icon={FileText}
-                      borderColor="border-orange-300"
-                      iconColor="text-orange-400"
-                      required={true}
-                    />
-
-                    <FileUploadArea
-                      uploadType="speaking-rubric"
-                      title="📊 Scoring Rubric"
-                      description="Kéo thả file rubric hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx"
-                      maxSize="5MB"
-                      icon={FileText}
-                      borderColor="border-purple-300"
-                      iconColor="text-purple-400"
-                      required={false}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedTestType === 'writing' && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Writing Test - Upload Files</CardTitle>
-                <CardDescription>Upload đề bài và rubric cho bài test viết</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="writing-prompts"
-                      title="✍️ Writing Prompts"
-                      description="Kéo thả file đề bài hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx,.json"
-                      maxSize="10MB"
-                      icon={FileText}
-                      borderColor="border-red-300"
-                      iconColor="text-red-400"
-                      required={true}
-                    />
-
-                    <FileUploadArea
-                      uploadType="writing-rubric"
-                      title="📊 Scoring Rubric"
-                      description="Kéa thả file rubric hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx"
-                      maxSize="5MB"
-                      icon={FileText}
-                      borderColor="border-purple-300"
-                      iconColor="text-purple-400"
-                      required={false}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedTestType === 'vocabulary' && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Vocabulary Test - Upload Files</CardTitle>
-                <CardDescription>Upload danh sách từ vựng và câu hỏi</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="vocabulary-list"
-                      title="📚 Vocabulary List"
-                      description="Kéo thả file từ vựng hoặc click để chọn"
-                      acceptedTypes=".csv,.json,.xlsx"
-                      maxSize="5MB"
-                      icon={FileText}
-                      borderColor="border-blue-300"
-                      iconColor="text-blue-400"
-                      required={true}
-                    />
-
-                    <FileUploadArea
-                      uploadType="vocabulary-audio"
-                      title="🎧 Audio Pronunciation"
-                      description="Kéo thả file phát âm hoặc click để chọn"
-                      acceptedTypes=".zip,audio/*"
-                      maxSize="100MB"
-                      icon={Upload}
-                      borderColor="border-green-300"
-                      iconColor="text-green-400"
-                      required={false}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedTestType === 'grammar' && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Grammar Test - Upload Files</CardTitle>
-                <CardDescription>Upload câu hỏi và bài tập ngữ pháp</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="grammar-questions"
-                      title="📋 Grammar Questions"
-                      description="Kéo thả file câu hỏi hoặc click để chọn"
-                      acceptedTypes=".json,.csv,.pdf"
-                      maxSize="10MB"
-                      icon={FileText}
-                      borderColor="border-indigo-300"
-                      iconColor="text-indigo-400"
-                      required={true}
-                    />
-
-                    <FileUploadArea
-                      uploadType="grammar-rules"
-                      title="💡 Grammar Rules"
-                      description="Kéo thả file quy tắc hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx"
-                      maxSize="5MB"
-                      icon={FileText}
-                      borderColor="border-yellow-300"
-                      iconColor="text-yellow-400"
-                      required={false}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="reading" className="space-y-4">
+          <AdminReadingExercisesManager />
         </TabsContent>
 
         <TabsContent value="create" className="space-y-4">
@@ -761,18 +717,14 @@ const UploadPage = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {questions.map((q) => (
-                  <div key={q.id}>
-                    <SectionBox className="space-y-4 relative">
+                  <div key={q.id} className="space-y-4 p-4 border rounded-xl">
                     <div className="flex items-center justify-between">
                       <Label className="text-base font-medium flex items-center">
                         <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm mr-2">
                           Câu {q.id}
                         </span>
-                        {q.id === Math.max(...questions.map(qu => qu.id)) && questions.length > 1 && (
-                          <Badge variant="secondary" className="ml-2 text-xs">Mới nhất</Badge>
-                        )}
                       </Label>
                       {questions.length > 1 && (
                         <Button 
@@ -786,31 +738,35 @@ const UploadPage = () => {
                       )}
                     </div>
                     
-                    <Textarea
-                      placeholder="Nhập câu hỏi..."
-                      value={q.question}
-                      onChange={(e) => updateQuestion(q.id, 'question', e.target.value)}
-                    />
-                    
-                    <div className="grid gap-2 md:grid-cols-2">
-                      {q.options.map((option, optIndex) => (
-                        <div key={optIndex} className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            name={`correct-${q.id}`}
-                            checked={q.correct === optIndex}
-                            onChange={() => updateQuestion(q.id, 'correct', optIndex)}
-                            className="text-primary"
-                          />
-                          <Input
-                            placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
-                            value={option}
-                            onChange={(e) => updateOption(q.id, optIndex, e.target.value)}
-                          />
-                        </div>
-                      ))}
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Nhập câu hỏi..."
+                        value={q.question}
+                        onChange={(e) => updateQuestion(q.id, 'question', e.target.value)}
+                        className="rounded-xl"
+                      />
+                      
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {q.options.map((option, optIndex) => (
+                          <div key={optIndex} className="flex items-center space-x-2">
+                            <span className="text-sm font-medium w-6">{String.fromCharCode(65 + optIndex)})</span>
+                            <Input
+                              placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
+                              value={option}
+                              onChange={(e) => updateQuestionOption(q.id, optIndex, e.target.value)}
+                              className="rounded-xl flex-1"
+                            />
+                            <input
+                              type="radio"
+                              name={`correct-${q.id}`}
+                              checked={q.correct === optIndex}
+                              onChange={() => updateQuestion(q.id, 'correct', optIndex)}
+                              className="w-4 h-4"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    </SectionBox>
                   </div>
                 ))}
               </div>
@@ -818,55 +774,73 @@ const UploadPage = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="manage" className="space-y-4">
+        <TabsContent value="create" className="space-y-4">
           <Card className="rounded-2xl">
             <CardHeader>
-              <CardTitle>Quản lý file đã tải lên</CardTitle>
-              <CardDescription>Xem và quản lý tất cả file đã tải lên hệ thống</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Tạo đề thi thủ công</CardTitle>
+                  <CardDescription>Tạo câu hỏi và đáp án trực tiếp trên hệ thống</CardDescription>
+                </div>
+                <Button onClick={addQuestion} className="rounded-xl">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Thêm câu hỏi
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Filter và Search */}
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <Input placeholder="Tìm kiếm file..." />
-                  </div>
-                  <Select defaultValue="all">
-                    <SelectTrigger className="w-48">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tất cả file</SelectItem>
-                      <SelectItem value="audio">File âm thanh</SelectItem>
-                      <SelectItem value="document">Tài liệu</SelectItem>
-                      <SelectItem value="image">Hình ảnh</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Files List */}
-                <div className="space-y-2">
-                  {uploadedFiles.map((file, index) => (
-                    <div key={file.id ?? index}>
-                      <FileRow
-                        fileName={file.name}
-                        fileSize={file.size}
-                        uploadDate={file.date}
-                        status={file.status as 'uploaded' | 'processing' | 'error' | 'local'}
-                        onDelete={() => {
-                          setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
-                          if (file.id) {
-                            setFallbackFilesMap(prev => { const c = { ...prev }; delete c[file.id!]; return c; });
-                          }
-                        }}
-                        onDownload={() => {
-                          // Handle download
-                        }}
-                        onRetry={file.id ? () => retryUpload(file.id) : undefined}
-                      />
+                {questions.map((q) => (
+                  <div key={q.id} className="space-y-4 p-4 border rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-medium flex items-center">
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm mr-2">
+                          Câu {q.id}
+                        </span>
+                      </Label>
+                      {questions.length > 1 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => removeQuestion(q.id)}
+                          className="text-red-600 hover:text-red-700 rounded-xl"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
-                  ))}
-                </div>
+                    
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Nhập câu hỏi..."
+                        value={q.question}
+                        onChange={(e) => updateQuestion(q.id, 'question', e.target.value)}
+                        className="rounded-xl"
+                      />
+                      
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {q.options.map((option, optIndex) => (
+                          <div key={optIndex} className="flex items-center space-x-2">
+                            <span className="text-sm font-medium w-6">{String.fromCharCode(65 + optIndex)})</span>
+                            <Input
+                              placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
+                              value={option}
+                              onChange={(e) => updateQuestionOption(q.id, optIndex, e.target.value)}
+                              className="rounded-xl flex-1"
+                            />
+                            <input
+                              type="radio"
+                              name={`correct-${q.id}`}
+                              checked={q.correct === optIndex}
+                              onChange={() => updateQuestion(q.id, 'correct', optIndex)}
+                              className="w-4 h-4"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -879,9 +853,13 @@ const UploadPage = () => {
           <Eye className="mr-2 h-4 w-4" />
           Xem trước
         </Button>
-        <Button className="rounded-xl">
+        <Button 
+          className="rounded-xl"
+          onClick={createReadingExerciseFromUpload}
+          disabled={!exerciseTitle.trim() || questions.length === 0}
+        >
           <Save className="mr-2 h-4 w-4" />
-          Lưu bài test
+          Lưu bài test và tạo Reading Exercise
         </Button>
       </div>
     </div>
