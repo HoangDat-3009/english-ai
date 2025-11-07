@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useReadingExercises } from "@/hooks/useReadingExercises";
 import type { ReadingExercise } from "@/services/databaseStatsService";
-import { ArrowLeft, CheckCircle2, Database, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, User, XCircle } from "lucide-react";
 import { useState } from "react";
 
 interface ReadingExerciseCardProps {
@@ -26,20 +26,21 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
   const [score, setScore] = useState(0);
 
   const handleSubmit = () => {
+    const questions = exercise.questions ?? [];
     let correctCount = 0;
     const answerArray: number[] = [];
-    
-    exercise.questions.forEach((question, index) => {
+
+    questions.forEach((question, index) => {
       const userAnswer = answers[index] ?? -1;
       answerArray.push(userAnswer);
-      if (userAnswer === question.correctAnswer) {
+      if (userAnswer === (question.correctAnswer ?? -1)) {
         correctCount++;
       }
     });
-    
+
     setScore(correctCount);
     setIsSubmitted(true);
-    
+
     submitResult(exercise.id, answerArray);
   };
 
@@ -49,7 +50,8 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
     setScore(0);
   };
 
-  const allQuestionsAnswered = exercise.questions.every(
+  const questions = exercise.questions ?? [];
+  const allQuestionsAnswered = questions.length > 0 && questions.every(
     (_, index) => answers[index] !== undefined
   );
 
@@ -63,11 +65,6 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-2xl font-bold">{exercise.name}</h2>
-              {exercise.sourceType === 'ai' ? (
-                <Sparkles className="h-5 w-5 text-primary" />
-              ) : (
-                <Database className="h-5 w-5 text-secondary" />
-              )}
             </div>
             <div className="flex items-center gap-2 mt-2">
               <Badge variant="secondary">{exercise.type}</Badge>
@@ -82,9 +79,18 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
               >
                 {exercise.level}
               </Badge>
-              <Badge variant="outline">
-                {exercise.sourceType === 'ai' ? 'AI Generated' : 'Uploaded'}
-              </Badge>
+              {/* AI vs Admin Badge */}
+              {exercise.sourceType === 'ai' ? (
+                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                  <Bot className="h-4 w-4 mr-1" />
+                  AI Generated
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                  <User className="h-4 w-4 mr-1" />
+                  Admin Created
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -92,10 +98,10 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
         {isSubmitted && (
           <div className="text-right">
             <div className="text-3xl font-bold text-primary">
-              {score}/{exercise.questions.length}
+              {score}/{questions.length}
             </div>
             <p className="text-sm text-muted-foreground">
-              {Math.round((score / exercise.questions.length) * 100)}% Correct
+              {questions.length > 0 ? Math.round((score / questions.length) * 100) : 0}% Correct
             </p>
           </div>
         )}
@@ -109,9 +115,14 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
       </Card>
 
       <div className="space-y-6">
-        {exercise.questions.map((question, questionIndex) => {
-          const isCorrect = isSubmitted && answers[questionIndex] === question.correctAnswer;
-          const isIncorrect = isSubmitted && answers[questionIndex] !== question.correctAnswer;
+        {questions.length === 0 ? (
+          <Card className="p-6">
+            <p className="text-sm text-muted-foreground">No questions available for this exercise.</p>
+          </Card>
+        ) : (
+          questions.map((question, questionIndex) => {
+          const isCorrect = isSubmitted && answers[questionIndex] === (question.correctAnswer ?? -1);
+          const isIncorrect = isSubmitted && answers[questionIndex] !== (question.correctAnswer ?? -1);
 
           return (
             <Card
@@ -127,7 +138,7 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
               <div className="flex items-start gap-3 mb-4">
                 <span className="font-semibold text-lg">{questionIndex + 1}.</span>
                 <div className="flex-1">
-                  <p className="font-medium mb-4">{question.question}</p>
+                  <p className="font-medium mb-4">{question.question ?? 'Question text not available'}</p>
                   <RadioGroup
                     value={answers[questionIndex]?.toString()}
                     onValueChange={(value) =>
@@ -135,8 +146,8 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
                     }
                     disabled={isSubmitted}
                   >
-                    {question.options.map((option, optionIndex) => {
-                      const isThisCorrect = optionIndex === question.correctAnswer;
+                    {(question.options ?? []).map((option, optionIndex) => {
+                      const isThisCorrect = optionIndex === (question.correctAnswer ?? -1);
                       const isSelected = answers[questionIndex] === optionIndex;
 
                       return (
@@ -180,7 +191,8 @@ const ReadingExerciseCard = ({ exercise, onBack }: ReadingExerciseCardProps) => 
               </div>
             </Card>
           );
-        })}
+          })
+        )}
       </div>
 
       <div className="flex gap-3 pt-4">

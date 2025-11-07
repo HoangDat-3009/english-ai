@@ -1,19 +1,22 @@
-// 🎯 PROGRESS PAGE - Trang theo dõi tiến độ học tập cá nhân
-// ✅ READY FOR GIT: Đã hoàn thành tích hợp với .NET API backend
+// 🎯 PROGRESS PAGE - Trang theo dõi tiến độ học tập cá nhân với tích hợp admin
+// ✅ READY FOR GIT: Đã hoàn thành tích hợp với .NET API backend + admin sync
 // 🔄 TODO BACKEND: Khi deploy .NET API, cập nhật endpoints trong databaseStatsService.ts
-// 📊 Features: Stats cards, 4-skill tracking, interactive charts, achievements, time filtering
-// 🎨 UI: Responsive design, animations, gradient themes, progress bars
+// 📊 Features: Stats cards, 4-skill tracking, interactive charts, achievements, admin data sync
+// 🎨 UI: Responsive design, animations, gradient themes, progress bars, admin notifications
 
 import Navbar from "@/components/Navbar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useCurrentUserProgress } from "@/hooks/useAdminProgress";
 import { useRecentActivities, useUserStats, useWeeklyProgress } from "@/hooks/useStats";
 import { getSynchronizedData } from "@/services/statsService";
-import { BookOpen, Calendar, Clock, Headphones, Mic, PenTool, Target, TrendingUp, Trophy } from "lucide-react";
-import { useState } from "react";
+import { BookOpen, Calendar, Clock, Headphones, Mic, PenTool, RefreshCw, Target, TrendingUp, Trophy, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 // Generate chart data from weekly progress
@@ -51,18 +54,41 @@ const generateChartData = (weeklyProgressData: WeeklyProgressData[], userScore: 
 export default function Progress() {
   const [timeFilter, setTimeFilter] = useState("week");
   const [chartType, setChartType] = useState("total");
+  const [showAdminNotice, setShowAdminNotice] = useState(false);
   
   // Get synchronized data from statsService
   const { data: userStats, isLoading: statsLoading } = useUserStats(1);
   const { data: activities, isLoading: activitiesLoading } = useRecentActivities(1, 20);
   const { data: weeklyProgress, isLoading: weeklyLoading } = useWeeklyProgress(1);
+  const { data: adminUserData, isLoading: adminLoading, refetch: refetchAdminData } = useCurrentUserProgress();
   const syncData = getSynchronizedData();
   
-  // Use synchronized data or fallbacks
-  const completionRate = userStats ? (userStats.completedExercises / userStats.totalExercises * 100) : 67;
-  const averageScore = userStats?.averageScore || syncData.userStats.averageScore;
+  // Check if admin data exists and show notification
+  useEffect(() => {
+    if (adminUserData && !adminLoading) {
+      setShowAdminNotice(true);
+    }
+  }, [adminUserData, adminLoading]);
+  
+  // Use admin data first, then synchronized data or fallbacks - READING FOCUS
+  const completionRate = adminUserData 
+    ? (adminUserData.exercisesCompleted / 100 * 100) // Reading exercises completion rate
+    : userStats ? (userStats.completedExercises / userStats.totalExercises * 100) : 67;
+  
+  const averageScore = adminUserData?.averageScore || userStats?.averageScore || syncData.userStats.averageScore;
+  const skillScores = adminUserData ? {
+    listening: 0, // Reading-only focus
+    speaking: 0,  
+    reading: adminUserData.averageScore,
+    writing: 0
+  } : null;
+  
   const userRank = 4; // From leaderboard data (englishlearner01)
   const totalUsers = 1000;
+  const studyStreak = adminUserData?.streakDays || 8;
+  const totalStudyTime = adminUserData ? adminUserData.totalXp * 10 : 1900; // Estimate from XP
+  const achievements = adminUserData?.achievements || [];
+  const userLevel = adminUserData ? `Level ${adminUserData.level}` : "Intermediate";
   
   // Calculate improvement based on recent activities
   const recentActivities = activities || syncData.activities;
@@ -97,9 +123,9 @@ export default function Progress() {
   const comparisonScore = getComparisonScore(timeFilter);
   const improvement = ((averageScore - comparisonScore) / comparisonScore * 100).toFixed(1);
   
-  // Calculate skill scores from recent activities
+  // Use fallback skill scores if no admin data available
   const skillActivities = recentActivities.filter(activity => activity.assignmentType);
-  const skillScores = {
+  const finalSkillScores = skillScores || {
     listening: Math.round(averageScore * 0.5), // Listening is typically 50% of TOEIC
     speaking: Math.round(averageScore * 0.25), // Speaking is 25%  
     reading: Math.round(averageScore * 0.2),   // Reading is 20%
@@ -132,6 +158,40 @@ export default function Progress() {
   return (
     <div className="min-h-screen">
       <Navbar />
+      
+      {/* Admin Data Notice */}
+      {showAdminNotice && adminUserData && (
+        <Alert className="mx-4 mb-4 border-blue-200 bg-blue-50">
+          <Users className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-blue-800">
+              🎯 Dữ liệu tiến độ đã được đồng bộ từ hệ thống quản lý admin. 
+              Cấp độ hiện tại: <strong>{userLevel}</strong> • 
+              Chuỗi học tập: <strong>{studyStreak} ngày</strong> • 
+              {achievements.length > 0 && `Thành tích: ${achievements.length}`}
+            </span>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetchAdminData()}
+                className="text-blue-600 border-blue-200"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Làm mới
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowAdminNotice(false)}
+                className="text-blue-600"
+              >
+                ✕
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
@@ -208,8 +268,8 @@ export default function Progress() {
               <Headphones className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{skillScores.listening}</div>
-              <ProgressBar value={(skillScores.listening / 495) * 100} className="mt-2" />
+              <div className="text-2xl font-bold">{finalSkillScores.listening}</div>
+              <ProgressBar value={(finalSkillScores.listening / 495) * 100} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">Trung bình: 45 phút</p>
             </CardContent>
           </Card>
@@ -220,8 +280,8 @@ export default function Progress() {
               <Mic className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{skillScores.speaking}</div>
-              <ProgressBar value={(skillScores.speaking / 200) * 100} className="mt-2" />
+              <div className="text-2xl font-bold">{finalSkillScores.speaking}</div>
+              <ProgressBar value={(finalSkillScores.speaking / 200) * 100} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">Trung bình: 18 phút</p>
             </CardContent>
           </Card>
@@ -232,8 +292,8 @@ export default function Progress() {
               <BookOpen className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{skillScores.reading}</div>
-              <ProgressBar value={(skillScores.reading / 200) * 100} className="mt-2" />
+              <div className="text-2xl font-bold">{finalSkillScores.reading}</div>
+              <ProgressBar value={(finalSkillScores.reading / 200) * 100} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">Trung bình: 34 phút</p>
             </CardContent>
           </Card>
@@ -244,8 +304,8 @@ export default function Progress() {
               <PenTool className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{skillScores.writing}</div>
-              <ProgressBar value={(skillScores.writing / 100) * 100} className="mt-2" />
+              <div className="text-2xl font-bold">{finalSkillScores.writing}</div>
+              <ProgressBar value={(finalSkillScores.writing / 100) * 100} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">Trung bình: 20 phút</p>
             </CardContent>
           </Card>

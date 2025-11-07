@@ -5,16 +5,19 @@
 // 🎯 Business Impact: Gamification tăng user retention 40%
 
 import Navbar from "@/components/Navbar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BookOpen, Crown, Headphones, Medal, Mic, PenTool, Search, TrendingUp, Trophy } from "lucide-react";
-import { useState } from "react";
+import { useAdminLeaderboard } from "@/hooks/useAdminProgress";
+import { BookOpen, Crown, Headphones, Medal, Mic, PenTool, RefreshCw, Search, TrendingUp, Trophy, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 
 // Time-filtered mock data for different periods
 const getTimeFilteredData = (timeFilter: string) => {
@@ -110,13 +113,27 @@ const getCurrentUserData = (leaderboardData: LeaderboardUser[], timeFilter: stri
 
 export default function Leaderboard() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [timeFilter, setTimeFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>("all");
   const [skillFilter, setSkillFilter] = useState("total");
+  const [showAdminNotice, setShowAdminNotice] = useState(false);
   
-  // Get time-filtered leaderboard data
-  const currentLeaderboard = getTimeFilteredData(timeFilter);
+  // Get admin leaderboard data
+  const { data: adminLeaderboard, isLoading: adminLoading, refetch: refetchLeaderboard } = useAdminLeaderboard(timeFilter);
+  
+  // Fallback to mock data if no admin data
+  const mockLeaderboard = getTimeFilteredData(timeFilter);
+  
+  // adminLeaderboard already returns LeaderboardUser[] format from useAdminProgress hook
+  const currentLeaderboard = adminLeaderboard && adminLeaderboard.length > 0 ? adminLeaderboard : mockLeaderboard;
   const currentUserData = getCurrentUserData(currentLeaderboard, timeFilter);
   const [selectedUser, setSelectedUser] = useState<typeof currentLeaderboard[0] | null>(null);
+
+  // Show admin notice when admin data is available
+  useEffect(() => {
+    if (adminLeaderboard && adminLeaderboard.length > 0 && !adminLoading) {
+      setShowAdminNotice(true);
+    }
+  }, [adminLeaderboard, adminLoading]);
   
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Crown className="h-5 w-5 text-yellow-500" />;
@@ -177,6 +194,38 @@ export default function Leaderboard() {
   return (
     <div className="min-h-screen">
       <Navbar />
+      
+      {/* Admin Data Notice */}
+      {showAdminNotice && adminLeaderboard && adminLeaderboard.length > 0 && (
+        <Alert className="mx-4 mb-4 border-blue-200 bg-blue-50">
+          <Users className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-blue-800">
+              🏆 Bảng xếp hạng đã được đồng bộ từ hệ thống quản lý admin với {adminLeaderboard.length} học viên. 
+              Dữ liệu được cập nhật theo thời gian thực từ admin panel.
+            </span>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetchLeaderboard()}
+                className="text-blue-600 border-blue-200"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Làm mới
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowAdminNotice(false)}
+                className="text-blue-600"
+              >
+                ✕
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
@@ -263,7 +312,7 @@ export default function Leaderboard() {
                   <SelectItem value="writing">Writing</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={timeFilter} onValueChange={setTimeFilter}>
+              <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as 'today' | 'week' | 'month' | 'all')}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Thời gian" />
                 </SelectTrigger>

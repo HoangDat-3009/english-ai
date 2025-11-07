@@ -303,10 +303,10 @@ const mockProgressHistory: ProgressHistory[] = [
 ];
 
 export const statsService = {
-  // Get user statistics
+  // Get user statistics - Updated to match backend endpoint
   getUserStats: async (userId: number): Promise<UserStats> => {
     try {
-      const response = await apiService.get<UserStats>(`/api/Users/${userId}/stats`);
+      const response = await apiService.get<UserStats>(`/api/progress/stats/${userId}`);
       return response;
     } catch (error) {
       console.log('Stats API not available, using mock data:', error);
@@ -314,10 +314,10 @@ export const statsService = {
     }
   },
 
-  // Get recent activities
+  // Get recent activities - Updated to match backend endpoint
   getRecentActivities: async (userId: number, limit: number = 10): Promise<Activity[]> => {
     try {
-      const response = await apiService.get<Activity[]>(`/api/Users/${userId}/activities?limit=${limit}`);
+      const response = await apiService.get<Activity[]>(`/api/progress/activities/${userId}?limit=${limit}`);
       return response;
     } catch (error) {
       console.log('Activities API not available, using mock data:', error);
@@ -325,10 +325,10 @@ export const statsService = {
     }
   },
 
-  // Get weekly progress
+  // Get weekly progress - Updated to match backend endpoint
   getWeeklyProgress: async (userId: number): Promise<WeeklyProgress[]> => {
     try {
-      const response = await apiService.get<WeeklyProgress[]>(`/api/Users/${userId}/weekly-progress`);
+      const response = await apiService.get<WeeklyProgress[]>(`/api/progress/weekly/${userId}`);
       return response;
     } catch (error) {
       console.log('Weekly progress API not available, using mock data:', error);
@@ -347,7 +347,7 @@ export const statsService = {
     }
   },
 
-  // Get leaderboard with time filtering
+  // Get leaderboard with time filtering - Updated to match backend endpoint
   getLeaderboard: async (limit: number = 50, skillType?: string, timeFilter?: string): Promise<LeaderboardEntry[]> => {
     try {
       const params = new URLSearchParams();
@@ -355,7 +355,7 @@ export const statsService = {
       if (skillType) params.append('skill', skillType);
       if (timeFilter) params.append('timeFilter', timeFilter);
       
-      const response = await apiService.get<LeaderboardEntry[]>(`/api/Leaderboard?${params.toString()}`);
+      const response = await apiService.get<LeaderboardEntry[]>(`/api/leaderboard?${params.toString()}`);
       return response;
     } catch (error) {
       console.log('Leaderboard API not available, using mock data:', error);
