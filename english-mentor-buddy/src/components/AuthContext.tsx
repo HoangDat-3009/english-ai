@@ -7,6 +7,9 @@ interface User {
     englishlevel: string;
     tendangnhap: string;
     ngaytaotaikhoan: string;
+    auth0_sub?: string;
+    avatar_url?: string;
+    email_verified?: boolean;
 }
 
 interface AuthContextType {

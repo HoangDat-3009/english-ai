@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import LoginAlt from "./pages/LoginAlt";
 import Register from "./pages/Register";
+import Auth0Callback from "./pages/Auth0Callback";
 import ProtectedRoute from "./components/ProtectedRoute"; // Nhập ProtectedRoute
 
 // Admin imports
@@ -48,6 +49,7 @@ const App = () => (
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/callback" element={<Auth0Callback />} />
 
               {/* Các routes chính - không còn bắt buộc đăng nhập */}
               <Route path="/index" element={<Index />} />
