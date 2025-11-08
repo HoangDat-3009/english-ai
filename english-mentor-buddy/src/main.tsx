@@ -10,7 +10,13 @@ createRoot(document.getElementById('root')!).render(
     <Auth0Provider
         domain={authConfig.domain}
         clientId={authConfig.clientId}
-        authorizationParams={{ redirect_uri: authConfig.redirectUri }}
+        authorizationParams={{ 
+            redirect_uri: `${authConfig.redirectUri}/callback`,
+            audience: `https://${authConfig.domain}/api/v2/`,
+            scope: 'openid profile email'
+        }}
+        cacheLocation="localstorage"
+        useRefreshTokens={true}
     >
         <AuthProvider>
             <App />

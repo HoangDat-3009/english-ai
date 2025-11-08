@@ -37,11 +37,13 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { supabase } from '@/services/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth0Integration } from '@/hooks/useAuth0Integration';
 
 const Navbar = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user, login, logout } = useAuth();
+  const { handleLogout: auth0Logout } = useAuth0Integration();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -60,8 +62,8 @@ const Navbar = () => {
     { name: 'Topics', path: '/topics', icon: Globe, color: 'text-pink-500' },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await auth0Logout();
     navigate('/');
   };
 
