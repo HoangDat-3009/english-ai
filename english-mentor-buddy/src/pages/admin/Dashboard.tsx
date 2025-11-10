@@ -152,7 +152,7 @@ const AdminDashboard = () => {
             );
           })
         ) : (
-          <div className="col-span-4 text-center text-gray-500 dark:text-gray-400">
+          <div className="col-span-5 text-center text-gray-500 dark:text-gray-400">
             Không có dữ liệu thống kê
           </div>
         )}
