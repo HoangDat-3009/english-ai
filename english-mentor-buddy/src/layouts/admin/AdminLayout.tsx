@@ -20,7 +20,6 @@ import {
   LogOut,
   Menu,
   X,
-  Search,
   Upload,
   User,
   ChevronDown,
@@ -146,20 +145,9 @@ const AdminLayout = () => {
                 <Menu className="h-5 w-5" />
               </Button>
             </div>
-
-            {/* Search Bar */}
-            <div className="flex-1 max-w-lg mx-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input 
-                  placeholder="Tìm kiếm..." 
-                  className="pl-10 bg-gray-50 border-gray-200 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
-              </div>
-            </div>
             
             {/* User Profile */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 ml-auto">
               <Button variant="ghost" size="sm" onClick={toggleTheme}>
                 {theme === 'dark' ? (
                   <Sun className="h-4 w-4" />
