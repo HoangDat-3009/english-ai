@@ -12,6 +12,12 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Logging to Console
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddEndpointsApiExplorer();
@@ -154,8 +160,30 @@ builder.Services.AddResponseCaching();
 
 var app = builder.Build();
 
+// Log all requests
+app.Use(async (context, next) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    
+    logger.LogInformation("==================== NEW REQUEST ====================");
+    logger.LogInformation($"📥 {context.Request.Method} {context.Request.Path}{context.Request.QueryString}");
+    logger.LogInformation($"🌐 From: {context.Connection.RemoteIpAddress}");
+    logger.LogInformation($"📋 Headers: {string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}={h.Value}"))}");
+    
+    await next();
+    
+    logger.LogInformation($"📤 Response: {context.Response.StatusCode}");
+    logger.LogInformation("====================================================");
+});
+
 app.UseDeveloperExceptionPage();
-app.UseHttpsRedirection();
+
+// Only use HTTPS redirection in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseRouting();
 
 // Add JWT Middleware

@@ -2,7 +2,7 @@
 class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'https://localhost:5000') {
+  constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl;
     console.log('Base URL:', this.baseUrl);
   }
@@ -112,5 +112,7 @@ class ApiService {
   }
 }
 
-// Create a new instance with the local API URL
-export const apiService = new ApiService("https://localhost:5000");
+// Create a new instance with empty base URL (sử dụng Vite proxy)
+// Trong development: request đến /api sẽ được proxy đến https://EngBuddy-d39f.onrender.com
+// Trong production: cần cấu hình base URL phù hợp
+export const apiService = new ApiService("");

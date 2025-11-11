@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/components/ThemeProvider';
-import { supabase } from '@/services/supabaseClient';
+import { authService } from '@/services/authService';
 import { useAuth } from '@/components/AuthContext';
 import { useAuth0 } from '@auth0/auth0-react';
 
@@ -56,32 +56,35 @@ const Login: React.FC = () => {
         try {
             setIsLoading(true);
 
-            const { data, error } = await supabase
-                .from('user')
-                .select('*')
-                .eq('tendangnhap', formData.username)
-                .eq('password', formData.password) // So sánh mật khẩu thô
-                .single();
+            // Gọi API backend để đăng nhập
+            const response = await authService.login({
+                emailOrUsername: formData.username,
+                password: formData.password,
+                rememberMe: formData.rememberMe,
+            });
 
-            if (error || !data) {
-                throw new Error('Thông tin đăng nhập không đúng');
+            if (!response.success) {
+                throw new Error(response.message || 'Đăng nhập thất bại');
             }
 
-            login(data);
+            // Lưu thông tin user vào context (nếu cần)
+            if (response.user) {
+                login(response.user);
+            }
 
             toast({
                 title: "Đăng nhập thành công",
-                description: `Chào mừng ${data.tendangnhap} quay trở lại!`,
+                description: response.message || `Chào mừng ${response.user?.username || response.user?.email} quay trở lại!`,
                 variant: "default",
             });
 
             navigate('/index');
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Login error:', error);
             toast({
                 title: "Đăng nhập thất bại",
-                description: "Tên đăng nhập hoặc mật khẩu không đúng",
+                description: error.message || "Tên đăng nhập hoặc mật khẩu không đúng",
                 variant: "destructive",
             });
         } finally {
