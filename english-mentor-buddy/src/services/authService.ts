@@ -4,9 +4,8 @@ import { apiService as api } from './api';
 export interface RegisterRequest {
   email: string;
   password: string;
-  username?: string;
-  fullName?: string;
-  phone?: string;
+  username: string;
+  fullName: string;
 }
 
 export interface LoginRequest {

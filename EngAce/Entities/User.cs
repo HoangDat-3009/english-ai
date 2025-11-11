@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Entities
 {
-    [Table("Users")]
+    [Table("User")]
     public class User
     {
         [Key]

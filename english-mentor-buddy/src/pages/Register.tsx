@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/components/ThemeProvider';
-import { supabase } from '@/services/supabaseClient'; // Nhập Supabase client
+import { authService } from '@/services/authService';
 
 const Register: React.FC = () => {
     const navigate = useNavigate();
@@ -60,19 +60,30 @@ const Register: React.FC = () => {
             return false;
         }
 
-        if (!formData.username.trim() || formData.username.length < 4) {
+        if (!formData.username.trim() || formData.username.length < 3) {
             toast({
                 title: "Tên đăng nhập không hợp lệ",
-                description: "Tên đăng nhập phải có ít nhất 4 ký tự",
+                description: "Tên đăng nhập phải có ít nhất 3 ký tự",
                 variant: "destructive",
             });
             return false;
         }
 
-        if (!formData.password.trim() || formData.password.length < 6) {
+        if (!formData.password.trim() || formData.password.length < 8) {
             toast({
                 title: "Mật khẩu không hợp lệ",
-                description: "Mật khẩu phải có ít nhất 6 ký tự",
+                description: "Mật khẩu phải có ít nhất 8 ký tự",
+                variant: "destructive",
+            });
+            return false;
+        }
+
+        // Kiểm tra định dạng mật khẩu (phải có chữ hoa, chữ thường, số, ký tự đặc biệt)
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(formData.password)) {
+            toast({
+                title: "Mật khẩu không hợp lệ",
+                description: "Mật khẩu phải chứa chữ hoa, chữ thường, số và ký tự đặc biệt (@$!%*?&)",
                 variant: "destructive",
             });
             return false;
@@ -99,29 +110,21 @@ const Register: React.FC = () => {
         return true;
     };
 
-    // Hàm cập nhật cơ sở dữ liệu
-    const updateDatabase = async () => {
+    // Hàm đăng ký qua API Backend
+    const registerUser = async () => {
         try {
-            const { data, error } = await supabase
-                .from('user')
-                .insert({
-                    tendangnhap: formData.username,
-                    email: formData.email,
-                    password: formData.password, // Lưu mật khẩu thô vì đây là bài tập
-                    englishlevel: 'beginner', // Giá trị mặc định, có thể thay đổi
-                    ngaytaotaikhoan: new Date().toISOString(), // Ngày tạo tài khoản
-                })
-                .select()
-                .single();
+            const response = await authService.register({
+                email: formData.email,
+                password: formData.password,
+                username: formData.username,
+                fullName: formData.fullName,
+            });
 
-            if (error) {
-                if (error.code === '23505') { // Lỗi trùng khóa duy nhất (email hoặc tendangnhap)
-                    throw new Error('Tên đăng nhập hoặc email đã tồn tại');
-                }
-                throw error;
+            if (!response.success) {
+                throw new Error(response.message || 'Đăng ký thất bại');
             }
 
-            return data;
+            return response;
         } catch (error: any) {
             throw new Error(error.message || 'Đã xảy ra lỗi khi đăng ký');
         }
@@ -136,12 +139,12 @@ const Register: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Gọi hàm updateDatabase để thêm dữ liệu vào Supabase
-            await updateDatabase();
+            // Gọi API backend để đăng ký
+            const response = await registerUser();
 
             toast({
                 title: "Đăng ký thành công",
-                description: "Tài khoản của bạn đã được tạo thành công",
+                description: response.message || "Tài khoản của bạn đã được tạo thành công",
                 variant: "default",
             });
 
@@ -251,7 +254,7 @@ const Register: React.FC = () => {
                         {/* Password field */}
                         <div className="space-y-2">
                             <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">
-                                Mật khẩu
+                                Mật khẩu (tối thiểu 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt)
                             </Label>
                             <div className="relative">
                                 <LockKeyhole className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -259,7 +262,7 @@ const Register: React.FC = () => {
                                     id="password"
                                     name="password"
                                     type={showPassword ? "text" : "password"}
-                                    placeholder="Nhập mật khẩu"
+                                    placeholder="Ví dụ: Password@123"
                                     className="pl-10 pr-10 py-6 rounded-xl text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                                     value={formData.password}
                                     onChange={handleInputChange}
