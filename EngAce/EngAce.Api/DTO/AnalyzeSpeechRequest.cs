@@ -11,7 +11,7 @@ public class AnalyzeSpeechRequest
     public string ExerciseId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Audio file (base64)
+    /// Văn bản đã được nhận dạng từ giọng nói (transcribed text từ Web Speech API)
     /// </summary>
     public string AudioData { get; set; } = string.Empty;
 }
