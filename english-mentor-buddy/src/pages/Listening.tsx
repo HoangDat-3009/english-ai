@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { listeningService, ListeningAnswerPayload, ListeningExerciseParams, ListeningExerciseResult, ListeningGenre, ListeningGradeResult } from '@/services/listeningService';
 import { useToast } from '@/hooks/use-toast';
-import { AudioLines, BookOpen, Ear, Loader2, Music, Trophy, Volume2 } from 'lucide-react';
+import { AudioLines, BookOpen, Ear, Loader2, Music, Trophy, Volume2, Play, Square } from 'lucide-react';
 
 const DEFAULT_QUESTION_COUNT = 5;
 
@@ -27,6 +27,7 @@ const Listening = () => {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [gradeResult, setGradeResult] = useState<ListeningGradeResult | null>(null);
   const [showTranscript, setShowTranscript] = useState<boolean>(false);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
 
   useEffect(() => {
     const loadMetadata = async () => {
@@ -59,6 +60,11 @@ const Listening = () => {
     };
 
     loadMetadata();
+
+    // Cleanup: stop speech when component unmounts
+    return () => {
+      window.speechSynthesis.cancel();
+    };
   }, [toast]);
 
   const handleGenerateExercise = async () => {
@@ -85,6 +91,9 @@ const Listening = () => {
       setAnswers({});
       setGradeResult(null);
       setShowTranscript(false);
+      setIsSpeaking(false);
+      // Stop any ongoing speech
+      window.speechSynthesis.cancel();
       toast({
         title: 'Đã tạo bài nghe thành công',
         description: 'Hãy lắng nghe và trả lời các câu hỏi bên dưới.'
@@ -142,6 +151,42 @@ const Listening = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleReadTranscript = () => {
+    if (!exercise?.Transcript) {
+      return;
+    }
+
+    if (isSpeaking) {
+      // Stop reading
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      // Start reading
+      const utterance = new SpeechSynthesisUtterance(exercise.Transcript);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.9; // Slightly slower for better comprehension
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+      };
+
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        toast({
+          title: 'Không thể đọc văn bản',
+          description: 'Trình duyệt của bạn có thể không hỗ trợ tính năng này.',
+          variant: 'destructive'
+        });
+      };
+
+      window.speechSynthesis.cancel(); // Clear any existing speech
+      window.speechSynthesis.speak(utterance);
+      setIsSpeaking(true);
     }
   };
 
@@ -292,13 +337,36 @@ const Listening = () => {
                 )}
               </div>
 
-              <Button
-                variant="outline"
-                className="mt-4 self-start"
-                onClick={() => setShowTranscript(prev => !prev)}
-              >
-                {showTranscript ? 'Ẩn transcript' : 'Hiện transcript'}
-              </Button>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTranscript(prev => !prev)}
+                >
+                  {showTranscript ? 'Ẩn transcript' : 'Hiện transcript'}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={handleReadTranscript}
+                  className="gap-2"
+                >
+                  {isSpeaking ? (
+                    <>
+                      <Square className="h-4 w-4" />
+                      Dừng đọc
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" />
+                      Đọc văn bản
+                    </>
+                  )}
+                </Button>
+
+                <span className="text-xs text-muted-foreground">
+                  Sử dụng giọng đọc của trình duyệt
+                </span>
+              </div>
 
               {showTranscript && (
                 <ScrollArea className="mt-4 h-56 rounded-md border border-dashed border-rose-200 p-4 text-left text-sm leading-relaxed text-gray-700 dark:border-rose-900/40 dark:text-gray-300">
