@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Book, GraduationCap, MessageCircle, User, Sun, Moon, Globe, Settings, LogOut, UserCircle, Headphones } from 'lucide-react';
+import { Book, GraduationCap, MessageCircle, User, Sun, Moon, Globe, Settings, LogOut, UserCircle, Headphones, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from './ThemeProvider';
 import { Button } from './ui/button';
@@ -57,6 +57,7 @@ const Navbar = () => {
     { name: 'Dictionary', path: '/dictionary', icon: Book, color: 'text-pink-600' },
     { name: 'Exercises', path: '/exercises', icon: GraduationCap, color: 'text-fuchsia-600' },
     { name: 'Listening', path: '/listening', icon: Headphones, color: 'text-rose-600' },
+    { name: 'Speaking', path: '/speaking', icon: Mic, color: 'text-blue-600' },
     { name: 'AI Chat', path: '/chat', icon: MessageCircle, color: 'text-rose-600' },
     { name: 'Topics', path: '/topics', icon: Globe, color: 'text-pink-500' },
   ];
