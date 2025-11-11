@@ -88,11 +88,14 @@ public class SpeakingController : ControllerBase
         {
             _logger.LogError(ex, "Error generating speaking exercise");
             
-            // Check for quota exceeded errors
-            if (ex.Message.Contains("quota", StringComparison.OrdinalIgnoreCase) || 
-                ex.Message.Contains("429"))
+            // Check for quota exceeded errors (429) or resource exhausted
+            var exceptionMessage = ex.ToString(); // Get full exception including inner exceptions
+            if (exceptionMessage.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase) ||
+                exceptionMessage.Contains("quota", StringComparison.OrdinalIgnoreCase) || 
+                exceptionMessage.Contains("429") ||
+                exceptionMessage.Contains("Resource exhausted", StringComparison.OrdinalIgnoreCase))
             {
-                return StatusCode(429, new { message = "API đã vượt quá giới hạn yêu cầu. Vui lòng thử lại sau 1 phút." });
+                return StatusCode(429, new { message = "API Gemini đã vượt quá giới hạn yêu cầu. Vui lòng thử lại sau 1 phút." });
             }
 
             return StatusCode(500, new { message = "Không thể tạo bài tập nói. Vui lòng thử lại sau." });
@@ -116,30 +119,15 @@ public class SpeakingController : ControllerBase
                 return NotFound(new { message = "Bài tập không tồn tại hoặc đã hết hạn" });
             }
 
-            // Remove data URI prefix if present
-            var audioBase64 = request.AudioData;
-            if (audioBase64.Contains(","))
-            {
-                audioBase64 = audioBase64.Split(',')[1];
-            }
-
-            // Transcribe audio to text
-            string transcribedText;
-            try
-            {
-                transcribedText = await SpeechToTextHelper.TranscribeAsync(audioBase64);
-                _logger.LogInformation("Transcribed text: {Text}", transcribedText);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to transcribe audio");
-                return BadRequest(new { message = "Không thể nhận dạng giọng nói. Vui lòng đảm bảo âm thanh rõ ràng và thử lại." });
-            }
-
+            // AudioData now contains the transcribed text from Web Speech API (frontend)
+            var transcribedText = request.AudioData?.Trim();
+            
             if (string.IsNullOrWhiteSpace(transcribedText))
             {
-                return BadRequest(new { message = "Không phát hiện giọng nói trong audio. Vui lòng thu âm lại." });
+                return BadRequest(new { message = "Không phát hiện văn bản. Vui lòng thử lại." });
             }
+
+            _logger.LogInformation("Received transcribed text: {Text}", transcribedText);
 
             // Analyze speech with AI
             var scope = new SpeakingScope();
@@ -154,11 +142,14 @@ public class SpeakingController : ControllerBase
         {
             _logger.LogError(ex, "Error analyzing speech");
 
-            // Check for quota exceeded errors
-            if (ex.Message.Contains("quota", StringComparison.OrdinalIgnoreCase) || 
-                ex.Message.Contains("429"))
+            // Check for quota exceeded errors (429) or resource exhausted
+            var exceptionMessage = ex.ToString(); // Get full exception including inner exceptions
+            if (exceptionMessage.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase) ||
+                exceptionMessage.Contains("quota", StringComparison.OrdinalIgnoreCase) || 
+                exceptionMessage.Contains("429") ||
+                exceptionMessage.Contains("Resource exhausted", StringComparison.OrdinalIgnoreCase))
             {
-                return StatusCode(429, new { message = "API đã vượt quá giới hạn yêu cầu. Vui lòng thử lại sau 1 phút." });
+                return StatusCode(429, new { message = "API Gemini đã vượt quá giới hạn yêu cầu. Vui lòng thử lại sau 1 phút." });
             }
 
             return StatusCode(500, new { message = "Không thể phân tích giọng nói. Vui lòng thử lại sau." });

@@ -13,7 +13,7 @@ namespace Helper
 
         public static string? GetAccessKey()
         {
-            string key = "AIzaSyC9Eb96_EFvY17s2HRsrtCt56IDUa4lbzA";
+            string key = "AIzaSyDOmhIHSOc6jzuVD7orLPPVdsKTSb_pP6M";
 
             return key;
         }
@@ -21,7 +21,7 @@ namespace Helper
         public static string GetGeminiApiKey()
         {
             // Trả về API key cho Gemini (có thể cùng key hoặc key riêng)
-            string key = "AIzaSyC9Eb96_EFvY17s2HRsrtCt56IDUa4lbzA";
+            string key = "AIzaSyDOmhIHSOc6jzuVD7orLPPVdsKTSb_pP6M";
             return key;
         }
     }
