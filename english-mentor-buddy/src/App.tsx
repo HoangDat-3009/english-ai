@@ -10,6 +10,7 @@ import Dictionary from "./pages/Dictionary";
 import DictionaryResult from "./pages/DictionaryResult";
 import Exercises from "./pages/Exercises";
 import Listening from "./pages/Listening";
+import Speaking from "./pages/Speaking";
 import Chat from "./pages/Chat";
 import EnglishTopicCards from "./pages/EnglishTopicCards";
 import NotFound from "./pages/NotFound";
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/dictionary-result" element={<DictionaryResult />} />
               <Route path="/exercises" element={<Exercises />} />
               <Route path="/listening" element={<Listening />} />
+              <Route path="/speaking" element={<Speaking />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/topics" element={<EnglishTopicCards />} />
 

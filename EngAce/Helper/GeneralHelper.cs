@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Reflection;
+using Entities.Enums;
 
 namespace Helper
 {
@@ -18,6 +19,20 @@ namespace Helper
             {
                 return value.ToString();
             }
+        }
+
+        public static string GetLevelDescription(EnglishLevel level)
+        {
+            return level switch
+            {
+                EnglishLevel.Beginner => "A1 (Beginner): Basic phrases, simple sentences, very limited vocabulary",
+                EnglishLevel.Elementary => "A2 (Elementary): Simple conversations, everyday topics, basic grammar structures",
+                EnglishLevel.Intermediate => "B1 (Intermediate): More complex sentences, can discuss familiar topics with some detail",
+                EnglishLevel.UpperIntermediate => "B2 (Upper Intermediate): Fluent in most situations, can express opinions clearly",
+                EnglishLevel.Advanced => "C1 (Advanced): Very fluent, sophisticated vocabulary, complex grammar structures",
+                EnglishLevel.Proficient => "C2 (Proficient): Native-like proficiency, nuanced expression, academic and professional level",
+                _ => "Unknown level"
+            };
         }
 
         public static ushort GetTotalWords(string input)
