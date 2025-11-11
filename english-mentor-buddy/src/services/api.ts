@@ -2,7 +2,7 @@
 class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'https://localhost:5000') {
+  constructor(baseUrl: string = 'http://localhost:5283') {
     this.baseUrl = baseUrl;
     console.log('Base URL:', this.baseUrl);
   }
@@ -36,10 +36,20 @@ class ApiService {
 
       // Check if the response is successful
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(
-          errorData?.message || `Server responded with status: ${response.status}`
-        );
+        const errorText = await response.text();
+        let errorMessage = errorText || `Server responded with status: ${response.status}`;
+        
+        // Try to parse as JSON if possible
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData?.message || errorData || errorMessage;
+        } catch {
+          // If not JSON, use the text as is
+        }
+        
+        const error: any = new Error(errorMessage);
+        error.response = { status: response.status, statusText: response.statusText };
+        throw error;
       }
 
       // For 204 No Content responses, return empty object
@@ -113,4 +123,4 @@ class ApiService {
 }
 
 // Create a new instance with the local API URL
-export const apiService = new ApiService("https://localhost:5000");
+export const apiService = new ApiService("http://localhost:5283");
