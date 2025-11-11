@@ -2,7 +2,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useEffect } from 'react';
 import { useAuth } from '@/components/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/services/supabaseClient';
+import { authService } from '@/services/authService';
 
 interface Auth0User {
   sub: string;
@@ -27,71 +27,56 @@ export const useAuth0Integration = () => {
         try {
           const typedAuth0User = auth0User as Auth0User;
           
-          // Kiểm tra xem user đã tồn tại trong database chưa
-          const { data: existingUser, error: fetchError } = await supabase
-            .from('user')
-            .select('*')
-            .eq('email', typedAuth0User.email || '')
-            .single();
-
-          if (fetchError && fetchError.code !== 'PGRST116') {
-            // PGRST116 = không tìm thấy row, đó là trường hợp bình thường
-            throw fetchError;
+          // Extract provider and providerId from Auth0 sub
+          // Format: "google-oauth2|123456789" or "facebook|123456789"
+          const provider = typedAuth0User.sub?.split('|')[0] || '';
+          const providerId = typedAuth0User.sub?.split('|')[1] || '';
+          
+          // Determine provider type
+          let providerType: 'google' | 'facebook' = 'google';
+          if (provider.includes('google')) {
+            providerType = 'google';
+          } else if (provider.includes('facebook')) {
+            providerType = 'facebook';
           }
 
-          if (existingUser) {
-            // User đã tồn tại, login vào hệ thống
-            login(existingUser);
+          console.log('OAuth Login:', { provider: providerType, providerId, email: typedAuth0User.email });
+
+          // Call backend OAuth login API
+          const response = await authService.oauthLogin({
+            provider: providerType,
+            providerId: providerId,
+            email: typedAuth0User.email || '',
+            fullName: typedAuth0User.name,
+            avatar: typedAuth0User.picture,
+          });
+
+          if (response.success && response.user) {
+            // Login successful, update local auth state
+            login(response.user);
             toast({
               title: "Đăng nhập thành công",
-              description: `Chào mừng ${existingUser.tendangnhap} quay trở lại!`,
+              description: `Chào mừng ${response.user.fullName || response.user.email}!`,
               variant: "default",
             });
           } else {
-            // User mới từ Auth0, tạo tài khoản trong database
-            const newUser = {
-              email: typedAuth0User.email || '',
-              tendangnhap: typedAuth0User.name || typedAuth0User.email?.split('@')[0] || 'User',
-              password: '', // OAuth users không cần password
-              englishlevel: 'beginner', // Mặc định
-              ngaytaotaikhoan: new Date().toISOString(),
-              auth0_sub: typedAuth0User.sub,
-              avatar_url: typedAuth0User.picture,
-              email_verified: typedAuth0User.email_verified || false,
-            };
-
-            const { data: createdUser, error: createError } = await supabase
-              .from('user')
-              .insert([newUser])
-              .select()
-              .single();
-
-            if (createError) {
-              throw createError;
-            }
-
-            if (createdUser) {
-              login(createdUser);
-              toast({
-                title: "Tài khoản đã được tạo",
-                description: `Chào mừng ${createdUser.tendangnhap} đến với EngBuddy!`,
-                variant: "default",
-              });
-            }
+            throw new Error(response.message || 'OAuth login failed');
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error syncing Auth0 user:', error);
           toast({
-            title: "Lỗi đồng bộ tài khoản",
-            description: "Không thể đồng bộ thông tin tài khoản từ Auth0",
+            title: "Lỗi đăng nhập",
+            description: error.message || "Không thể đăng nhập với tài khoản này",
             variant: "destructive",
           });
+          // Logout from Auth0 if sync fails
+          auth0Logout({ logoutParams: { returnTo: window.location.origin } });
         }
       }
     };
 
     syncAuth0User();
-  }, [isAuthenticated, auth0User, localUser, login, toast]);
+  }, [isAuthenticated, auth0User, localUser, login, toast, auth0Logout]);
 
   // Xử lý lỗi Auth0
   useEffect(() => {

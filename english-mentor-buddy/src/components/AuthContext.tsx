@@ -1,15 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-interface User {
-    id: number;
+// New User interface matching backend UserDto
+export interface User {
+    userId: number;
     email: string;
-    password: string;
-    englishlevel: string;
-    tendangnhap: string;
-    ngaytaotaikhoan: string;
-    auth0_sub?: string;
-    avatar_url?: string;
-    email_verified?: boolean;
+    username?: string;
+    fullName?: string;
+    avatar?: string;
+    role: string;
+    status: string;
+    emailVerified: boolean;
 }
 
 interface AuthContextType {
@@ -19,16 +19,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Tài khoản admin mặc định
-const defaultAdminUser: User = {
-    id: 1,
-    email: 'admin@example.com',
-    password: '123456',
-    englishlevel: 'advanced',
-    tendangnhap: 'Admin',
-    ngaytaotaikhoan: new Date().toISOString()
-};
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
