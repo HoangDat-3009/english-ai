@@ -35,7 +35,6 @@ import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { supabase } from '@/services/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth0Integration } from '@/hooks/useAuth0Integration';
 
