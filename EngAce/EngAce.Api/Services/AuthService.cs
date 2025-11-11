@@ -11,11 +11,13 @@ namespace EngAce.Api.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IJwtService _jwtService;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IUserRepository userRepository, IJwtService jwtService)
+        public AuthService(IUserRepository userRepository, IJwtService jwtService, ILogger<AuthService> logger)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
+            _logger = logger;
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -50,10 +52,9 @@ namespace EngAce.Api.Services
                 var user = new User
                 {
                     Email = request.Email.ToLower().Trim(),
-                    Username = request.Username?.Trim(),
-                    FullName = request.FullName?.Trim(),
+                    Username = request.Username.Trim(),
+                    FullName = request.FullName.Trim(),
                     PasswordHash = passwordHash,
-                    Phone = request.Phone,
                     Role = "user",
                     Status = "active",
                     EmailVerified = false,
@@ -98,20 +99,25 @@ namespace EngAce.Api.Services
         {
             try
             {
+                _logger.LogInformation("🔐 Login attempt for: {EmailOrUsername}", request.EmailOrUsername);
+                
                 // Find user by email or username
                 User? user = null;
                 
                 if (request.EmailOrUsername.Contains("@"))
                 {
+                    _logger.LogInformation("📧 Searching by email...");
                     user = await _userRepository.GetByEmailAsync(request.EmailOrUsername.ToLower().Trim());
                 }
                 else
                 {
+                    _logger.LogInformation("👤 Searching by username...");
                     user = await _userRepository.GetByUsernameAsync(request.EmailOrUsername.Trim());
                 }
 
                 if (user == null)
                 {
+                    _logger.LogWarning("❌ User not found: {EmailOrUsername}", request.EmailOrUsername);
                     return new AuthResponse
                     {
                         Success = false,
@@ -122,6 +128,7 @@ namespace EngAce.Api.Services
                 // Check if user has password (not OAuth-only user)
                 if (string.IsNullOrEmpty(user.PasswordHash))
                 {
+                    _logger.LogWarning("⚠️ OAuth-only account attempted password login: {Email}", user.Email);
                     return new AuthResponse
                     {
                         Success = false,
@@ -130,18 +137,22 @@ namespace EngAce.Api.Services
                 }
 
                 // Verify password
+                _logger.LogInformation("🔑 Verifying password...");
                 if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 {
+                    _logger.LogWarning("❌ Invalid password for: {EmailOrUsername}", request.EmailOrUsername);
                     return new AuthResponse
                     {
                         Success = false,
                         Message = "Invalid email/username or password"
                     };
                 }
+                _logger.LogInformation("✅ Password verified successfully");
 
                 // Check account status
                 if (user.Status != "active")
                 {
+                    _logger.LogWarning("⚠️ Inactive account login attempt: {Email} (Status: {Status})", user.Email, user.Status);
                     return new AuthResponse
                     {
                         Success = false,
@@ -150,12 +161,15 @@ namespace EngAce.Api.Services
                 }
 
                 // Update last login
+                _logger.LogInformation("📅 Updating last login time...");
                 user.LastLoginAt = DateTime.UtcNow;
                 await _userRepository.UpdateAsync(user);
 
                 // Generate JWT token
+                _logger.LogInformation("🎟️ Generating JWT token...");
                 var token = _jwtService.GenerateToken(user.UserID, user.Email, user.Role, request.RememberMe);
 
+                _logger.LogInformation("✅ Login successful for: {Email} (UserID: {UserId})", user.Email, user.UserID);
                 return new AuthResponse
                 {
                     Success = true,
@@ -176,6 +190,7 @@ namespace EngAce.Api.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "💥 Login error for: {EmailOrUsername}", request.EmailOrUsername);
                 return new AuthResponse
                 {
                     Success = false,
