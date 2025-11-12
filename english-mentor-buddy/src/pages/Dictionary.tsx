@@ -63,7 +63,7 @@ const Dictionary: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-white dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col bg-gradient-soft">
       <Header />
       <main className="flex-1 container max-w-screen-xl mx-auto py-8 px-4 animate-fade-in">
         <div className="flex justify-center mb-8">
@@ -72,8 +72,8 @@ const Dictionary: React.FC = () => {
           </div>
         </div>
 
-        <h1 className="text-4xl font-bold text-center mb-2 dark:text-white">TỪ ĐIỂN</h1>
-        <p className="text-center text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
+        <h1 className="text-4xl font-bold text-center mb-2 text-foreground">TỪ ĐIỂN</h1>
+        <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
           Tra cứu từ vựng với định nghĩa chi tiết, ví dụ thực tế và gợi ý sử dụng trong nhiều ngữ
           cảnh khác nhau.
         </p>
@@ -82,22 +82,22 @@ const Dictionary: React.FC = () => {
           <div className="relative">
             <Input
               placeholder="Nhập từ hoặc cụm từ cần tra cứu..."
-              className="pl-4 pr-10 py-6 rounded-xl text-lg dark:bg-gray-800 dark:text-white dark:border-gray-700"
+              className="pl-4 pr-10 py-6 rounded-xl text-lg"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               disabled={isLoading}
             />
             <Star
-              className="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-pink-500 cursor-pointer transition-colors"
+              className="absolute right-12 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
               size={20}
               onClick={() => handleAddToFavorites(searchTerm)}
             />
             <Button
               type="submit"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-transparent hover:bg-transparent dark:text-gray-300"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-transparent hover:bg-transparent"
               disabled={isLoading}
             >
-              <Search className="text-gray-500 dark:text-gray-300" size={20} />
+              <Search className="text-muted-foreground" size={20} />
             </Button>
           </div>
         </form>

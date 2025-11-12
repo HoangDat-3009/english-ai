@@ -13,7 +13,7 @@ namespace Helper
 
         public static string? GetAccessKey()
         {
-            string key = "AIzaSyDqpdmRtOHyAJqUvl2UWrK63A5pxu-wTJ8";
+            string key = "AIzaSyCs3bqMFzelE6U6qreTyqBiQGfEmSGhnBk";
 
             return key;
         }

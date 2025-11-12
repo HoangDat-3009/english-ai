@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import FeatureCard from '@/components/FeatureCard';
-import { Book, GraduationCap, MessageCircle, Globe } from 'lucide-react';
+import { Book, GraduationCap, MessageCircle, Globe, Pencil } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
 
 const features = [
@@ -21,6 +21,14 @@ const features = [
     path: '/exercises',
     color: 'text-fuchsia-600',
     bgColor: 'bg-gradient-to-br from-fuchsia-50 to-purple-50 dark:from-fuchsia-950/50 dark:to-purple-950/50',
+  },
+  {
+    title: 'Viết',
+    description: 'Nâng cao kỹ năng viết tiếng Anh của bạn với các bài tập và hướng dẫn chi tiết.',
+    icon: Pencil,
+    path: '/writing',
+    color: 'text-emerald-600',
+    bgColor: 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50',
   },
   {
     title: 'Chat với AI',

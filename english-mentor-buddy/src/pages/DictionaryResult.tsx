@@ -139,7 +139,7 @@ const DictionaryResult: React.FC = () => {
                         <div key={index} className="ml-12 mb-2 italic">
                             <span>{parts[0].trim()}</span>
                             {parts.length > 1 && (
-                                <span className="not-italic text-gray-700 dark:text-gray-300"> → {parts[1].trim()}</span>
+                                <span className="not-italic text-muted-foreground"> → {parts[1].trim()}</span>
                             )}
                         </div>
                     );
@@ -157,7 +157,7 @@ const DictionaryResult: React.FC = () => {
                         <div key={index} className="ml-16 mb-2 italic">
                             <span>{parts[0].trim()}</span>
                             {parts.length > 1 && (
-                                <span className="not-italic text-gray-700 dark:text-gray-300"> → {parts[1].trim()}</span>
+                                <span className="not-italic text-muted-foreground"> → {parts[1].trim()}</span>
                             )}
                         </div>
                     );
@@ -175,7 +175,7 @@ const DictionaryResult: React.FC = () => {
                     <div key={index} className="pl-8 mb-2 italic">
                         <span>{parts[0].trim()}</span>
                         {parts.length > 1 && (
-                            <span className="not-italic text-gray-700 dark:text-gray-300"> → {parts[1].trim()}</span>
+                            <span className="not-italic text-muted-foreground"> → {parts[1].trim()}</span>
                         )}
                     </div>
                 );
@@ -188,12 +188,12 @@ const DictionaryResult: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex flex-col bg-engace-light dark:bg-gray-900">
+            <div className="min-h-screen flex flex-col bg-gradient-soft">
                 <Header />
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-engace-purple mx-auto mb-4"></div>
-                        <p className="text-lg dark:text-white">Đang tải dữ liệu từ điển...</p>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                        <p className="text-lg text-foreground">Đang tải dữ liệu từ điển...</p>
                     </div>
                 </div>
             </div>
@@ -205,14 +205,14 @@ const DictionaryResult: React.FC = () => {
     const sectionKeys = Object.keys(sections);
 
     return (
-        <div className="min-h-screen flex flex-col bg-engace-light dark:bg-gray-900">
+        <div className="min-h-screen flex flex-col bg-gradient-soft">
             <Header />
             <main className="flex-1 container max-w-screen-xl mx-auto py-4 px-4 animate-fade-in">
-                <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+                <div className="max-w-3xl mx-auto bg-card rounded-xl shadow-sm p-6">
                     <div className="flex justify-between mb-6">
                         <Button
                             variant="outline"
-                            className="flex items-center gap-2 text-gray-600 dark:text-gray-300"
+                            className="flex items-center gap-2"
                             onClick={() => navigate('/dictionary')}
                         >
                             <ArrowLeft size={18} />
@@ -220,7 +220,7 @@ const DictionaryResult: React.FC = () => {
                         </Button>
                         <Button
                             variant="ghost"
-                            className="rounded-full p-2 text-gray-500"
+                            className="rounded-full p-2"
                             aria-label="Phát âm"
                             onClick={playPronunciation}
                         >
@@ -229,16 +229,16 @@ const DictionaryResult: React.FC = () => {
                     </div>
 
                     {/* Word Title */}
-                    <h1 className="text-4xl font-bold text-purple-600 uppercase mb-2">
+                    <h1 className="text-4xl font-bold text-primary uppercase mb-2">
                         {keyword}
                     </h1>
-                    <Separator className="bg-gradient-to-r from-purple-500 to-blue-500 h-1 rounded-full mb-6" />
+                    <Separator className="bg-gradient-primary h-1 rounded-full mb-6" />
 
                     {sectionKeys.length > 0 ? (
                         <div className="space-y-6">
                             {sectionKeys.map((sectionKey) => (
                                 <div key={sectionKey}>
-                                    <h2 className="text-xl font-bold mb-4">{sectionKey}</h2>
+                                    <h2 className="text-xl font-bold mb-4 text-foreground">{sectionKey}</h2>
                                     <div className="space-y-1">
                                         {renderContent(sections[sectionKey])}
                                     </div>
@@ -247,11 +247,11 @@ const DictionaryResult: React.FC = () => {
                         </div>
                     ) : (
                         <div className="text-center py-8">
-                            <p className="text-gray-500 dark:text-gray-400">
+                            <p className="text-muted-foreground">
                                 {wordData ? (
                                     <>
                                         <div className="font-medium mb-3">Không có dữ liệu từ điển cho từ này hoặc định dạng dữ liệu không đúng</div>
-                                        <div className="text-left p-4 bg-gray-100 dark:bg-gray-700 rounded-md overflow-auto max-h-96 text-xs">
+                                        <div className="text-left p-4 bg-accent/20 dark:bg-accent/10 rounded-md overflow-auto max-h-96 text-xs">
                                             <pre>{wordData}</pre>
                                         </div>
                                     </>

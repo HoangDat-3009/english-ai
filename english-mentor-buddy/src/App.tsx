@@ -9,13 +9,17 @@ import Index from "./pages/Index";
 import Dictionary from "./pages/Dictionary";
 import DictionaryResult from "./pages/DictionaryResult";
 import Exercises from "./pages/Exercises";
+import Writing from "./pages/Writing";
 import Chat from "./pages/Chat";
 import EnglishTopicCards from "./pages/EnglishTopicCards";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+
 import LoginAlt from "./pages/LoginAlt";
 import Register from "./pages/Register";
 import ProtectedRoute from "./components/ProtectedRoute"; // Nhập ProtectedRoute
+import Checkout from "./pages/Checkout";
+import Pricing from "./pages/Pricing";
 
 const queryClient = new QueryClient();
 
@@ -40,8 +44,13 @@ const App = () => (
               <Route path="/dictionary" element={<Dictionary />} />
               <Route path="/dictionary-result" element={<DictionaryResult />} />
               <Route path="/exercises" element={<Exercises />} />
+              <Route path="/writing" element={<Writing />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/topics" element={<EnglishTopicCards />} />
+
+              {/*Thanh toán*/}
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/checkout" element={<Checkout />} />
 
               {/* Route cho trang không tìm thấy */}
               <Route path="*" element={<NotFound />} />
