@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { chatService, ChatMessage } from '@/services/consultationService';
+import ReactMarkdown from 'react-markdown';
 
 // Định nghĩa interface Message cho UI
 interface Message {
@@ -54,7 +55,7 @@ const Consultation: React.FC = () => {
           // Set default welcome message
           const welcomeMessage: Message = {
             id: 1,
-            content: 'Chào! Mình là PJ1Buddy, trợ lý ảo được thiết kế riêng để hỗ trợ bạn học tiếng Anh nè. 😊\n\nMình luôn cố gắng hỗ trợ bạn tốt nhất, nhưng đôi khi vẫn có thể mắc sai sót, nên bạn nhớ kiểm tra lại những thông tin quan trọng nha!',
+            content: 'Chào! Mình là EngBuddy, trợ lý ảo được thiết kế riêng để hỗ trợ bạn học tiếng Anh nè. 😊\n\nMình luôn cố gắng hỗ trợ bạn tốt nhất, nhưng đôi khi vẫn có thể mắc sai sót, nên bạn nhớ kiểm tra lại những thông tin quan trọng nha!',
             isUser: false,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
@@ -201,21 +202,21 @@ const Consultation: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-soft">
       <Header />
       <main className="flex-1 container max-w-screen-xl mx-auto py-4 px-4 flex flex-col">
-        <div className="flex-1 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
-          <div className="border-b p-4 flex items-center justify-between">
+        <div className="flex-1 bg-card dark:bg-card rounded-lg shadow-sm overflow-hidden flex flex-col border border-border">
+          <div className="border-b border-border p-4 flex items-center justify-between bg-card dark:bg-card">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
                 <MessageSquare size={20} color="white" />
               </div>
-              <h2 className="font-semibold text-lg">Tư vấn với AI</h2>
+              <h2 className="font-semibold text-lg text-foreground">Tư vấn với AI</h2>
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="text-red-500 hover:text-red-600 hover:bg-red-50"
+              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
               onClick={handleClearConversation}
               disabled={isLoading}
             >
@@ -224,7 +225,7 @@ const Consultation: React.FC = () => {
             </Button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background dark:bg-background">
             {messages.map(msg => (
               <div
                 key={msg.id}
@@ -232,24 +233,90 @@ const Consultation: React.FC = () => {
               >
                 <div
                   className={`rounded-2xl p-4 ${msg.isUser
-                    ? 'bg-gradient-to-r from-pink-100 to-rose-100 text-right'
-                    : 'bg-gradient-to-r from-gray-100 to-gray-50'
+                    ? 'bg-gradient-to-r from-pink-100 to-rose-100 dark:from-pink-900/30 dark:to-rose-900/30 text-right text-foreground'
+                    : 'bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 text-foreground'
                     }`}
                 >
-                  <p className="whitespace-pre-line">{msg.content}</p>
+                  {msg.isUser ? (
+                    <p className="whitespace-pre-line">{msg.content}</p>
+                  ) : (
+                    <div className="prose prose-sm prose-pink max-w-none dark:prose-invert text-left">
+                      <ReactMarkdown
+                        components={{
+                          h1: ({ children }) => (
+                            <h1 className="text-lg font-bold text-foreground mb-2">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-base font-bold text-foreground mt-3 mb-2">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-sm font-semibold text-foreground mt-2 mb-1">
+                              {children}
+                            </h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-foreground leading-relaxed mb-2">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc list-inside space-y-1 mb-2 text-foreground">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal list-inside space-y-1 mb-2 text-foreground">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="leading-relaxed">
+                              {children}
+                            </li>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-primary">
+                              {children}
+                            </strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className="italic text-foreground">
+                              {children}
+                            </em>
+                          ),
+                          code: ({ children }) => (
+                            <code className="bg-accent px-1.5 py-0.5 rounded text-sm font-mono">
+                              {children}
+                            </code>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-primary pl-3 py-1 my-2 bg-accent/50 rounded-r">
+                              {children}
+                            </blockquote>
+                          ),
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   {msg.timestamp}
                 </div>
               </div>
             ))}
             {isLoading && (
               <div className="max-w-3xl">
-                <div className="bg-gradient-to-r from-gray-100 to-gray-50 rounded-2xl p-4">
+                <div className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-4">
                   <div className="flex space-x-2">
-                    <div className="w-3 h-3 rounded-full bg-gray-400 animate-bounce"></div>
-                    <div className="w-3 h-3 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-3 h-3 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                    <div className="w-3 h-3 rounded-full bg-gray-400 dark:bg-gray-500 animate-bounce"></div>
+                    <div className="w-3 h-3 rounded-full bg-gray-400 dark:bg-gray-500 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-3 h-3 rounded-full bg-gray-400 dark:bg-gray-500 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                   </div>
                 </div>
               </div>
@@ -257,12 +324,12 @@ const Consultation: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t p-4">
+          <div className="border-t border-border p-4 bg-card dark:bg-card">
             <div className="flex gap-2">
               <div className="flex-1 relative">
                 <Input
                   placeholder="Nhập tin nhắn của bạn..."
-                  className="pr-10 py-6 rounded-xl"
+                  className="pr-10 py-6 rounded-xl bg-background dark:bg-background"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={handleKeyDown}

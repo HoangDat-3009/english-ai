@@ -187,36 +187,59 @@ Từ: ""advice""
                 promptBuilder.AppendLine($"- {context.Trim()}");
             }
 
-            var apiRequest = new ApiRequestBuilder()
+            // Thử với grounding trước
+            try
+            {
+                var apiRequest = new ApiRequestBuilder()
+                    .WithSystemInstruction(_instruction)
+                    .WithPrompt(promptBuilder.ToString())
+                    .WithDefaultGenerationConfig(0.5F)
+                    .DisableAllSafetySettings()
+                    .EnableGrounding()
+                    .Build();
+
+                var generator = new Generator(apiKey)
+                   .ExcludesSearchEntryPointFromResponse()
+                   .IncludesGroundingDetailInResponse();
+
+                var responseWithSearching = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash);
+
+                if (responseWithSearching.GroundingDetail?.Sources == null && responseWithSearching.GroundingDetail?.SearchSuggestions == null)
+                {
+                    return responseWithSearching.Result;
+                }
+
+                if (responseWithSearching.GroundingDetail?.Sources?.Count == 0 && responseWithSearching.GroundingDetail?.SearchSuggestions?.Count == 0)
+                {
+                    return responseWithSearching.Result;
+                }
+
+                var stringBuilder = new StringBuilder();
+                stringBuilder.AppendLine(responseWithSearching.Result);
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine("---");
+
+                return stringBuilder.ToString().Trim();
+            }
+            catch (Exception ex) when (ex is ArgumentNullException || 
+                                       ex is InvalidOperationException || 
+                                       ex.InnerException is ArgumentNullException)
+            {
+                // Lỗi xảy ra khi xử lý grounding metadata
+                // Fallback: Gọi API không có grounding
+            }
+
+            // Fallback: Gọi lại API không có grounding
+            var generatorWithoutGrounding = new Generator(apiKey);
+            var apiRequestWithoutGrounding = new ApiRequestBuilder()
                 .WithSystemInstruction(_instruction)
                 .WithPrompt(promptBuilder.ToString())
                 .WithDefaultGenerationConfig(0.5F)
                 .DisableAllSafetySettings()
-                .EnableGrounding()
                 .Build();
 
-            var generator = new Generator(apiKey)
-               .ExcludesSearchEntryPointFromResponse()
-               .IncludesGroundingDetailInResponse();
-
-            var responseWithSearching = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash);
-
-            if (responseWithSearching.GroundingDetail?.Sources == null && responseWithSearching.GroundingDetail?.SearchSuggestions == null)
-            {
-                return responseWithSearching.Result;
-            }
-
-            if (responseWithSearching.GroundingDetail?.Sources?.Count == 0 && responseWithSearching.GroundingDetail?.SearchSuggestions?.Count == 0)
-            {
-                return responseWithSearching.Result;
-            }
-
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(responseWithSearching.Result);
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("---");
-
-            return stringBuilder.ToString().Trim();
+            var response = await generatorWithoutGrounding.GenerateContentAsync(apiRequestWithoutGrounding, ModelVersion.Gemini_20_Flash);
+            return response.Result;
         }
 
     }

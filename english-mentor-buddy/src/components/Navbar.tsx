@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Book, GraduationCap, MessageCircle, User, Sun, Moon, Globe, Settings, LogOut, UserCircle } from 'lucide-react';
+import { Book, GraduationCap, MessageCircle, User, Sun, Moon, Globe, Settings, LogOut, UserCircle, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from './ThemeProvider';
 import { Button } from './ui/button';
@@ -56,6 +56,7 @@ const Navbar = () => {
   const navItems = [
     { name: 'Dictionary', path: '/dictionary', icon: Book, color: 'text-pink-600' },
     { name: 'Exercises', path: '/exercises', icon: GraduationCap, color: 'text-fuchsia-600' },
+    { name: 'Writing', path: '/writing', icon: Pencil, color: 'text-emerald-600' },
     { name: 'AI Chat', path: '/chat', icon: MessageCircle, color: 'text-rose-600' },
     { name: 'Topics', path: '/topics', icon: Globe, color: 'text-pink-500' },
   ];
@@ -172,7 +173,18 @@ const Navbar = () => {
           })}
         </nav>
 
+        
+
         <div className="flex items-center gap-4">
+          <Link to="/pricing">
+            <Button 
+              variant={location.pathname === "/pricing" ? "default" : "ghost"}
+              size="sm"
+            >
+              Premium
+            </Button>
+          </Link>
+
           <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             <span className="sr-only">Toggle theme</span>

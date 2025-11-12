@@ -117,7 +117,7 @@ namespace Events
                 .DisableAllSafetySettings()
                 .Build();
 
-            var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_25_Pro);
+            var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash);
 
             return response.Result;
         }
