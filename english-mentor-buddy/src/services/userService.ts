@@ -36,11 +36,11 @@ export interface UserProfile {
 }
 
 export interface UserStatistics {
-  TotalStudents: number;
-  ActiveStudents: number;
+  TotalUsers: number;
+  ActiveUsers: number;
   NewThisMonth: number;
-  ActiveLearners: number;
-  InactiveLong: number;
+  PremiumUsers: number;
+  InactiveUsers: number;
 }
 
 export interface PaginationInfo {
