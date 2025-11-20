@@ -40,7 +40,7 @@ const StatisticsCards = React.memo(({ statistics, isLoading }: { statistics: Use
           <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Tổng học viên</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {isLoading || !statistics ? '...' : statistics.TotalStudents}
+              {isLoading || !statistics ? '...' : statistics.TotalUsers}
             </p>
           </div>
           <UsersIcon className="h-8 w-8 text-blue-500" />
@@ -55,7 +55,7 @@ const StatisticsCards = React.memo(({ statistics, isLoading }: { statistics: Use
           <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Đang hoạt động</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {isLoading || !statistics ? '...' : statistics.ActiveStudents}
+              {isLoading || !statistics ? '...' : statistics.ActiveUsers}
             </p>
           </div>
           <UserCheck className="h-8 w-8 text-green-500" />

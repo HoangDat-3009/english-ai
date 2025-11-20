@@ -30,7 +30,7 @@ namespace EngAce.Api.Controllers
         /// </summary>
         /// <param name="page">Page number (default: 1)</param>
         /// <param name="pageSize">Items per page (default: 10)</param>
-        /// <param name="role">Filter by role (optional)</param>
+        /// <param name="accountType">Filter by account type: free, premium (optional)</param>
         /// <param name="search">Search by name, username, or ID (optional)</param>
         /// <param name="status">Filter by status: active, inactive, banned (optional)</param>
         /// <returns>Paginated list of users</returns>
@@ -38,7 +38,7 @@ namespace EngAce.Api.Controllers
         public async Task<ActionResult> GetUsers(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
-            [FromQuery] string? role = null,
+            [FromQuery] string? accountType = null,
             [FromQuery] string? search = null,
             [FromQuery] string? status = null)
         {
@@ -65,23 +65,23 @@ namespace EngAce.Api.Controllers
 
                     // Build WHERE clause
                     var whereConditions = new List<string>();
-                    if (!string.IsNullOrEmpty(role))
-                        whereConditions.Add("u.Role = @Role");
+                    if (!string.IsNullOrEmpty(accountType))
+                        whereConditions.Add("u.account_type = @AccountType");
                     
                     if (!string.IsNullOrEmpty(search))
-                        whereConditions.Add("(up.FullName LIKE @Search OR u.Username LIKE @Search OR u.UserID LIKE @Search)");
+                        whereConditions.Add("(u.full_name LIKE @Search OR u.username LIKE @Search OR u.id LIKE @Search)");
                     
                     if (!string.IsNullOrEmpty(status))
-                        whereConditions.Add("u.Status = @Status");
+                        whereConditions.Add("u.status = @Status");
                     
                     var whereClause = whereConditions.Count > 0 ? "WHERE " + string.Join(" AND ", whereConditions) : "";
 
                     // Get total count
-                    var countQuery = $"SELECT COUNT(*) FROM User u LEFT JOIN UserProfile up ON u.UserID = up.UserID {whereClause}";
+                    var countQuery = $"SELECT COUNT(*) FROM users u {whereClause}";
                     using (var countCommand = new MySqlCommand(countQuery, connection))
                     {
-                        if (!string.IsNullOrEmpty(role))
-                            countCommand.Parameters.AddWithValue("@Role", role);
+                        if (!string.IsNullOrEmpty(accountType))
+                            countCommand.Parameters.AddWithValue("@AccountType", accountType);
                         if (!string.IsNullOrEmpty(search))
                             countCommand.Parameters.AddWithValue("@Search", $"%{search}%");
                         if (!string.IsNullOrEmpty(status))
@@ -92,18 +92,17 @@ namespace EngAce.Api.Controllers
 
                     // Get paginated data
                     var offset = (page - 1) * pageSize;
-                    var query = $@"SELECT u.UserID, u.Username, u.Email, u.Phone, u.Role, u.Status, 
-                                         up.FullName
-                                  FROM User u
-                                  LEFT JOIN UserProfile up ON u.UserID = up.UserID
+                    var query = $@"SELECT u.id, u.username, u.email, u.phone, u.account_type, u.status, 
+                                         u.full_name, u.avatar_url, u.total_xp, u.premium_expires_at
+                                  FROM users u
                                   {whereClause}
-                                  ORDER BY u.UserID DESC
+                                  ORDER BY u.id DESC
                                   LIMIT @PageSize OFFSET @Offset";
 
                     using (var command = new MySqlCommand(query, connection))
                     {
-                        if (!string.IsNullOrEmpty(role))
-                            command.Parameters.AddWithValue("@Role", role);
+                        if (!string.IsNullOrEmpty(accountType))
+                            command.Parameters.AddWithValue("@AccountType", accountType);
                         if (!string.IsNullOrEmpty(search))
                             command.Parameters.AddWithValue("@Search", $"%{search}%");
                         if (!string.IsNullOrEmpty(status))
@@ -118,17 +117,24 @@ namespace EngAce.Api.Controllers
                             {
                                 var user = new
                                 {
-                                    UserID = reader.GetInt32("UserID"),
-                                    Username = reader.GetString("Username"),
-                                    Email = reader.GetString("Email"),
-                                    Phone = reader.IsDBNull(reader.GetOrdinal("Phone")) 
+                                    UserID = reader.GetInt32("id"),
+                                    Username = reader.GetString("username"),
+                                    Email = reader.GetString("email"),
+                                    Phone = reader.IsDBNull(reader.GetOrdinal("phone")) 
                                         ? null 
-                                        : reader.GetString("Phone"),
-                                    Role = reader.GetString("Role"),
-                                    Status = reader.GetString("Status"),
-                                    FullName = reader.IsDBNull(reader.GetOrdinal("FullName"))
+                                        : reader.GetString("phone"),
+                                    AccountType = reader.GetString("account_type"),
+                                    Status = reader.GetString("status"),
+                                    FullName = reader.IsDBNull(reader.GetOrdinal("full_name"))
                                         ? null
-                                        : reader.GetString("FullName")
+                                        : reader.GetString("full_name"),
+                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                        ? null
+                                        : reader.GetString("avatar_url"),
+                                    TotalXP = reader.GetInt32("total_xp"),
+                                    PremiumExpiresAt = reader.IsDBNull(reader.GetOrdinal("premium_expires_at"))
+                                        ? (DateTime?)null
+                                        : reader.GetDateTime("premium_expires_at")
                                 };
                                 users.Add(user);
                             }
@@ -188,9 +194,11 @@ namespace EngAce.Api.Controllers
                 {
                     await connection.OpenAsync();
 
-                    var query = @"SELECT UserID, Username, Email, Phone, Role, Status 
-                                  FROM User 
-                                  WHERE UserID = @UserId";
+                    var query = @"SELECT id, username, email, phone, account_type, status, 
+                                         full_name, bio, address, avatar_url, total_study_time, 
+                                         total_xp, premium_expires_at, last_active_at, created_at, updated_at
+                                  FROM users 
+                                  WHERE id = @UserId";
 
                     using (var command = new MySqlCommand(query, connection))
                     {
@@ -202,14 +210,36 @@ namespace EngAce.Api.Controllers
                             {
                                 var user = new User
                                 {
-                                    UserID = reader.GetInt32("UserID"),
-                                    Username = reader.GetString("Username"),
-                                    Email = reader.GetString("Email"),
-                                    Phone = reader.IsDBNull(reader.GetOrdinal("Phone")) 
+                                    UserID = reader.GetInt32("id"),
+                                    Username = reader.GetString("username"),
+                                    Email = reader.GetString("email"),
+                                    Phone = reader.IsDBNull(reader.GetOrdinal("phone")) 
                                         ? null 
-                                        : reader.GetString("Phone"),
-                                    Role = reader.GetString("Role"),
-                                    Status = reader.GetString("Status")
+                                        : reader.GetString("phone"),
+                                    AccountType = reader.GetString("account_type"),
+                                    Status = reader.GetString("status"),
+                                    FullName = reader.IsDBNull(reader.GetOrdinal("full_name"))
+                                        ? null
+                                        : reader.GetString("full_name"),
+                                    Bio = reader.IsDBNull(reader.GetOrdinal("bio"))
+                                        ? null
+                                        : reader.GetString("bio"),
+                                    Address = reader.IsDBNull(reader.GetOrdinal("address"))
+                                        ? null
+                                        : reader.GetString("address"),
+                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                        ? null
+                                        : reader.GetString("avatar_url"),
+                                    TotalStudyTime = reader.GetInt32("total_study_time"),
+                                    TotalXP = reader.GetInt32("total_xp"),
+                                    PremiumExpiresAt = reader.IsDBNull(reader.GetOrdinal("premium_expires_at"))
+                                        ? (DateTime?)null
+                                        : reader.GetDateTime("premium_expires_at"),
+                                    LastActiveAt = reader.IsDBNull(reader.GetOrdinal("last_active_at"))
+                                        ? (DateTime?)null
+                                        : reader.GetDateTime("last_active_at"),
+                                    CreatedAt = reader.GetDateTime("created_at"),
+                                    UpdatedAt = reader.GetDateTime("updated_at")
                                 };
 
                                 _logger.LogInformation("Retrieved user {UserId}", id);
@@ -260,15 +290,12 @@ namespace EngAce.Api.Controllers
 
                     var query = @"
                         SELECT 
-                            u.UserID, u.Username, u.Email, u.Phone, u.Role, u.Status,
-                            p.FullName, p.AvatarURL, p.DOB, p.Gender, p.Address, 
-                            p.Bio, p.PreferredLevel, p.LearningGoal, p.Timezone, 
-                            p.Locale, p.CreatedAt, p.UpdatedAt,
-                            pref.EmailNotify, pref.DarkMode
-                        FROM User u
-                        LEFT JOIN UserProfile p ON u.UserID = p.UserID
-                        LEFT JOIN UserPreference pref ON u.UserID = pref.UserID
-                        WHERE u.UserID = @UserId";
+                            id, username, email, phone, account_type, status,
+                            full_name, avatar_url, bio, address,
+                            total_study_time, total_xp, premium_expires_at, 
+                            last_active_at, created_at, updated_at
+                        FROM users
+                        WHERE id = @UserId";
 
                     using (var command = new MySqlCommand(query, connection))
                     {
@@ -280,60 +307,42 @@ namespace EngAce.Api.Controllers
                             {
                                 var userProfile = new
                                 {
-                                    UserID = reader.GetInt32("UserID"),
-                                    Username = reader.GetString("Username"),
-                                    Email = reader.GetString("Email"),
-                                    Phone = reader.IsDBNull(reader.GetOrdinal("Phone")) 
+                                    UserID = reader.GetInt32("id"),
+                                    Username = reader.GetString("username"),
+                                    Email = reader.GetString("email"),
+                                    Phone = reader.IsDBNull(reader.GetOrdinal("phone")) 
                                         ? null 
-                                        : reader.GetString("Phone"),
-                                    Role = reader.GetString("Role"),
-                                    Status = reader.GetString("Status"),
+                                        : reader.GetString("phone"),
+                                    AccountType = reader.GetString("account_type"),
+                                    Status = reader.GetString("status"),
                                     
                                     // Profile fields
-                                    FullName = reader.IsDBNull(reader.GetOrdinal("FullName")) 
+                                    FullName = reader.IsDBNull(reader.GetOrdinal("full_name")) 
                                         ? null 
-                                        : reader.GetString("FullName"),
-                                    AvatarURL = reader.IsDBNull(reader.GetOrdinal("AvatarURL")) 
+                                        : reader.GetString("full_name"),
+                                    AvatarURL = reader.IsDBNull(reader.GetOrdinal("avatar_url")) 
                                         ? null 
-                                        : reader.GetString("AvatarURL"),
-                                    DOB = reader.IsDBNull(reader.GetOrdinal("DOB")) 
+                                        : reader.GetString("avatar_url"),
+                                    Address = reader.IsDBNull(reader.GetOrdinal("address")) 
+                                        ? null 
+                                        : reader.GetString("address"),
+                                    Bio = reader.IsDBNull(reader.GetOrdinal("bio")) 
+                                        ? null 
+                                        : reader.GetString("bio"),
+                                    TotalStudyTime = reader.GetInt32("total_study_time"),
+                                    TotalXP = reader.GetInt32("total_xp"),
+                                    PremiumExpiresAt = reader.IsDBNull(reader.GetOrdinal("premium_expires_at"))
+                                        ? (DateTime?)null
+                                        : reader.GetDateTime("premium_expires_at"),
+                                    LastActiveAt = reader.IsDBNull(reader.GetOrdinal("last_active_at"))
+                                        ? (DateTime?)null
+                                        : reader.GetDateTime("last_active_at"),
+                                    CreatedAt = reader.IsDBNull(reader.GetOrdinal("created_at")) 
                                         ? (DateTime?)null 
-                                        : reader.GetDateTime("DOB"),
-                                    Gender = reader.IsDBNull(reader.GetOrdinal("Gender")) 
-                                        ? null 
-                                        : reader.GetString("Gender"),
-                                    Address = reader.IsDBNull(reader.GetOrdinal("Address")) 
-                                        ? null 
-                                        : reader.GetString("Address"),
-                                    Bio = reader.IsDBNull(reader.GetOrdinal("Bio")) 
-                                        ? null 
-                                        : reader.GetString("Bio"),
-                                    PreferredLevel = reader.IsDBNull(reader.GetOrdinal("PreferredLevel")) 
-                                        ? null 
-                                        : reader.GetString("PreferredLevel"),
-                                    LearningGoal = reader.IsDBNull(reader.GetOrdinal("LearningGoal")) 
-                                        ? null 
-                                        : reader.GetString("LearningGoal"),
-                                    Timezone = reader.IsDBNull(reader.GetOrdinal("Timezone")) 
-                                        ? "Asia/Ho_Chi_Minh" 
-                                        : reader.GetString("Timezone"),
-                                    Locale = reader.IsDBNull(reader.GetOrdinal("Locale")) 
-                                        ? "vi-VN" 
-                                        : reader.GetString("Locale"),
-                                    CreatedAt = reader.IsDBNull(reader.GetOrdinal("CreatedAt")) 
+                                        : reader.GetDateTime("created_at"),
+                                    UpdatedAt = reader.IsDBNull(reader.GetOrdinal("updated_at")) 
                                         ? (DateTime?)null 
-                                        : reader.GetDateTime("CreatedAt"),
-                                    UpdatedAt = reader.IsDBNull(reader.GetOrdinal("UpdatedAt")) 
-                                        ? (DateTime?)null 
-                                        : reader.GetDateTime("UpdatedAt"),
-                                    
-                                    // Preference fields
-                                    EmailNotify = reader.IsDBNull(reader.GetOrdinal("EmailNotify")) 
-                                        ? true 
-                                        : reader.GetBoolean("EmailNotify"),
-                                    DarkMode = reader.IsDBNull(reader.GetOrdinal("DarkMode")) 
-                                        ? false 
-                                        : reader.GetBoolean("DarkMode")
+                                        : reader.GetDateTime("updated_at")
                                 };
 
                                 _logger.LogInformation("Retrieved user profile {UserId}", id);
@@ -361,12 +370,12 @@ namespace EngAce.Api.Controllers
         }
 
         /// <summary>
-        /// Get users by role
+        /// Get users by account type
         /// </summary>
-        /// <param name="role">User role (admin, student, teacher)</param>
-        /// <returns>List of users with the specified role</returns>
-        [HttpGet("role/{role}")]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsersByRole(string role)
+        /// <param name="accountType">Account type (free, premium)</param>
+        /// <returns>List of users with the specified account type</returns>
+        [HttpGet("account-type/{accountType}")]
+        public async Task<ActionResult<IEnumerable<User>>> GetUsersByAccountType(string accountType)
         {
             try
             {
@@ -384,16 +393,15 @@ namespace EngAce.Api.Controllers
                 {
                     await connection.OpenAsync();
 
-                    var query = @"SELECT u.UserID, u.Username, u.Email, u.Phone, u.Role, u.Status,
-                                         up.FullName
-                                  FROM User u
-                                  LEFT JOIN UserProfile up ON u.UserID = up.UserID
-                                  WHERE u.Role = @Role
-                                  ORDER BY u.UserID DESC";
+                    var query = @"SELECT u.id, u.username, u.email, u.phone, u.account_type, u.status,
+                                         u.full_name, u.avatar_url, u.total_xp
+                                  FROM users u
+                                  WHERE u.account_type = @AccountType
+                                  ORDER BY u.id DESC";
 
                     using (var command = new MySqlCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue("@Role", role);
+                        command.Parameters.AddWithValue("@AccountType", accountType);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -401,17 +409,21 @@ namespace EngAce.Api.Controllers
                             {
                                 var user = new
                                 {
-                                    UserID = reader.GetInt32("UserID"),
-                                    Username = reader.GetString("Username"),
-                                    Email = reader.GetString("Email"),
-                                    Phone = reader.IsDBNull(reader.GetOrdinal("Phone")) 
+                                    UserID = reader.GetInt32("id"),
+                                    Username = reader.GetString("username"),
+                                    Email = reader.GetString("email"),
+                                    Phone = reader.IsDBNull(reader.GetOrdinal("phone")) 
                                         ? null 
-                                        : reader.GetString("Phone"),
-                                    Role = reader.GetString("Role"),
-                                    Status = reader.GetString("Status"),
-                                    FullName = reader.IsDBNull(reader.GetOrdinal("FullName"))
+                                        : reader.GetString("phone"),
+                                    AccountType = reader.GetString("account_type"),
+                                    Status = reader.GetString("status"),
+                                    FullName = reader.IsDBNull(reader.GetOrdinal("full_name"))
                                         ? null
-                                        : reader.GetString("FullName")
+                                        : reader.GetString("full_name"),
+                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                        ? null
+                                        : reader.GetString("avatar_url"),
+                                    TotalXP = reader.GetInt32("total_xp")
                                 };
                                 users.Add(user);
                             }
@@ -419,17 +431,17 @@ namespace EngAce.Api.Controllers
                     }
                 }
 
-                _logger.LogInformation("Retrieved {Count} users with role {Role}", users.Count, role);
+                _logger.LogInformation("Retrieved {Count} users with account type {AccountType}", users.Count, accountType);
                 return Ok(users);
             }
             catch (MySqlException ex)
             {
-                _logger.LogError(ex, "MySQL error occurred while retrieving users by role {Role}", role);
+                _logger.LogError(ex, "MySQL error occurred while retrieving users by account type {AccountType}", accountType);
                 return StatusCode(500, $"Database error: {ex.Message}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while retrieving users by role {Role}", role);
+                _logger.LogError(ex, "An error occurred while retrieving users by account type {AccountType}", accountType);
                 return StatusCode(500, $"An error occurred: {ex.Message}");
             }
         }
@@ -469,7 +481,7 @@ namespace EngAce.Api.Controllers
                         {
                             // Get current status
                             string? currentStatus = null;
-                            var getStatusQuery = "SELECT Status FROM User WHERE UserID = @UserId";
+                            var getStatusQuery = "SELECT status FROM users WHERE id = @UserId";
                             using (var getStatusCommand = new MySqlCommand(getStatusQuery, connection, transaction))
                             {
                                 getStatusCommand.Parameters.AddWithValue("@UserId", id);
@@ -497,7 +509,7 @@ namespace EngAce.Api.Controllers
                             }
 
                             // Update status
-                            var updateQuery = "UPDATE User SET Status = @Status WHERE UserID = @UserId";
+                            var updateQuery = "UPDATE users SET status = @Status WHERE id = @UserId";
                             using (var updateCommand = new MySqlCommand(updateQuery, connection, transaction))
                             {
                                 updateCommand.Parameters.AddWithValue("@Status", request.Status.ToLower());
@@ -505,10 +517,10 @@ namespace EngAce.Api.Controllers
                                 await updateCommand.ExecuteNonQueryAsync();
                             }
 
-                            // Insert into UserStatusHistory
-                            var historyQuery = @"INSERT INTO UserStatusHistory 
-                                (UserID, FromStatus, ToStatus, ReasonCode, ReasonNote, ChangedByUserID, ChangedAt) 
-                                VALUES (@UserId, @FromStatus, @ToStatus, @ReasonCode, @ReasonNote, @ChangedByUserID, NOW())";
+                            // Insert into user_status_history
+                            var historyQuery = @"INSERT INTO user_status_history 
+                                (user_id, from_status, to_status, reason_code, reason_note, changed_by, changed_at) 
+                                VALUES (@UserId, @FromStatus, @ToStatus, @ReasonCode, @ReasonNote, @ChangedBy, NOW())";
                             
                             using (var historyCommand = new MySqlCommand(historyQuery, connection, transaction))
                             {
@@ -519,7 +531,7 @@ namespace EngAce.Api.Controllers
                                     string.IsNullOrEmpty(request.ReasonCode) ? DBNull.Value : request.ReasonCode);
                                 historyCommand.Parameters.AddWithValue("@ReasonNote", 
                                     string.IsNullOrEmpty(request.ReasonNote) ? DBNull.Value : request.ReasonNote);
-                                historyCommand.Parameters.AddWithValue("@ChangedByUserID", 
+                                historyCommand.Parameters.AddWithValue("@ChangedBy", 
                                     request.ChangedByUserID.HasValue ? request.ChangedByUserID.Value : DBNull.Value);
                                 
                                 await historyCommand.ExecuteNonQueryAsync();
@@ -560,69 +572,6 @@ namespace EngAce.Api.Controllers
         }
 
         /// <summary>
-        /// Get all available status reason codes
-        /// </summary>
-        /// <returns>List of status reasons</returns>
-        [HttpGet("status-reasons")]
-        public async Task<ActionResult<IEnumerable<object>>> GetStatusReasons()
-        {
-            try
-            {
-                var connectionString = _configuration.GetConnectionString("LearningSystemDb");
-                
-                if (string.IsNullOrEmpty(connectionString))
-                {
-                    _logger.LogError("Database connection string is not configured");
-                    return StatusCode(500, "Database connection not configured");
-                }
-
-                var reasons = new List<object>();
-
-                using (var connection = new MySqlConnection(connectionString))
-                {
-                    await connection.OpenAsync();
-
-                    var query = @"SELECT ReasonCode, ReasonName, Description, IsTemporary 
-                                  FROM UserStatusReason 
-                                  ORDER BY ReasonCode";
-
-                    using (var command = new MySqlCommand(query, connection))
-                    {
-                        using (var reader = await command.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                var reason = new
-                                {
-                                    ReasonCode = reader.GetString("ReasonCode"),
-                                    ReasonName = reader.GetString("ReasonName"),
-                                    Description = reader.IsDBNull(reader.GetOrdinal("Description")) 
-                                        ? null 
-                                        : reader.GetString("Description"),
-                                    IsTemporary = reader.GetBoolean("IsTemporary")
-                                };
-                                reasons.Add(reason);
-                            }
-                        }
-                    }
-                }
-
-                _logger.LogInformation("Retrieved {Count} status reasons", reasons.Count);
-                return Ok(reasons);
-            }
-            catch (MySqlException ex)
-            {
-                _logger.LogError(ex, "MySQL error occurred while retrieving status reasons");
-                return StatusCode(500, $"Database error: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while retrieving status reasons");
-                return StatusCode(500, $"An error occurred: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Get status change history for a specific user
         /// </summary>
         /// <param name="id">User ID</param>
@@ -647,21 +596,18 @@ namespace EngAce.Api.Controllers
                     await connection.OpenAsync();
 
                     var query = @"SELECT 
-                                    h.HistoryID, 
-                                    h.FromStatus, 
-                                    h.ToStatus, 
-                                    h.ReasonCode,
-                                    r.ReasonName,
-                                    h.ReasonNote, 
-                                    h.ExpiresAt,
-                                    h.ChangedByUserID,
-                                    u.Username as ChangedByUsername,
-                                    h.ChangedAt
-                                  FROM UserStatusHistory h
-                                  LEFT JOIN UserStatusReason r ON h.ReasonCode = r.ReasonCode
-                                  LEFT JOIN User u ON h.ChangedByUserID = u.UserID
-                                  WHERE h.UserID = @UserId
-                                  ORDER BY h.ChangedAt DESC";
+                                    h.id, 
+                                    h.from_status, 
+                                    h.to_status, 
+                                    h.reason_code,
+                                    h.reason_note, 
+                                    h.changed_by,
+                                    u.username as changed_by_username,
+                                    h.changed_at
+                                  FROM user_status_history h
+                                  LEFT JOIN users u ON h.changed_by = u.id
+                                  WHERE h.user_id = @UserId
+                                  ORDER BY h.changed_at DESC";
 
                     using (var command = new MySqlCommand(query, connection))
                     {
@@ -673,30 +619,24 @@ namespace EngAce.Api.Controllers
                             {
                                 var record = new
                                 {
-                                    HistoryID = reader.GetInt32("HistoryID"),
-                                    FromStatus = reader.IsDBNull(reader.GetOrdinal("FromStatus")) 
+                                    HistoryID = reader.GetInt32("id"),
+                                    FromStatus = reader.IsDBNull(reader.GetOrdinal("from_status")) 
                                         ? null 
-                                        : reader.GetString("FromStatus"),
-                                    ToStatus = reader.GetString("ToStatus"),
-                                    ReasonCode = reader.IsDBNull(reader.GetOrdinal("ReasonCode")) 
+                                        : reader.GetString("from_status"),
+                                    ToStatus = reader.GetString("to_status"),
+                                    ReasonCode = reader.IsDBNull(reader.GetOrdinal("reason_code")) 
                                         ? null 
-                                        : reader.GetString("ReasonCode"),
-                                    ReasonName = reader.IsDBNull(reader.GetOrdinal("ReasonName")) 
+                                        : reader.GetString("reason_code"),
+                                    ReasonNote = reader.IsDBNull(reader.GetOrdinal("reason_note")) 
                                         ? null 
-                                        : reader.GetString("ReasonName"),
-                                    ReasonNote = reader.IsDBNull(reader.GetOrdinal("ReasonNote")) 
-                                        ? null 
-                                        : reader.GetString("ReasonNote"),
-                                    ExpiresAt = reader.IsDBNull(reader.GetOrdinal("ExpiresAt")) 
-                                        ? (DateTime?)null 
-                                        : reader.GetDateTime("ExpiresAt"),
-                                    ChangedByUserID = reader.IsDBNull(reader.GetOrdinal("ChangedByUserID")) 
+                                        : reader.GetString("reason_note"),
+                                    ChangedBy = reader.IsDBNull(reader.GetOrdinal("changed_by")) 
                                         ? (int?)null 
-                                        : reader.GetInt32("ChangedByUserID"),
-                                    ChangedByUsername = reader.IsDBNull(reader.GetOrdinal("ChangedByUsername")) 
+                                        : reader.GetInt32("changed_by"),
+                                    ChangedByUsername = reader.IsDBNull(reader.GetOrdinal("changed_by_username")) 
                                         ? null 
-                                        : reader.GetString("ChangedByUsername"),
-                                    ChangedAt = reader.GetDateTime("ChangedAt")
+                                        : reader.GetString("changed_by_username"),
+                                    ChangedAt = reader.GetDateTime("changed_at")
                                 };
                                 history.Add(record);
                             }
@@ -743,13 +683,12 @@ namespace EngAce.Api.Controllers
                 // Get all statistics in one query for better performance
                 var query = @"
                     SELECT 
-                        COUNT(CASE WHEN u.Role = 'student' THEN 1 END) as TotalStudents,
-                        COUNT(CASE WHEN u.Role = 'student' AND u.Status = 'active' THEN 1 END) as ActiveStudents,
-                        COUNT(CASE WHEN u.Role = 'student' AND up.CreatedAt >= DATE_FORMAT(NOW(), '%Y-%m-01') THEN 1 END) as NewThisMonth,
-                        COUNT(CASE WHEN u.Role = 'student' AND u.Status = 'active' THEN 1 END) as ActiveLearners,
-                        COUNT(CASE WHEN u.Role = 'student' AND u.Status = 'inactive' THEN 1 END) as InactiveLong
-                    FROM User u
-                    LEFT JOIN UserProfile up ON u.UserID = up.UserID";
+                        COUNT(*) as TotalUsers,
+                        COUNT(CASE WHEN status = 'active' THEN 1 END) as ActiveUsers,
+                        COUNT(CASE WHEN created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') THEN 1 END) as NewThisMonth,
+                        COUNT(CASE WHEN account_type = 'premium' THEN 1 END) as PremiumUsers,
+                        COUNT(CASE WHEN status = 'inactive' THEN 1 END) as InactiveUsers
+                    FROM users";
 
                 using (var command = new MySqlCommand(query, connection))
                 {
@@ -759,11 +698,11 @@ namespace EngAce.Api.Controllers
                         {
                             var stats = new
                             {
-                                TotalStudents = reader.GetInt32("TotalStudents"),
-                                ActiveStudents = reader.GetInt32("ActiveStudents"),
+                                TotalUsers = reader.GetInt32("TotalUsers"),
+                                ActiveUsers = reader.GetInt32("ActiveUsers"),
                                 NewThisMonth = reader.GetInt32("NewThisMonth"),
-                                ActiveLearners = reader.GetInt32("ActiveLearners"),
-                                InactiveLong = reader.GetInt32("InactiveLong")
+                                PremiumUsers = reader.GetInt32("PremiumUsers"),
+                                InactiveUsers = reader.GetInt32("InactiveUsers")
                             };
 
                             _logger.LogInformation("Retrieved user statistics");
@@ -773,11 +712,11 @@ namespace EngAce.Api.Controllers
                         {
                             return Ok(new
                             {
-                                TotalStudents = 0,
-                                ActiveStudents = 0,
+                                TotalUsers = 0,
+                                ActiveUsers = 0,
                                 NewThisMonth = 0,
-                                ActiveLearners = 0,
-                                InactiveLong = 0
+                                PremiumUsers = 0,
+                                InactiveUsers = 0
                             });
                         }
                     }
