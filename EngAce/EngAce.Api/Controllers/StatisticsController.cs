@@ -163,7 +163,7 @@ namespace EngAce.Api.Controllers
                     try
                     {
                         using (var command = new MySqlCommand(
-                            "SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE Status = 'completed'", 
+                            "SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed'", 
                             connection))
                         {
                             var result = await command.ExecuteScalarAsync();
@@ -172,7 +172,7 @@ namespace EngAce.Api.Controllers
                     }
                     catch (MySqlException ex) when (ex.Message.Contains("doesn't exist"))
                     {
-                        _logger.LogWarning("Payment table not found, setting revenue to 0");
+                        _logger.LogWarning("payments table not found, setting revenue to 0");
                         statistics.TotalRevenue = 0;
                     }
 
@@ -180,10 +180,10 @@ namespace EngAce.Api.Controllers
                     try
                     {
                         using (var command = new MySqlCommand(
-                            @"SELECT COALESCE(SUM(Amount), 0) FROM Payment 
-                              WHERE Status = 'completed' 
-                              AND YEAR(Date) = YEAR(CURDATE()) 
-                              AND MONTH(Date) = MONTH(CURDATE())", 
+                            @"SELECT COALESCE(SUM(amount), 0) FROM payments 
+                              WHERE status = 'completed' 
+                              AND YEAR(created_at) = YEAR(CURDATE()) 
+                              AND MONTH(created_at) = MONTH(CURDATE())", 
                             connection))
                         {
                             var result = await command.ExecuteScalarAsync();
@@ -192,7 +192,7 @@ namespace EngAce.Api.Controllers
                     }
                     catch (MySqlException ex) when (ex.Message.Contains("doesn't exist"))
                     {
-                        _logger.LogWarning("Payment table not found, setting revenue this month to 0");
+                        _logger.LogWarning("payments table not found, setting revenue this month to 0");
                         statistics.RevenueThisMonth = 0;
                     }
 
@@ -200,7 +200,7 @@ namespace EngAce.Api.Controllers
                     try
                     {
                         using (var command = new MySqlCommand(
-                            "SELECT COUNT(*) FROM Payment WHERE Status = 'pending'", 
+                            "SELECT COUNT(*) FROM payments WHERE status = 'pending'", 
                             connection))
                         {
                             var result = await command.ExecuteScalarAsync();
@@ -209,7 +209,7 @@ namespace EngAce.Api.Controllers
                     }
                     catch (MySqlException ex) when (ex.Message.Contains("doesn't exist"))
                     {
-                        _logger.LogWarning("Payment table not found, setting pending payments to 0");
+                        _logger.LogWarning("payments table not found, setting pending payments to 0");
                         statistics.PendingPayments = 0;
                     }
                 }
@@ -399,7 +399,7 @@ namespace EngAce.Api.Controllers
         {
             try
             {
-                var connectionString = _configuration.GetConnectionString("DefaultConnection");
+                var connectionString = _configuration.GetConnectionString("LearningSystemDb");
                 if (string.IsNullOrEmpty(connectionString))
                 {
                     _logger.LogError("Database connection string is not configured");
@@ -413,18 +413,15 @@ namespace EngAce.Api.Controllers
                     await connection.OpenAsync();
 
                     // Get user growth for last 12 months
-                    // Note: Only counting 'student' role, excluding 'admin'
                     var query = @"
                         SELECT 
-                            DATE_FORMAT(up.CreatedAt, '%Y-%m') as YearMonth,
-                            MONTH(up.CreatedAt) as MonthNum,
-                            COUNT(DISTINCT u.UserID) as NewUsers,
-                            COUNT(DISTINCT CASE WHEN u.Status = 'active' THEN u.UserID END) as ActiveUsers
-                        FROM UserProfile up
-                        INNER JOIN User u ON up.UserID = u.UserID
-                        WHERE u.Role != 'admin'
-                            AND up.CreatedAt >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-                        GROUP BY DATE_FORMAT(up.CreatedAt, '%Y-%m'), MONTH(up.CreatedAt)
+                            DATE_FORMAT(created_at, '%Y-%m') as YearMonth,
+                            MONTH(created_at) as MonthNum,
+                            COUNT(DISTINCT id) as NewUsers,
+                            COUNT(DISTINCT CASE WHEN status = 'active' THEN id END) as ActiveUsers
+                        FROM users
+                        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                        GROUP BY DATE_FORMAT(created_at, '%Y-%m'), MONTH(created_at)
                         ORDER BY YearMonth ASC
                         LIMIT 12";
 
@@ -506,7 +503,7 @@ namespace EngAce.Api.Controllers
         {
             try
             {
-                var connectionString = _configuration.GetConnectionString("DefaultConnection");
+                var connectionString = _configuration.GetConnectionString("LearningSystemDb");
                 if (string.IsNullOrEmpty(connectionString))
                 {
                     _logger.LogError("Database connection string is not configured");
@@ -522,15 +519,15 @@ namespace EngAce.Api.Controllers
                     // Get revenue and payment data for last 12 months
                     var query = @"
                         SELECT 
-                            DATE_FORMAT(p.Date, '%Y-%m') as YearMonth,
-                            MONTH(p.Date) as MonthNum,
+                            DATE_FORMAT(p.created_at, '%Y-%m') as YearMonth,
+                            MONTH(p.created_at) as MonthNum,
                             COUNT(*) as TotalPayments,
-                            SUM(CASE WHEN p.Status = 'completed' THEN p.Amount ELSE 0 END) as Revenue,
-                            SUM(CASE WHEN p.Status = 'pending' THEN p.Amount ELSE 0 END) as PendingAmount,
-                            SUM(CASE WHEN p.Status = 'failed' THEN p.Amount ELSE 0 END) as FailedAmount
-                        FROM Payment p
-                        WHERE p.Date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-                        GROUP BY DATE_FORMAT(p.Date, '%Y-%m'), MONTH(p.Date)
+                            SUM(CASE WHEN p.status = 'completed' THEN p.amount ELSE 0 END) as Revenue,
+                            SUM(CASE WHEN p.status = 'pending' THEN p.amount ELSE 0 END) as PendingAmount,
+                            SUM(CASE WHEN p.status = 'failed' THEN p.amount ELSE 0 END) as FailedAmount
+                        FROM payments p
+                        WHERE p.created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                        GROUP BY DATE_FORMAT(p.created_at, '%Y-%m'), MONTH(p.created_at)
                         ORDER BY YearMonth ASC
                         LIMIT 12";
 
