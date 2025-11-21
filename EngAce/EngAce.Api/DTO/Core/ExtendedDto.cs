@@ -17,7 +17,7 @@ public class LeaderboardUserDto : LeaderboardEntryDto
     public new int StreakDays { get; set; }
     public TimeSpan TotalStudyTime { get; set; }
     
-    // Skill scores properties used in controllers
+    // Skill scores properties used in controllers - using new to avoid conflicts
     public int Listening { get; set; }
     public int Speaking { get; set; }
     public int Reading { get; set; }
@@ -31,7 +31,7 @@ public class LeaderboardUserDto : LeaderboardEntryDto
 /// </summary>
 public class UserRankDto
 {
-    public string UserId { get; set; } = string.Empty;
+    public int UserId { get; set; }
     public string Username { get; set; } = string.Empty;
     public int Rank { get; set; }
     public int CurrentRank { get; set; } // Alias for Rank
@@ -39,6 +39,7 @@ public class UserRankDto
     public int TotalXP { get; set; }
     public double Percentile { get; set; }
     public string RankCategory { get; set; } = string.Empty;
+    public List<ToeicPartScoreDto> ToeicParts { get; set; } = new();
 }
 
 /// <summary>

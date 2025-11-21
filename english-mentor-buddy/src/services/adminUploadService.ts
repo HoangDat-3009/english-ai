@@ -7,6 +7,7 @@ import { Question, ReadingExercise } from './databaseStatsService';
 interface BackendQuestion {
   Id?: number;
   QuestionText?: string;
+  questionText?: string; // Support both camelCase and PascalCase
   question?: string;
   Options?: string[];
   options?: string[];
@@ -64,7 +65,7 @@ class AdminUploadService {
     return stored ? JSON.parse(stored) : [];
   }
 
-  // Tạo Reading Exercise từ uploaded content - GỬI VỀ API BACKEND
+  // Tạo Reading Exercise từ uploaded content - GỬI VỀ API BACKEND (chỉ dùng API, không dùng localStorage)
   async createExerciseFromUpload(
     fileName: string,
     content: string,
@@ -73,93 +74,59 @@ class AdminUploadService {
     uploadedBy: string = 'Admin'
   ): Promise<ReadingExercise> {
     try {
-      // Gọi API tạo exercise với AI questions
-      const response = await fetch('http://localhost:5283/api/ReadingExercise/create-with-ai', {
+      // Gọi API tạo exercise passage (step 1)
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5283';
+      const createResponse = await fetch(`${apiBaseUrl}/api/ReadingExercise/create-passage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: this.generateExerciseName(fileName, type),
+          title: this.generateExerciseName(fileName, type),
           content,
+          partType: type,
           level,
-          type,
-          description: `Exercise created from admin upload: ${fileName}`,
-          estimatedMinutes: type === 'Part 5' ? 15 : type === 'Part 6' ? 20 : 30,
-          createdBy: uploadedBy,
-          questionCount: type === 'Part 5' ? 5 : type === 'Part 6' ? 4 : 6
+          createdBy: uploadedBy
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json().catch(() => ({ message: 'Failed to create exercise' }));
+        throw new Error(errorData.message || `API error: ${createResponse.status}`);
       }
 
-      const exercise = await response.json();
+      const exerciseData = await createResponse.json();
+      const exerciseId = exerciseData.exerciseId || exerciseData.id;
       
-      // Convert API response to frontend format
+      // Generate questions using AI (optional - can be done manually via add-questions endpoint)
+      // For now, return the exercise without questions (admin can add questions later)
       return {
-        id: exercise.id || exercise.Id,
-        exerciseId: exercise.id || exercise.Id,
-        name: exercise.name || exercise.Name,
-        content: exercise.content || exercise.Content,
-        level: exercise.level || exercise.Level,
-        type: exercise.type || exercise.Type,
+        id: exerciseId,
+        exerciseId: exerciseId,
+        name: exerciseData.name || exerciseData.title,
+        content: exerciseData.content,
+        level: exerciseData.level,
+        type: exerciseData.type,
         sourceType: 'manual',
-        questions: (exercise.Questions || exercise.questions || []).map((q: BackendQuestion) => ({
-          question: q.QuestionText || q.question,
-          options: q.Options || q.options || [],
-          correctAnswer: q.correctAnswer ?? -1,
-          explanation: q.Explanation || q.explanation
-        })),
-        createdAt: exercise.CreatedAt || exercise.createdAt || new Date().toISOString(),
-        updatedAt: exercise.UpdatedAt || exercise.updatedAt || new Date().toISOString()
+        questions: [], // Questions will be added via add-questions endpoint
+        createdAt: exerciseData.createdAt || new Date().toISOString(),
+        updatedAt: exerciseData.createdAt || new Date().toISOString()
       };
     } catch (error) {
       console.error('Error creating exercise via API:', error);
-      
-      // Fallback to localStorage if API fails
-      const exercises = this.getAdminExercises();
-      const newId = Math.max(0, ...exercises.map(e => e.id)) + 1000; // Use high ID to avoid conflicts
-      
-      const questions = this.parseContentToQuestions(content, type);
-      
-      const exercise: ReadingExercise = {
-        id: newId,
-        exerciseId: newId,
-        name: this.generateExerciseName(fileName, type),
-        content,
-        level,
-        type,
-        sourceType: 'manual',
-        questions,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Lưu exercise vào localStorage as fallback
-      exercises.push(exercise);
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(exercises));
-      
-      return exercise;
+      throw error; // Throw error instead of falling back to localStorage
     }
   }
 
-  // Lấy tất cả exercises từ admin
+  // Lấy tất cả exercises từ admin (deprecated - chỉ dùng để tương thích, không còn dùng localStorage)
   getAdminExercises(): ReadingExercise[] {
-    const stored = localStorage.getItem(this.STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    // Không còn dùng localStorage - trả về mảng rỗng
+    return [];
   }
 
-  // Xóa exercise
+  // Xóa exercise (deprecated - không còn dùng localStorage)
   deleteExercise(exerciseId: number): boolean {
-    const exercises = this.getAdminExercises();
-    const filtered = exercises.filter(e => e.id !== exerciseId);
-    
-    if (filtered.length < exercises.length) {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filtered));
-      return true;
-    }
+    // Không còn dùng localStorage - return false
     return false;
   }
 
@@ -229,35 +196,11 @@ class AdminUploadService {
     return `${type}: ${baseName} (Admin Upload)`;
   }
 
-  // Tích hợp với Reading Exercises - merge admin uploads với mock data
+  // Tích hợp với Reading Exercises (deprecated - không còn dùng localStorage)
   getAllReadingExercises(): ReadingExercise[] {
-    const adminExercises = this.getAdminExercises();
-    
-    // Mock data từ databaseStatsService
-    const mockExercises: ReadingExercise[] = [
-      {
-        id: 100,
-        exerciseId: 100,
-        name: 'Part 5: Grammar & Vocabulary - Beginner (Mock)',
-        content: 'Complete the sentences by choosing the best answer.',
-        level: 'Beginner',
-        type: 'Part 5',
-        sourceType: 'manual',
-        questions: [
-          {
-            question: 'The company will _____ a new product next month.',
-            options: ['launch', 'launches', 'launching', 'launched'],
-            correctAnswer: 0,
-            explanation: 'Future tense requires base form after "will".'
-          }
-        ],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
-    
-    // Combine admin + mock, with admin exercises having priority
-    return [...adminExercises, ...mockExercises];
+    // Không còn dùng localStorage - trả về mảng rỗng
+    // Tất cả exercises sẽ được lấy từ API backend
+    return [];
   }
 
   // Import exercise từ JSON/CSV format

@@ -50,34 +50,40 @@ namespace EngAce.Api.Controllers
                 var stats = new SystemStatistics();
                 
                 var totalUsers = await _context.Users.CountAsync();
-                var totalExercises = await _context.ReadingExercises.CountAsync();
-                var totalQuestions = await _context.ReadingQuestions.CountAsync();
-                var totalSubmissions = await _context.ReadingExerciseResults.CountAsync();
+                var totalExercises = await _context.Exercises.CountAsync(); // Changed from ReadingExercises
+                
+                // Load exercises to client-side to count questions (EF Core can't translate custom methods to SQL)
+                var exercisesForCounting = await _context.Exercises
+                    .Select(e => e.Questions)
+                    .ToListAsync();
+                var totalQuestions = exercisesForCounting.Sum(q => CountQuestionsFromJson(q));
+                
+                var totalSubmissions = await _context.Completions.CountAsync(); // Changed from ReadingExerciseResults
                 
                 var today = DateTime.Today;
                 var thisWeek = today.AddDays(-(int)today.DayOfWeek);
                 
-                var activeUsersToday = await _context.ReadingExerciseResults
-                    .Where(p => p.CompletedAt.Date == today)
+                var activeUsersToday = await _context.Completions // Changed from ReadingExerciseResults
+                    .Where(p => p.CompletedAt.HasValue && p.CompletedAt.Value.Date == today) // Handle nullable CompletedAt
                     .Select(p => p.UserId)
                     .Distinct()
                     .CountAsync();
                     
-                var activeUsersThisWeek = await _context.ReadingExerciseResults
-                    .Where(p => p.CompletedAt >= thisWeek)
+                var activeUsersThisWeek = await _context.Completions // Changed from ReadingExerciseResults
+                    .Where(p => p.CompletedAt.HasValue && p.CompletedAt.Value >= thisWeek) // Handle nullable CompletedAt
                     .Select(p => p.UserId)
                     .Distinct()
                     .CountAsync();
                     
-                var exercisesCreatedThisWeek = await _context.ReadingExercises
+                var exercisesCreatedThisWeek = await _context.Exercises // Changed from ReadingExercises
                     .Where(e => e.CreatedAt >= thisWeek)
                     .CountAsync();
                     
-                var aiGeneratedExercises = await _context.ReadingExercises
-                    .Where(e => e.SourceType.ToLower() == "ai")
+                var aiGeneratedExercises = await _context.Exercises // Changed from ReadingExercises
+                    .Where(e => e.Type.ToLower().Contains("ai") || e.Category.ToLower().Contains("ai")) // Adjusted logic
                     .CountAsync();
                     
-                var completedResults = await _context.ReadingExerciseResults
+                var completedResults = await _context.Completions // Changed from ReadingExerciseResults
                     .Where(p => p.IsCompleted)
                     .ToListAsync();
                     
@@ -86,7 +92,8 @@ namespace EngAce.Api.Controllers
                     : 0;
                     
                 var averageCompletionTime = completedResults.Any()
-                    ? completedResults.Average(p => (p.CompletedAt - p.StartedAt).TotalMinutes)
+                    ? completedResults.Where(p => p.CompletedAt.HasValue)
+                        .Average(p => (p.CompletedAt!.Value - p.StartedAt).TotalMinutes)
                     : 0;
                     
                 stats = new SystemStatistics
@@ -107,16 +114,16 @@ namespace EngAce.Api.Controllers
                 
                 // Recent Activities - skip for now due to JSON conflicts
                 
-                // Top Users
+                // Top Users - Updated to use Completions instead of ExerciseResults
                 var topUsers = await _context.Users
                     .Select(u => new
                     {
                         User = u,
-                        TotalExercises = u.ExerciseResults.Count(p => p.IsCompleted),
-                        AverageScore = u.ExerciseResults.Where(p => p.IsCompleted).Average(p => (decimal?)p.Score) ?? 0,
-                        TotalXP = u.TotalXP,
-                        WeeklyXP = u.ExerciseResults.Where(p => p.CompletedAt >= thisWeek && p.IsCompleted).Sum(p => (int?)p.Score) ?? 0,
-                        LastActivity = u.ExerciseResults.Where(p => p.IsCompleted).Max(p => (DateTime?)p.CompletedAt) ?? u.CreatedAt
+                        TotalExercises = u.Completions.Count(p => p.IsCompleted), // Changed from ExerciseResults
+                        AverageScore = u.Completions.Where(p => p.IsCompleted).Average(p => (decimal?)p.Score) ?? 0, // Changed from ExerciseResults
+                        TotalXP = u.TotalXp,
+                        WeeklyXP = u.Completions.Where(p => p.CompletedAt.HasValue && p.CompletedAt.Value >= thisWeek && p.IsCompleted).Sum(p => (int)p.Score), // Changed from ExerciseResults
+                        LastActivity = u.Completions.Where(p => p.IsCompleted && p.CompletedAt.HasValue).Max(p => p.CompletedAt) ?? u.CreatedAt // Changed from ExerciseResults
                     })
                     .OrderByDescending(x => x.TotalXP)
                     .Take(10)
@@ -182,24 +189,23 @@ namespace EngAce.Api.Controllers
         {
             try
             {
-                var exercise = await _context.ReadingExercises
-                    .Include(e => e.Questions)
-                    .Include(e => e.Results)
-                    .FirstOrDefaultAsync(e => e.Id == id);
+                var exercise = await _context.Exercises // Changed from ReadingExercises
+                    .Include(e => e.Completions) // Changed from Results
+                    .FirstOrDefaultAsync(e => e.ExerciseId == id); // Changed from Id to ExerciseId
 
                 if (exercise == null)
                 {
                     return NotFound(new { message = "Exercise not found" });
                 }
 
-                var completedResults = exercise.Results.Where(p => p.IsCompleted).ToList();
+                var completedResults = exercise.Completions.Where(p => p.IsCompleted).ToList(); // Changed from Results
 
                 if (!completedResults.Any())
                 {
                     return Ok(new ExerciseAnalyticsDto
                     {
-                        ExerciseId = exercise.Id,
-                        ExerciseName = exercise.Name,
+                        ExerciseId = exercise.ExerciseId, // Changed from Id
+                        ExerciseName = exercise.Title, // Changed from Name
                         TotalAttempts = 0,
                         UniqueUsers = 0,
                         AverageScore = 0,
@@ -232,8 +238,8 @@ namespace EngAce.Api.Controllers
                 // Daily attempts (last 30 days)
                 var thirtyDaysAgo = DateTime.Today.AddDays(-30);
                 var dailyAttempts = completedResults
-                    .Where(p => p.CompletedAt >= thirtyDaysAgo)
-                    .GroupBy(p => p.CompletedAt.Date)
+                    .Where(p => p.CompletedAt.HasValue && p.CompletedAt.Value >= thirtyDaysAgo) // Handle nullable CompletedAt
+                    .GroupBy(p => p.CompletedAt.Value.Date) // Safe to use .Value after null check
                     .Select(g => new DailyAttempts
                     {
                         Date = g.Key,
@@ -246,8 +252,8 @@ namespace EngAce.Api.Controllers
 
                 var analytics = new ExerciseAnalyticsDto
                 {
-                    ExerciseId = exercise.Id,
-                    ExerciseName = exercise.Name,
+                    ExerciseId = exercise.ExerciseId, // Changed from Id
+                    ExerciseName = exercise.Title, // Changed from Name
                     TotalAttempts = completedResults.Count,
                     UniqueUsers = completedResults.Select(p => p.UserId).Distinct().Count(),
                     AverageScore = scores.Average(),
@@ -255,7 +261,8 @@ namespace EngAce.Api.Controllers
                     MaxScore = scores.Max(),
                     AverageCompletionTime = TimeSpan.FromMinutes(
                         completedResults.Any()
-                            ? completedResults.Average(p => (p.CompletedAt - p.StartedAt).TotalMinutes)
+                            ? completedResults.Where(p => p.CompletedAt.HasValue)
+                                .Average(p => p.CompletedAt.HasValue ? (p.CompletedAt.Value - p.StartedAt).TotalMinutes : 0) // Handle nullable CompletedAt
                             : 0
                     ),
                     ScoreDistribution = scoreDistribution,
@@ -280,8 +287,8 @@ namespace EngAce.Api.Controllers
         {
             try
             {
-                var exercises = await _context.ReadingExercises
-                    .Where(e => request.ExerciseIds.Contains(e.Id))
+                var exercises = await _context.Exercises // Changed from ReadingExercises
+                    .Where(e => request.ExerciseIds.Contains(e.ExerciseId)) // Changed from Id to ExerciseId
                     .ToListAsync();
 
                 if (!exercises.Any())
@@ -292,7 +299,7 @@ namespace EngAce.Api.Controllers
                 switch (request.Operation.ToLower())
                 {
                     case "delete":
-                        _context.ReadingExercises.RemoveRange(exercises);
+                        _context.Exercises.RemoveRange(exercises); // Changed from ReadingExercises
                         break;
                         
                     case "activate":
@@ -326,5 +333,19 @@ namespace EngAce.Api.Controllers
         // File upload functionality is handled by ReadingExerciseController
         // POST /api/ReadingExercise/upload - for exercise file uploads
         // This keeps admin controller focused on dashboard and analytics only
+
+        // Helper method to count questions from JSON
+        private static int CountQuestionsFromJson(string questionsJson)
+        {
+            try
+            {
+                var questions = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement[]>(questionsJson);
+                return questions?.Length ?? 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
     }
 }

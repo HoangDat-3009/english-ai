@@ -4,7 +4,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/services/supabaseClient'; // Nhập Supabase client
+import { authService } from '@/services/authService';
 import { motion } from 'framer-motion';
 import { AtSign, Globe, LockKeyhole, User } from 'lucide-react';
 import React, { useState } from 'react';
@@ -97,34 +97,6 @@ const Register: React.FC = () => {
         return true;
     };
 
-    // Hàm cập nhật cơ sở dữ liệu
-    const updateDatabase = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('user')
-                .insert({
-                    tendangnhap: formData.username,
-                    email: formData.email,
-                    password: formData.password, // Lưu mật khẩu thô vì đây là bài tập
-                    englishlevel: 'beginner', // Giá trị mặc định, có thể thay đổi
-                    ngaytaotaikhoan: new Date().toISOString(), // Ngày tạo tài khoản
-                })
-                .select()
-                .single();
-
-            if (error) {
-                if (error.code === '23505') { // Lỗi trùng khóa duy nhất (email hoặc tendangnhap)
-                    throw new Error('Tên đăng nhập hoặc email đã tồn tại');
-                }
-                throw error;
-            }
-
-            return data;
-        } catch (error: unknown) {
-            throw new Error((error as Error).message || 'Đã xảy ra lỗi khi đăng ký');
-        }
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -134,8 +106,14 @@ const Register: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Gọi hàm updateDatabase để thêm dữ liệu vào Supabase
-            await updateDatabase();
+            // Register user via backend API
+            await authService.register({
+                username: formData.username,
+                email: formData.email,
+                password: formData.password,
+                fullName: formData.fullName,
+                level: 'Beginner',
+            });
 
             toast({
                 title: "Đăng ký thành công",
@@ -146,11 +124,11 @@ const Register: React.FC = () => {
             // Chuyển hướng về trang đăng nhập
             navigate('/');
 
-        } catch (error: unknown) {
+        } catch (error: any) {
             console.error('Registration error:', error);
             toast({
                 title: "Đăng ký thất bại",
-                description: (error as Error).message || "Đã xảy ra lỗi khi đăng ký tài khoản",
+                description: error?.message || "Đã xảy ra lỗi khi đăng ký tài khoản",
                 variant: "destructive",
             });
         } finally {

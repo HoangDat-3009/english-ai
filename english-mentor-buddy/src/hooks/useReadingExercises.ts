@@ -1,9 +1,8 @@
 import { useToast } from '@/hooks/use-toast';
-import { adminUploadService } from '@/services/adminUploadService';
 import {
-    databaseStatsService,
-    type ReadingExercise,
-    type UserResult
+  databaseStatsService,
+  type ReadingExercise,
+  type UserResult
 } from '@/services/databaseStatsService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
@@ -12,35 +11,27 @@ export const useReadingExercises = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // 1. LẤY BÀI TẬP TỪ .NET API + ADMIN UPLOADS (bao gồm admin uploaded + AI generated + manual created)
+  // 1. LẤY BÀI TẬP TỪ .NET API (chỉ dùng API backend, không dùng localStorage)
   const { data: exercises = [], isLoading } = useQuery({
     queryKey: ['reading-exercises-main'],
     queryFn: async () => {
       try {
-        // Try to get from API first
+        // Chỉ lấy từ API backend
         const apiExercises = await databaseStatsService.getReadingExercises();
-        // Merge with admin uploaded exercises from localStorage
-        const adminExercises = adminUploadService.getAdminExercises();
-        
-        // Combine both sources, ensuring no ID conflicts
-        const maxApiId = apiExercises.length > 0 ? Math.max(...apiExercises.map(e => e.id)) : 0;
-        const adjustedAdminExercises = adminExercises.map(exercise => ({
-          ...exercise,
-          id: exercise.id > maxApiId ? exercise.id : maxApiId + exercise.id
-        }));
-        
-        return [...apiExercises, ...adjustedAdminExercises];
+        return apiExercises;
       } catch (error) {
-        // Fallback to admin exercises + mock data if API fails
-        console.warn('API failed, using admin + mock data:', error);
-        return adminUploadService.getAllReadingExercises();
+        // Fallback to empty array if API fails (không dùng localStorage nữa)
+        console.warn('API failed, returning empty array:', error);
+        return [];
       }
     },
-    // Refetch when component mounts to get latest admin uploads
-    staleTime: 1000, // 1 second
+    // Refetch khi cần để lấy dữ liệu mới nhất
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // 2. SINH AI THÔNG QUA .NET API (Backend sẽ call Gemini)
+  // 🤖 MUTATION TẠO BÀI BẰNG AI: Tạo bài tập với Gemini AI qua .NET API
+  // Luồng: Frontend -> databaseStatsService.generateReadingExercise() -> Backend API -> Gemini Service -> Database
+  // Input: {topic, level, type} -> Output: ReadingExercise với questions JSON từ AI
   const generateMutation = useMutation({
     mutationFn: ({
       topic,
