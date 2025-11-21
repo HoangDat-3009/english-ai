@@ -1,13 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface User {
-    id: number;
-    email: string;
-    password: string;
-    englishlevel: string;
-    tendangnhap: string;
-    ngaytaotaikhoan: string;
-}
+import { User } from '@/services/authService';
 
 interface AuthContextType {
     user: User | null;
@@ -17,29 +9,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Tài khoản admin mặc định
-const defaultAdminUser: User = {
-    id: 1,
-    email: 'admin@example.com',
-    password: '123456',
-    englishlevel: 'advanced',
-    tendangnhap: 'Admin',
-    ngaytaotaikhoan: new Date().toISOString()
-};
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            try {
+                setUser(JSON.parse(storedUser));
+            } catch (error) {
+                console.error('Error parsing stored user:', error);
+                localStorage.removeItem('user');
+            }
         }
-        // Loại bỏ việc tự động đăng nhập admin mặc định
-        // else {
-        //     setUser(defaultAdminUser);
-        //     localStorage.setItem('user', JSON.stringify(defaultAdminUser));
-        // }
     }, []);
 
     const login = (userData: User) => {

@@ -11,11 +11,9 @@ namespace EngAce.Api.DTO.Core;
 /// </summary>
 public class LeaderboardEntryDto
 {
-    public string UserId { get; set; } = string.Empty;
-    
-    [JsonPropertyName("username")]
+    [JsonPropertyName("userId")]
+    public int UserId { get; set; }
     public string Username { get; set; } = string.Empty;
-    
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string Level { get; set; } = string.Empty;
@@ -35,29 +33,9 @@ public class LeaderboardEntryDto
     public int SpeakingScore { get; set; }
     public int ReadingScore { get; set; }
     public int WritingScore { get; set; }
-    
-    // Frontend compatibility aliases (match LeaderboardUser interface)
-    [JsonPropertyName("listening")]
-    public int? Listening => ListeningScore;
-    
-    [JsonPropertyName("speaking")]
-    public int? Speaking => SpeakingScore;
-    
-    [JsonPropertyName("reading")]
-    public int? Reading => ReadingScore;
-    
-    [JsonPropertyName("writing")]
-    public int? Writing => WritingScore;
-    
-    [JsonPropertyName("exams")]
-    public int Exams => ExercisesCompleted; // Match frontend 'exams' property
-    
-    [JsonPropertyName("lastUpdate")]
-    public string LastUpdate => LastActivity.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"); // ISO string format
-    
-    // ID type compatibility for frontend (string to int conversion)
-    [JsonPropertyName("userId")]
-    public int UserIdInt => int.TryParse(UserId, out var id) ? id : 0;
+
+    [JsonPropertyName("toeicParts")]
+    public List<ToeicPartScoreDto> ToeicParts { get; set; } = new();
     
     // Ranking and activity
     public int Rank { get; set; }
@@ -66,7 +44,6 @@ public class LeaderboardEntryDto
     public int StudyStreak { get; set; }
     public int StreakDays { get; set; }
     public string Badge { get; set; } = string.Empty;
-    public int ExercisesCompleted { get; set; } // Alias for CompletedExercises
 }
 
 

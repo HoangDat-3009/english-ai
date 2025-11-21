@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/services/supabaseClient';
+import { authService } from '@/services/authService';
 import { useAuth } from '@/components/AuthContext';
 
 const LoginAlt: React.FC = () => {
@@ -43,22 +43,16 @@ const LoginAlt: React.FC = () => {
         try {
             setIsLoading(true);
 
-            const { data, error } = await supabase
-                .from('user')
-                .select('*')
-                .eq('tendangnhap', formData.username)
-                .eq('password', formData.password)
-                .single();
+            const user = await authService.login({
+                username: formData.username,
+                password: formData.password,
+            });
 
-            if (error || !data) {
-                throw new Error('Thông tin đăng nhập không đúng');
-            }
-
-            login(data);
+            login(user);
 
             toast({
                 title: "Đăng nhập thành công",
-                description: `Chào mừng ${data.tendangnhap} quay trở lại!`,
+                description: `Chào mừng ${user.username} quay trở lại!`,
                 variant: "default",
             });
 

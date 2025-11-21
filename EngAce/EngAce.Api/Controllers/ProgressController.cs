@@ -28,7 +28,32 @@ public class ProgressController : ControllerBase
             if (progress == null)
                 return NotFound(new { message = $"User progress for ID {userId} not found" });
 
-            return Ok(progress);
+            // Format response to match frontend UserProgress interface
+            var response = new
+            {
+                userId = progress.UserId,
+                username = progress.Username,
+                fullName = progress.FullName,
+                email = progress.Email,
+                level = progress.Level,
+                totalScore = progress.TotalScore,
+                listening = progress.Listening,
+                speaking = progress.Speaking,
+                reading = progress.Reading,
+                writing = progress.Writing,
+                studyStreak = progress.StudyStreak,
+                totalStudyTime = (int)progress.TotalStudyTime.TotalMinutes, // Convert to minutes
+                totalXP = progress.TotalXP,
+                achievements = progress.Achievements ?? new List<string>(),
+                lastActive = progress.LastActive.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                completedExercises = progress.CompletedExercises,
+                totalExercisesAvailable = progress.TotalExercisesAvailable,
+                averageAccuracy = progress.AverageAccuracy,
+                createdAt = progress.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                updatedAt = progress.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+            };
+
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -38,12 +63,25 @@ public class ProgressController : ControllerBase
     }
 
     [HttpGet("weekly/{userId}")]
-    public async Task<ActionResult<WeeklyProgressDto>> GetWeeklyProgress(int userId)
+    public async Task<ActionResult<IEnumerable<object>>> GetWeeklyProgress(int userId)
     {
         try
         {
             var weeklyProgress = await _progressService.GetWeeklyProgressAsync(userId);
-            return Ok(weeklyProgress);
+            
+            // Format response to match frontend WeeklyProgress[] interface
+            var response = weeklyProgress.DailyProgress.Select(dp => new
+            {
+                day = dp.Day,
+                exercises = dp.Exercises,
+                time = (int)dp.Time.TotalMinutes, // Convert to minutes
+                date = dp.Date.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                exercisesCompleted = dp.ExercisesCompleted,
+                timeSpentMinutes = dp.TimeSpentMinutes,
+                xpEarned = dp.XPEarned
+            }).ToList();
+
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -53,12 +91,28 @@ public class ProgressController : ControllerBase
     }
 
     [HttpGet("activities/{userId}")]
-    public async Task<ActionResult<IEnumerable<ActivityDto>>> GetUserActivities(int userId, [FromQuery] int limit = 10)
+    public async Task<ActionResult<IEnumerable<object>>> GetUserActivities(int userId, [FromQuery] int limit = 10)
     {
         try
         {
             var activities = await _progressService.GetUserActivitiesAsync(userId, limit);
-            return Ok(activities);
+            
+            // Format response to match frontend Activity[] interface
+            var response = activities.Select(a => new
+            {
+                id = int.TryParse(a.Id, out var id) ? id : 0,
+                type = a.Type,
+                topic = a.Topic,
+                date = a.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                score = a.Score ?? 0,
+                duration = (int)a.Duration.TotalMinutes, // Convert to minutes
+                assignmentType = a.AssignmentType,
+                timeSpentMinutes = a.TimeSpentMinutes,
+                xpEarned = a.XPEarned,
+                status = a.Status
+            }).ToList();
+
+            return Ok(response);
         }
         catch (Exception ex)
         {
