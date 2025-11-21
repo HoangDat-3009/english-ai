@@ -12,7 +12,7 @@ namespace EngAce.Api.Controllers
         private readonly string _accessKey = HttpContextHelper.GetAccessKey();
 
         [HttpPost("Generate")]
-        [ResponseCache(Duration = ReviewScope.OneHourAsCachingAge, Location = ResponseCacheLocation.Client, NoStore = false)]
+        [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Client, NoStore = false)]
         public async Task<ActionResult<string>> Generate([FromBody] GenerateComment request)
         {
             if (string.IsNullOrEmpty(_accessKey))
