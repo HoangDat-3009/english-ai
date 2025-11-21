@@ -7,14 +7,14 @@ public interface IReadingExerciseService
 {
     Task<IEnumerable<ReadingExerciseDto>> GetAllExercisesAsync();
     Task<ReadingExerciseDto?> GetExerciseByIdAsync(int id);
-    Task<ReadingExerciseDto> CreateExerciseAsync(ReadingExercise exercise);
-    Task<ReadingExerciseDto?> UpdateExerciseAsync(int id, ReadingExercise exercise);
+    Task<ReadingExerciseDto> CreateExerciseAsync(Exercise exercise);
+    Task<ReadingExerciseDto?> UpdateExerciseAsync(int id, Exercise exercise);
     Task<bool> DeleteExerciseAsync(int id);
     Task<IEnumerable<ReadingExerciseDto>> GetExercisesByLevelAsync(string level);
     Task<ReadingExerciseDto> SubmitExerciseResultAsync(int exerciseId, int userId, List<int> answers);
     Task<ReadingExerciseDto> AddQuestionsToExerciseAsync(int exerciseId, List<ReadingQuestion> questions);
-    Task<ReadingExercise> ProcessUploadedFileAsync(IFormFile file, string createdBy);
-    Task<ReadingExercise> ProcessCompleteFileAsync(IFormFile file, string exerciseName, string partType, string level, string createdBy);
+    Task<Exercise> ProcessUploadedFileAsync(IFormFile file, string createdBy);
+    Task<Exercise> ProcessCompleteFileAsync(IFormFile file, string exerciseName, string partType, string level, string createdBy);
     Task<ReadingExerciseDto> CreateExerciseWithAIQuestionsAsync(CreateExerciseWithAIRequest request);
     Task<bool> GenerateAdditionalQuestionsAsync(int exerciseId, int questionCount = 3);
     Task<string> ClearAllExercisesAsync();

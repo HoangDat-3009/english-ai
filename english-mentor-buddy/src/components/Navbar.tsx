@@ -1,6 +1,6 @@
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/services/supabaseClient';
+import { authService } from '@/services/authService';
 import { motion } from 'framer-motion';
 import { Book, Globe, GraduationCap, LogOut, MessageCircle, Moon, Settings, Sun, TrendingUp, Trophy, User, UserCircle } from 'lucide-react';
 import { useState } from 'react';
@@ -46,10 +46,11 @@ const Navbar = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    tendangnhap: user?.tendangnhap || '',
+    username: user?.username || '',
     email: user?.email || '',
-    englishlevel: user?.englishlevel || '',
-    password: user?.password || '', // Hiển thị mật khẩu hiện tại
+    level: user?.level || '',
+    fullName: user?.fullName || '',
+    password: '', // Password không được hiển thị
   });
 
   const navItems = [
@@ -77,10 +78,11 @@ const Navbar = () => {
   const handleEditToggle = () => {
     setIsEditing(true);
     setFormData({
-      tendangnhap: user?.tendangnhap || '',
+      username: user?.username || '',
       email: user?.email || '',
-      englishlevel: user?.englishlevel || '',
-      password: user?.password || '', // Giữ mật khẩu hiện tại
+      level: user?.level || '',
+      fullName: user?.fullName || '',
+      password: '', // Password không được hiển thị
     });
   };
 
@@ -88,22 +90,21 @@ const Navbar = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('user')
-        .update({
-          tendangnhap: formData.tendangnhap,
-          email: formData.email,
-          englishlevel: formData.englishlevel,
-          password: formData.password, // Cập nhật mật khẩu thô
-        })
-        .eq('id', user.id)
-        .select()
-        .single();
+      const updateData: any = {
+        fullName: formData.fullName,
+        email: formData.email,
+        level: formData.level,
+      };
 
-      if (error) throw error;
+      // Chỉ cập nhật password nếu có giá trị mới
+      if (formData.password) {
+        updateData.password = formData.password;
+      }
+
+      const updatedUser = await authService.updateProfile(user.id, updateData);
 
       // Cập nhật user trong Context
-      login({ ...user, ...data });
+      login(updatedUser);
 
       toast({
         title: "Cập nhật thành công",
@@ -112,11 +113,11 @@ const Navbar = () => {
       });
 
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update error:', error);
       toast({
         title: "Cập nhật thất bại",
-        description: "Có lỗi xảy ra khi lưu thông tin. Vui lòng kiểm tra lại.",
+        description: error?.message || "Có lỗi xảy ra khi lưu thông tin. Vui lòng kiểm tra lại.",
         variant: "destructive",
       });
     }
@@ -188,7 +189,7 @@ const Navbar = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-medium">
-                {user ? `Xin chào, ${user.tendangnhap}` : 'Khách'}
+                {user ? `Xin chào, ${user.username}` : 'Khách'}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
@@ -227,11 +228,11 @@ const Navbar = () => {
                         {isEditing ? (
                           <>
                             <div className="space-y-2">
-                              <Label htmlFor="tendangnhap" className="font-medium text-sm">Tên đăng nhập</Label>
+                              <Label htmlFor="fullName" className="font-medium text-sm">Họ và tên</Label>
                               <Input
-                                id="tendangnhap"
-                                name="tendangnhap"
-                                value={formData.tendangnhap}
+                                id="fullName"
+                                name="fullName"
+                                value={formData.fullName}
                                 onChange={handleInputChange}
                                 className="w-full"
                               />
@@ -247,17 +248,17 @@ const Navbar = () => {
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="englishlevel" className="font-medium text-sm">Cấp độ</Label>
+                              <Label htmlFor="level" className="font-medium text-sm">Cấp độ</Label>
                               <Input
-                                id="englishlevel"
-                                name="englishlevel"
-                                value={formData.englishlevel}
+                                id="level"
+                                name="level"
+                                value={formData.level}
                                 onChange={handleInputChange}
                                 className="w-full"
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="password" className="font-medium text-sm">Mật khẩu</Label>
+                              <Label htmlFor="password" className="font-medium text-sm">Mật khẩu mới</Label>
                               <Input
                                 id="password"
                                 name="password"
@@ -265,13 +266,13 @@ const Navbar = () => {
                                 value={formData.password}
                                 onChange={handleInputChange}
                                 className="w-full"
-                                placeholder="Nhập mật khẩu mới"
+                                placeholder="Nhập mật khẩu mới (để trống nếu không đổi)"
                               />
                             </div>
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Ngày tham gia</h4>
                               <p className="text-muted-foreground">
-                                {user?.ngaytaotaikhoan ? new Date(user.ngaytaotaikhoan).toLocaleDateString() : 'Chưa có'}
+                                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Chưa có'}
                               </p>
                             </div>
                           </>
@@ -279,7 +280,11 @@ const Navbar = () => {
                           <>
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Tên đăng nhập</h4>
-                              <p className="text-muted-foreground">{user?.tendangnhap || 'Chưa đăng nhập'}</p>
+                              <p className="text-muted-foreground">{user?.username || 'Chưa đăng nhập'}</p>
+                            </div>
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Họ và tên</h4>
+                              <p className="text-muted-foreground">{user?.fullName || 'Chưa có'}</p>
                             </div>
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Email</h4>
@@ -287,12 +292,12 @@ const Navbar = () => {
                             </div>
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Cấp độ</h4>
-                              <p className="text-muted-foreground">{user?.englishlevel || 'Chưa có'}</p>
+                              <p className="text-muted-foreground">{user?.level || 'Chưa có'}</p>
                             </div>
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Ngày tham gia</h4>
                               <p className="text-muted-foreground">
-                                {user?.ngaytaotaikhoan ? new Date(user.ngaytaotaikhoan).toLocaleDateString() : 'Chưa có'}
+                                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Chưa có'}
                               </p>
                             </div>
                           </>

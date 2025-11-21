@@ -1,7 +1,10 @@
 using EngAce.Api.DTO.Core;
 using EngAce.Api.DTO.Shared;
+using EngAce.Api.Helpers;
 using EngAce.Api.Services.Interfaces;
+using Entities.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace EngAce.Api.Controllers;
 
@@ -10,23 +13,68 @@ namespace EngAce.Api.Controllers;
 public class LeaderboardController : ControllerBase
 {
     private readonly ILeaderboardService _leaderboardService;
+    private readonly ApplicationDbContext _context;
     private readonly ILogger<LeaderboardController> _logger;
 
-    public LeaderboardController(ILeaderboardService leaderboardService, ILogger<LeaderboardController> logger)
+    public LeaderboardController(
+        ILeaderboardService leaderboardService, 
+        ApplicationDbContext context,
+        ILogger<LeaderboardController> logger)
     {
         _leaderboardService = leaderboardService;
+        _context = context;
         _logger = logger;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<LeaderboardEntryDto>>> GetLeaderboard(
+    public async Task<ActionResult<object>> GetLeaderboard(
         [FromQuery] string? timeFilter = null, 
         [FromQuery] string? skill = null)
     {
         try
         {
             var leaderboard = await _leaderboardService.GetLeaderboardAsync(timeFilter, skill);
-            return Ok(leaderboard);
+            var leaderboardList = leaderboard.ToList();
+            
+            // Format response to match frontend LeaderboardResponse interface
+            var response = new
+            {
+                users = leaderboardList.Select(entry =>
+                {
+                    var parts = entry.ToeicParts.Select(part => new
+                    {
+                        key = part.Key,
+                        part = part.Part,
+                        label = part.Label,
+                        title = part.Title,
+                        skill = part.Skill,
+                        description = part.Description,
+                        questionTypes = part.QuestionTypes,
+                        score = part.Score,
+                        attempts = part.Attempts
+                    }).ToList();
+
+                    return new
+                    {
+                        rank = entry.Rank,
+                        username = entry.Username,
+                        totalScore = entry.TotalScore,
+                        listening = entry.ListeningScore,
+                        speaking = entry.SpeakingScore,
+                        reading = entry.ReadingScore,
+                        writing = entry.WritingScore,
+                        exams = entry.CompletedExercises,
+                        parts,
+                        lastUpdate = entry.LastActive.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                    };
+                }).ToList(),
+                totalCount = leaderboardList.Count,
+                timeFilter = timeFilter ?? "all",
+                category = skill ?? "total",
+                lastUpdated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+            };
+
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -36,7 +84,7 @@ public class LeaderboardController : ControllerBase
     }
 
     [HttpGet("user/{userId}/rank")]
-    public async Task<ActionResult<UserRankDto>> GetUserRank(int userId)
+    public async Task<ActionResult<object>> GetUserRank(int userId)
     {
         try
         {
@@ -44,7 +92,48 @@ public class LeaderboardController : ControllerBase
             if (userRank == null)
                 return NotFound(new { message = $"User rank for ID {userId} not found" });
 
-            return Ok(userRank);
+            // Get user details and scores
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = $"User with ID {userId} not found" });
+
+            // Get user completions for skill scores
+            var completions = await _context.Completions
+                .Where(c => c.UserId == userId && c.CompletedAt.HasValue)
+                .Include(c => c.Exercise)
+                .ToListAsync();
+
+            var toeicParts = ToeicPartHelper.BuildPartScores(completions);
+            var listeningScore = (int)Math.Round(ToeicPartHelper.SumListening(toeicParts));
+            var readingScore = (int)Math.Round(ToeicPartHelper.SumReading(toeicParts));
+
+            // Format response to match frontend UserRank interface
+            var response = new
+            {
+                userId = userId.ToString(),
+                username = user.Username,
+                totalScore = user.TotalXp, // Use TotalXP as totalScore
+                listening = listeningScore,
+                speaking = 0,
+                reading = readingScore,
+                writing = 0,
+                rank = userRank.CurrentRank,
+                percentile = userRank.Percentile,
+                parts = toeicParts.Select(part => new
+                {
+                    key = part.Key,
+                    part = part.Part,
+                    label = part.Label,
+                    title = part.Title,
+                    skill = part.Skill,
+                    description = part.Description,
+                    questionTypes = part.QuestionTypes,
+                    score = part.Score,
+                    attempts = part.Attempts
+                })
+            };
+
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -106,9 +195,10 @@ public class LeaderboardController : ControllerBase
                 TotalXP = entry.TotalXP,
                 Level = entry.Level,
                 AverageScore = entry.AverageScore,
-                ExercisesCompleted = entry.ExercisesCompleted,
+                Exams = entry.CompletedExercises,
                 StudyStreak = entry.StudyStreak,
-                Badge = entry.Badge
+                Badge = entry.Badge,
+                ToeicParts = entry.ToeicParts
             }).ToList();
 
             return Ok(adminLeaderboard);
@@ -137,17 +227,24 @@ public class LeaderboardController : ControllerBase
             var filteredLeaderboard = ApplyTimeFilter(leaderboard, timeFilter);
             
             // Convert to admin format
-            var result = filteredLeaderboard.Select((entry, index) => new LeaderboardUserDto
+            var result = filteredLeaderboard.Select((entry, index) =>
             {
-                Rank = index + 1,
-                Username = entry.Username,
-                TotalScore = (int)entry.TotalXP,
-                Listening = (int)(entry.TotalXP * 0.5m),
-                Speaking = (int)(entry.TotalXP * 0.25m), 
-                Reading = (int)entry.AverageScore,
-                Writing = (int)(entry.TotalXP * 0.05m),
-                Exams = entry.ExercisesCompleted,
-                LastUpdate = entry.LastActivity
+                var listening = (int)Math.Round(ToeicPartHelper.SumListening(entry.ToeicParts));
+                var reading = (int)Math.Round(ToeicPartHelper.SumReading(entry.ToeicParts));
+
+                return new LeaderboardUserDto
+                {
+                    Rank = index + 1,
+                    Username = entry.Username,
+                    TotalScore = (int)entry.TotalXP,
+                    Listening = listening,
+                    Speaking = 0,
+                    Reading = reading,
+                    Writing = 0,
+                    Exams = entry.CompletedExercises,
+                    LastUpdate = entry.LastActivity,
+                    ToeicParts = entry.ToeicParts
+                };
             }).ToList();
 
             return Ok(result);

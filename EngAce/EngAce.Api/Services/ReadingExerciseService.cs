@@ -8,6 +8,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
+using System.Text.Json;
 
 namespace EngAce.Api.Services;
 
@@ -26,8 +27,8 @@ public class ReadingExerciseService : IReadingExerciseService
 
     public async Task<IEnumerable<ReadingExerciseDto>> GetAllExercisesAsync()
     {
-        var exercises = await _context.ReadingExercises
-            .Include(e => e.Questions)
+        var exercises = await _context.Exercises
+            .Include(e => e.CreatedByUser)
             .Where(e => e.IsActive)
             .OrderBy(e => e.CreatedAt)
             .ToListAsync();
@@ -37,30 +38,32 @@ public class ReadingExerciseService : IReadingExerciseService
 
     public async Task<ReadingExerciseDto?> GetExerciseByIdAsync(int id)
     {
-        var exercise = await _context.ReadingExercises
-            .Include(e => e.Questions.OrderBy(q => q.OrderNumber))
-            .FirstOrDefaultAsync(e => e.Id == id && e.IsActive);
+        var exercise = await _context.Exercises
+            .Include(e => e.CreatedByUser)
+            .FirstOrDefaultAsync(e => e.ExerciseId == id && e.IsActive);
 
         return exercise != null ? MapToDto(exercise) : null;
     }
 
-    public async Task<ReadingExerciseDto> CreateExerciseAsync(ReadingExercise exercise)
+    public async Task<ReadingExerciseDto> CreateExerciseAsync(Exercise exercise)
     {
         exercise.CreatedAt = DateTime.UtcNow;
         exercise.IsActive = true;
 
-        _context.ReadingExercises.Add(exercise);
+        _context.Exercises.Add(exercise);
         await _context.SaveChangesAsync();
 
+        await LoadCreatedByAsync(exercise);
         return MapToDto(exercise);
     }
 
-    public async Task<ReadingExerciseDto?> UpdateExerciseAsync(int id, ReadingExercise exercise)
+    public async Task<ReadingExerciseDto?> UpdateExerciseAsync(int id, Exercise exercise)
     {
-        var existingExercise = await _context.ReadingExercises.FindAsync(id);
+        var existingExercise = await _context.Exercises.FindAsync(id);
         if (existingExercise == null) return null;
+        await LoadCreatedByAsync(existingExercise);
 
-        existingExercise.Name = exercise.Name;
+        existingExercise.Title = exercise.Title;
         existingExercise.Content = exercise.Content;
         existingExercise.Level = exercise.Level;
         existingExercise.Type = exercise.Type;
@@ -74,7 +77,7 @@ public class ReadingExerciseService : IReadingExerciseService
 
     public async Task<bool> DeleteExerciseAsync(int id)
     {
-        var exercise = await _context.ReadingExercises.FindAsync(id);
+        var exercise = await _context.Exercises.FindAsync(id);
         if (exercise == null) return false;
 
         exercise.IsActive = false;
@@ -84,8 +87,8 @@ public class ReadingExerciseService : IReadingExerciseService
 
     public async Task<IEnumerable<ReadingExerciseDto>> GetExercisesByLevelAsync(string level)
     {
-        var exercises = await _context.ReadingExercises
-            .Include(e => e.Questions)
+        var exercises = await _context.Exercises
+            .Include(e => e.CreatedByUser)
             .Where(e => e.Level == level && e.IsActive)
             .OrderBy(e => e.CreatedAt)
             .ToListAsync();
@@ -95,14 +98,16 @@ public class ReadingExerciseService : IReadingExerciseService
 
     public async Task<ReadingExerciseDto> SubmitExerciseResultAsync(int exerciseId, int userId, List<int> answers)
     {
-        var exercise = await _context.ReadingExercises
-            .Include(e => e.Questions.OrderBy(q => q.OrderNumber))
-            .FirstOrDefaultAsync(e => e.Id == exerciseId);
+        var exercise = await _context.Exercises
+            .FirstOrDefaultAsync(e => e.ExerciseId == exerciseId);
 
         if (exercise == null)
             throw new ArgumentException($"Exercise with ID {exerciseId} not found");
 
-        var questions = exercise.Questions.OrderBy(q => q.OrderNumber).ToList();
+        // Parse questions from JSON
+        var questions = ParseQuestionsFromJson(exercise.Questions);
+        if (questions.Count == 0)
+            throw new InvalidOperationException("Exercise does not contain any questions.");
         int correctAnswers = 0;
 
         // Calculate score
@@ -112,37 +117,46 @@ public class ReadingExerciseService : IReadingExerciseService
                 correctAnswers++;
         }
 
-        var score = (int)Math.Round((double)correctAnswers / questions.Count * 100);
+        var score = questions.Count == 0
+            ? 0
+            : (int)Math.Round((double)correctAnswers / questions.Count * 100);
 
-        // Save result
-        var result = new ReadingExerciseResult
+        var maxAttempt = await _context.Completions
+            .Where(c => c.UserId == userId && c.ExerciseId == exerciseId)
+            .Select(c => (int?)c.Attempts)
+            .DefaultIfEmpty(0)
+            .MaxAsync() ?? 0;
+        var attemptNumber = maxAttempt + 1;
+
+        // Save completion result
+        var completion = new Completion
         {
             UserId = userId,
-            ReadingExerciseId = exerciseId,
+            ExerciseId = exerciseId,
             Score = score,
             TotalQuestions = questions.Count,
-            CorrectAnswers = correctAnswers,
-            UserAnswers = string.Join(",", answers),
-            TimeSpent = TimeSpan.FromMinutes(exercise.EstimatedMinutes),
-            StartedAt = DateTime.UtcNow.AddMinutes(-exercise.EstimatedMinutes),
+            UserAnswers = JsonSerializer.Serialize(answers),
+            TimeSpent = TimeSpan.FromMinutes(exercise.EstimatedMinutes ?? 30),
+            StartedAt = DateTime.UtcNow.AddMinutes(-(exercise.EstimatedMinutes ?? 30)),
             CompletedAt = DateTime.UtcNow,
-            IsCompleted = true
+            IsCompleted = true,
+            Attempts = attemptNumber
         };
 
-        _context.ReadingExerciseResults.Add(result);
+        _context.Completions.Add(completion);
 
-        // Update user progress
-        var userProgress = await _context.UserProgresses.FindAsync(userId);
-        if (userProgress != null)
+        // Update user progress if exists
+        var user = await _context.Users.FindAsync(userId);
+        if (user != null)
         {
-            userProgress.CompletedExercises++;
-            userProgress.ReadingScore = Math.Max(userProgress.ReadingScore, score);
-            userProgress.TotalScore += score / 4; // Assuming 4 skills
-            userProgress.LastUpdated = DateTime.UtcNow;
+            // Could add XP calculation here
+            user.TotalXp += score;
+            user.LastActiveAt = DateTime.UtcNow;
         }
 
         await _context.SaveChangesAsync();
 
+        await LoadCreatedByAsync(exercise);
         var exerciseDto = MapToDto(exercise);
         exerciseDto.UserResult = new UserResultDto
         {
@@ -157,22 +171,26 @@ public class ReadingExerciseService : IReadingExerciseService
 
     public async Task<ReadingExerciseDto> AddQuestionsToExerciseAsync(int exerciseId, List<ReadingQuestion> questions)
     {
-        var exercise = await _context.ReadingExercises
-            .Include(e => e.Questions)
-            .FirstOrDefaultAsync(e => e.Id == exerciseId);
+        var exercise = await _context.Exercises
+            .FirstOrDefaultAsync(e => e.ExerciseId == exerciseId);
 
         if (exercise == null)
         {
             throw new ArgumentException($"Exercise with ID {exerciseId} not found");
         }
 
-        // Add questions to exercise
-        foreach (var question in questions)
+        // Convert ReadingQuestion list to JSON format for the new schema
+        var questionObjects = questions.Select((q, index) => new
         {
-            question.ReadingExerciseId = exerciseId;
-            question.CreatedAt = DateTime.UtcNow;
-            _context.ReadingQuestions.Add(question);
-        }
+            question = q.QuestionText,
+            options = new[] { q.OptionA, q.OptionB, q.OptionC, q.OptionD },
+            correct_answer = q.CorrectAnswer - 1, // Convert from 1-based to 0-based index
+            explanation = q.Explanation
+        }).ToArray();
+
+        exercise.Questions = System.Text.Json.JsonSerializer.Serialize(questionObjects);
+        exercise.CorrectAnswers = SerializeCorrectAnswersFromIndices(questionObjects.Select(q => (int?)q.correct_answer));
+        exercise.UpdatedAt = DateTime.UtcNow;
 
         // Activate exercise now that it has questions
         exercise.IsActive = true;
@@ -181,13 +199,13 @@ public class ReadingExerciseService : IReadingExerciseService
         await _context.SaveChangesAsync();
 
         // Reload to get updated questions
-        await _context.Entry(exercise).ReloadAsync();
-        await _context.Entry(exercise).Collection(e => e.Questions).LoadAsync();
+        // Note: Questions is a string property, not a navigation property, so no need to load collection
+        // await _context.Entry(exercise).ReloadAsync();
 
         return MapToDto(exercise);
     }
 
-    public async Task<ReadingExercise> ProcessUploadedFileAsync(IFormFile file, string createdBy)
+    public async Task<Exercise> ProcessUploadedFileAsync(IFormFile file, string createdBy)
     {
         string content = string.Empty;
 
@@ -215,21 +233,21 @@ public class ReadingExerciseService : IReadingExerciseService
                 throw new InvalidOperationException("No text content could be extracted from the file.");
             }
 
-            var exercise = new ReadingExercise
+            var exercise = new Exercise
             {
-                Name = Path.GetFileNameWithoutExtension(file.FileName),
+                Title = Path.GetFileNameWithoutExtension(file.FileName),
                 Content = content.Trim(),
                 Level = "Intermediate", // Default level
                 Type = "Part 6", // Default type for uploaded files
                 SourceType = "uploaded",
-                CreatedBy = createdBy,
                 OriginalFileName = file.FileName,
                 Description = $"Reading exercise generated from uploaded file: {file.FileName}",
                 // For uploaded exercises we intentionally do not set a time estimate
-                EstimatedMinutes = 0,
+                EstimatedMinutes = 30,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
+            exercise.CreatedByUserId = await ResolveCreatedByUserIdAsync(createdBy);
 
             // Try to detect an answer key inside the extracted content (only for text files or combined files)
             // Supported markers: "Answer Key", "Answers:", "=== ANSWERS ===" (case-insensitive)
@@ -243,31 +261,25 @@ public class ReadingExerciseService : IReadingExerciseService
 
                 if (answers != null && answers.Count > 0)
                 {
-                    var questions = new List<ReadingQuestion>();
+                    var questionObjects = new List<object>();
                     for (int i = 0; i < answers.Count; i++)
                     {
                         var letter = answers[i];
                         var correctIndex = LetterToIndex(letter);
 
-                        var rq = new ReadingQuestion
+                        var questionObj = new
                         {
-                            // placeholder question text; later we can call AI to generate full questions
-                            QuestionText = $"Auto-generated question {i + 1}",
-                            OptionA = "A",
-                            OptionB = "B",
-                            OptionC = "C",
-                            OptionD = "D",
-                            CorrectAnswer = correctIndex >= 0 ? correctIndex : 0,
-                            Explanation = "Imported answer key",
-                            OrderNumber = i + 1,
-                            Difficulty = 3,
-                            CreatedAt = DateTime.UtcNow
+                            question = $"Auto-generated question {i + 1}",
+                            options = new[] { "A", "B", "C", "D" },
+                            correct_answer = correctIndex >= 0 ? correctIndex : 0,
+                            explanation = "Imported answer key"
                         };
-                        questions.Add(rq);
+                        questionObjects.Add(questionObj);
                     }
 
-                    // Attach to exercise so EF will insert them together when saving
-                    exercise.Questions = questions;
+                    // Save questions as JSON
+                    exercise.Questions = System.Text.Json.JsonSerializer.Serialize(questionObjects);
+                    exercise.CorrectAnswers = SerializeCorrectAnswersFromLetters(answers);
                 }
             }
             catch (Exception ex)
@@ -284,7 +296,7 @@ public class ReadingExerciseService : IReadingExerciseService
         }
     }
 
-    public async Task<ReadingExercise> ProcessCompleteFileAsync(IFormFile file, string exerciseName, string partType, string level, string createdBy)
+    public async Task<Exercise> ProcessCompleteFileAsync(IFormFile file, string exerciseName, string partType, string level, string createdBy)
     {
         string content = string.Empty;
 
@@ -334,21 +346,20 @@ public class ReadingExerciseService : IReadingExerciseService
                 throw new InvalidOperationException("No questions could be parsed from the file. Please check file format.");
             }
 
-            var exercise = new ReadingExercise
+            var exercise = new Exercise
             {
-                Name = exerciseName,
+                Title = exerciseName,
                 Content = contentText,
                 Level = level,
                 Type = partType,
                 SourceType = "uploaded",
-                CreatedBy = createdBy,
                 OriginalFileName = file.FileName,
                 Description = $"Complete exercise uploaded from: {file.FileName}",
                 EstimatedMinutes = GetEstimatedMinutes(partType),
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                Questions = questions
+                CreatedAt = DateTime.UtcNow
             };
+            exercise.CreatedByUserId = await ResolveCreatedByUserIdAsync(createdBy);
 
             return exercise;
         }
@@ -512,7 +523,7 @@ public class ReadingExerciseService : IReadingExerciseService
         return (passagePart, answers.Count > 0 ? answers : null);
     }
 
-    private int LetterToIndex(string? letter)
+    private static int LetterToIndex(string? letter)
     {
         if (string.IsNullOrWhiteSpace(letter)) return -1;
         switch (letter.Trim().ToUpperInvariant())
@@ -525,26 +536,31 @@ public class ReadingExerciseService : IReadingExerciseService
         }
     }
 
+    /// <summary>
+    /// Tạo bài tập đọc hiểu mới với câu hỏi được tạo bởi AI
+    /// </summary>
+    /// <param name="request">Thông tin yêu cầu tạo bài tập</param>
+    /// <returns>DTO của bài tập đã tạo</returns>
     public async Task<ReadingExerciseDto> CreateExerciseWithAIQuestionsAsync(CreateExerciseWithAIRequest request)
     {
         try
         {
             // Create the exercise first
-            var exercise = new ReadingExercise
+            var exercise = new Exercise
             {
-                Name = request.Name,
+                Title = request.Name,
                 Content = request.Content,
                 Level = request.Level,
                 Type = request.Type,
                 Description = request.Description,
                 EstimatedMinutes = request.EstimatedMinutes,
-                CreatedBy = request.CreatedBy,
                 SourceType = "ai", // ✅ Mark as AI-generated
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
+            exercise.CreatedByUserId = await ResolveCreatedByUserIdAsync(request.CreatedBy);
 
-            _context.ReadingExercises.Add(exercise);
+            _context.Exercises.Add(exercise);
             await _context.SaveChangesAsync();
 
             // Generate questions using Gemini AI
@@ -562,7 +578,7 @@ public class ReadingExerciseService : IReadingExerciseService
                 var part6Content = await ExtractPart6PassageFromGemini(request.Content, request.Level) 
                                    ?? CreatePart6Passage(request.Content, request.Level);
                 exercise.Content = part6Content;
-                _context.ReadingExercises.Update(exercise);
+                _context.Exercises.Update(exercise);
                 await _context.SaveChangesAsync();
             }
 
@@ -573,40 +589,24 @@ public class ReadingExerciseService : IReadingExerciseService
                 var part7Content = await ExtractPart7PassageFromGeminiResponse(request.Content, request.Level) 
                                    ?? CreatePart7Passage(request.Content, request.Level);
                 exercise.Content = part7Content;
-                _context.ReadingExercises.Update(exercise);
+                _context.Exercises.Update(exercise);
                 await _context.SaveChangesAsync();
             }
 
-            // Convert generated questions to ReadingQuestion entities
-            var questions = new List<ReadingQuestion>();
-            for (int i = 0; i < generatedQuestions.Count; i++)
+            // Convert generated questions to JSON format for Exercise entity
+            var questionObjects = generatedQuestions.Select((q, index) => new
             {
-                var gq = generatedQuestions[i];
-                var question = new ReadingQuestion
-                {
-                    ReadingExerciseId = exercise.Id,
-                    QuestionText = gq.QuestionText,
-                    OptionA = gq.Options.ElementAtOrDefault(0) ?? "",
-                    OptionB = gq.Options.ElementAtOrDefault(1) ?? "",
-                    OptionC = gq.Options.ElementAtOrDefault(2) ?? "",
-                    OptionD = gq.Options.ElementAtOrDefault(3) ?? "",
-                    CorrectAnswer = gq.CorrectAnswer,
-                    Explanation = gq.Explanation,
-                    Difficulty = gq.Difficulty,
-                    OrderNumber = i + 1,
-                    CreatedAt = DateTime.UtcNow
-                };
-                questions.Add(question);
-            }
+                question = q.QuestionText,
+                options = new[] { q.Options.ElementAtOrDefault(0) ?? "", q.Options.ElementAtOrDefault(1) ?? "", q.Options.ElementAtOrDefault(2) ?? "", q.Options.ElementAtOrDefault(3) ?? "" },
+                correct_answer = q.CorrectAnswer,
+                explanation = q.Explanation
+            }).ToArray();
 
-            if (questions.Any())
-            {
-                _context.ReadingQuestions.AddRange(questions);
-                await _context.SaveChangesAsync();
-                exercise.Questions = questions;
-            }
+            // Save questions as JSON
+            exercise.Questions = System.Text.Json.JsonSerializer.Serialize(questionObjects);
+            exercise.CorrectAnswers = SerializeCorrectAnswersFromIndices(questionObjects.Select(q => (int?)q.correct_answer));
 
-            _logger.LogInformation($"Created exercise '{exercise.Name}' with {questions.Count} AI-generated questions");
+            _logger.LogInformation($"Created exercise '{exercise.Title}' with {generatedQuestions.Count} AI-generated questions");
             return MapToDto(exercise);
         }
         catch (Exception ex)
@@ -616,13 +616,17 @@ public class ReadingExerciseService : IReadingExerciseService
         }
     }
 
+    /// <summary>
+    /// Tạo thêm câu hỏi cho bài tập hiện có bằng AI
+    /// </summary>
+    /// <param name="exerciseId">ID của bài tập</param>
+    /// <param name="questionCount">Số lượng câu hỏi cần tạo thêm</param>
+    /// <returns>true nếu thành công, false nếu thất bại</returns>
     public async Task<bool> GenerateAdditionalQuestionsAsync(int exerciseId, int questionCount = 3)
     {
         try
         {
-            var exercise = await _context.ReadingExercises
-                .Include(e => e.Questions)
-                .FirstOrDefaultAsync(e => e.Id == exerciseId);
+            var exercise = await _context.Exercises.FindAsync(exerciseId);
 
             if (exercise == null)
             {
@@ -638,40 +642,40 @@ public class ReadingExerciseService : IReadingExerciseService
                 questionCount
             );
 
-            // Get the next order number
-            var maxOrderNumber = exercise.Questions?.Max(q => q.OrderNumber) ?? 0;
-
-            // Convert to ReadingQuestion entities
-            var newQuestions = new List<ReadingQuestion>();
-            for (int i = 0; i < generatedQuestions.Count; i++)
+            // Parse existing questions from JSON
+            var existingQuestions = ParseQuestionsFromJson(exercise.Questions);
+            
+            // Convert existing questions to the same anonymous type format
+            var existingQuestionObjects = existingQuestions.Select((q, index) => new
             {
-                var gq = generatedQuestions[i];
-                var question = new ReadingQuestion
-                {
-                    ReadingExerciseId = exerciseId,
-                    QuestionText = gq.QuestionText,
-                    OptionA = gq.Options.ElementAtOrDefault(0) ?? "",
-                    OptionB = gq.Options.ElementAtOrDefault(1) ?? "",
-                    OptionC = gq.Options.ElementAtOrDefault(2) ?? "",
-                    OptionD = gq.Options.ElementAtOrDefault(3) ?? "",
-                    CorrectAnswer = gq.CorrectAnswer,
-                    Explanation = gq.Explanation,
-                    Difficulty = gq.Difficulty,
-                    OrderNumber = maxOrderNumber + i + 1,
-                    CreatedAt = DateTime.UtcNow
-                };
-                newQuestions.Add(question);
-            }
+                question = q.QuestionText ?? "",
+                options = q.Options.ToArray(),
+                correct_answer = q.CorrectAnswer,
+                explanation = q.Explanation ?? ""
+            }).ToArray();
 
-            if (newQuestions.Any())
+            // Convert new questions to the same format
+            var newQuestionObjects = generatedQuestions.Select((q, index) => new
             {
-                _context.ReadingQuestions.AddRange(newQuestions);
-                await _context.SaveChangesAsync();
-                _logger.LogInformation($"Added {newQuestions.Count} AI-generated questions to exercise {exerciseId}");
-                return true;
-            }
+                question = q.QuestionText,
+                options = new[] { q.Options.ElementAtOrDefault(0) ?? "", q.Options.ElementAtOrDefault(1) ?? "", q.Options.ElementAtOrDefault(2) ?? "", q.Options.ElementAtOrDefault(3) ?? "" },
+                correct_answer = q.CorrectAnswer,
+                explanation = q.Explanation
+            }).ToArray();
 
-            return false;
+            // Combine existing and new questions
+            var allQuestionObjects = existingQuestionObjects.Concat(newQuestionObjects).ToArray();
+            
+            // Save updated questions as JSON
+            exercise.Questions = System.Text.Json.JsonSerializer.Serialize(allQuestionObjects);
+            exercise.CorrectAnswers = SerializeCorrectAnswersFromIndices(allQuestionObjects.Select(q => (int?)q.correct_answer));
+            exercise.UpdatedAt = DateTime.UtcNow;
+            
+            _context.Exercises.Update(exercise);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"Added {newQuestionObjects.Length} AI-generated questions to exercise {exerciseId}");
+            return true;
         }
         catch (Exception ex)
         {
@@ -680,54 +684,305 @@ public class ReadingExerciseService : IReadingExerciseService
         }
     }
 
-    private static ReadingExerciseDto MapToDto(ReadingExercise exercise)
+    private static ReadingExerciseDto MapToDto(Exercise exercise)
     {
         return new ReadingExerciseDto
         {
-            Id = exercise.Id,
-            Name = exercise.Name ?? string.Empty,
-            Title = exercise.Name ?? string.Empty, // Alias for frontend
+            Id = exercise.ExerciseId,
+            Name = exercise.Title ?? string.Empty,
+            Title = exercise.Title ?? string.Empty, // Alias for frontend
             Content = exercise.Content ?? string.Empty,
             Level = exercise.Level ?? "Beginner",
             Type = exercise.Type ?? "Part 7",
             SourceType = exercise.SourceType ?? "manual",
             Description = exercise.Description,
-            EstimatedMinutes = exercise.EstimatedMinutes,
-            Duration = exercise.EstimatedMinutes, // Alias for frontend
-            CreatedBy = exercise.CreatedBy ?? "System",
+            EstimatedMinutes = exercise.EstimatedMinutes ?? 30,
+            Duration = exercise.EstimatedMinutes ?? 30, // Alias for frontend
+            CreatedBy = exercise.CreatedByDisplay,
             CreatedAt = exercise.CreatedAt,
             DateCreated = exercise.CreatedAt, // Alias for frontend
-            Questions = exercise.Questions?.Select(q => new QuestionDto
+            Questions = ParseQuestionsFromJson(exercise.Questions).Select(q => new QuestionDto
             {
                 Id = q.Id,
                 QuestionText = q.QuestionText ?? string.Empty,
                 Text = q.QuestionText ?? string.Empty, // Alias for frontend
-                Options = new List<string> { q.OptionA ?? "", q.OptionB ?? "", q.OptionC ?? "", q.OptionD ?? "" },
-                Choices = new List<string> { q.OptionA ?? "", q.OptionB ?? "", q.OptionC ?? "", q.OptionD ?? "" }, // Alias
+                Options = q.Options,
+                Choices = q.Options, // Alias
                 CorrectAnswer = q.CorrectAnswer,
-                Answer = q.CorrectAnswer, // Alias for frontend
+                Answer = q.CorrectAnswer,
                 Explanation = q.Explanation,
-                Difficulty = q.Difficulty
-            }).ToList() ?? new List<QuestionDto>()
+                Difficulty = 3
+            }).ToList()
         };
     }
 
+    private static List<QuestionData> ParseQuestionsFromJson(string? questionsJson)
+    {
+        var results = new List<QuestionData>();
+        if (string.IsNullOrWhiteSpace(questionsJson))
+            return results;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(questionsJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                return results;
+
+            var index = 0;
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                var questionText = ExtractQuestionText(element, ++index);
+                var options = ExtractOptions(element);
+                var correctAnswer = ExtractCorrectAnswer(element, options.Count);
+                var explanation = ExtractExplanation(element);
+
+                results.Add(new QuestionData
+                {
+                    Id = index,
+                    QuestionText = questionText,
+                    Options = options,
+                    CorrectAnswer = correctAnswer,
+                    Explanation = explanation
+                });
+            }
+        }
+        catch
+        {
+            // Ignore malformed JSON
+        }
+
+        return results;
+    }
+
+    private static string ExtractQuestionText(JsonElement element, int fallbackIndex)
+    {
+        if (TryGetString(element, out var text, "questionText", "question", "text", "prompt", "title"))
+            return text;
+
+        return $"Question {fallbackIndex}";
+    }
+
+    private static List<string> ExtractOptions(JsonElement element)
+    {
+        if (TryGetArray(element, out var options, "options", "choices", "answers", "answerChoices"))
+        {
+            var parsed = options
+                .Select((opt, idx) => opt.ValueKind == JsonValueKind.String
+                    ? opt.GetString() ?? $"Option {idx + 1}"
+                    : opt.GetRawText())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .ToList();
+
+            if (parsed.Count > 0)
+                return parsed;
+        }
+
+        return new List<string> { "Option A", "Option B", "Option C", "Option D" };
+    }
+
+    private static int ExtractCorrectAnswer(JsonElement element, int optionCount)
+    {
+        if (TryGetInt(element, out var numericValue, "correctAnswer", "correct_answer", "answer", "correctOption", "correct_option"))
+            return NormalizeAnswerIndex(numericValue, optionCount);
+
+        if (TryGetString(element, out var stringValue, "correctAnswer", "correct_answer", "answer"))
+        {
+            var letterIndex = LetterToIndex(stringValue);
+            if (letterIndex >= 0)
+                return letterIndex;
+
+            if (int.TryParse(stringValue, out var parsedInt))
+                return NormalizeAnswerIndex(parsedInt, optionCount);
+        }
+
+        return 0;
+    }
+
+    private static string? ExtractExplanation(JsonElement element)
+    {
+        if (TryGetString(element, out var explanation, "explanation", "reason", "rationale"))
+            return explanation;
+
+        return null;
+    }
+
+    private static bool TryGetString(JsonElement element, out string value, params string[] propertyNames)
+    {
+        foreach (var property in propertyNames)
+        {
+            if (TryGetPropertyCaseInsensitive(element, property, out var jsonElement) && jsonElement.ValueKind == JsonValueKind.String)
+            {
+                value = jsonElement.GetString() ?? string.Empty;
+                return true;
+            }
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private static bool TryGetInt(JsonElement element, out int value, params string[] propertyNames)
+    {
+        foreach (var property in propertyNames)
+        {
+            if (TryGetPropertyCaseInsensitive(element, property, out var jsonElement))
+            {
+                if (jsonElement.ValueKind == JsonValueKind.Number && jsonElement.TryGetInt32(out value))
+                    return true;
+
+                if (jsonElement.ValueKind == JsonValueKind.String && int.TryParse(jsonElement.GetString(), out value))
+                    return true;
+            }
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static bool TryGetArray(JsonElement element, out IEnumerable<JsonElement> items, params string[] propertyNames)
+    {
+        foreach (var property in propertyNames)
+        {
+            if (TryGetPropertyCaseInsensitive(element, property, out var jsonElement) && jsonElement.ValueKind == JsonValueKind.Array)
+            {
+                items = jsonElement.EnumerateArray();
+                return true;
+            }
+        }
+
+        items = Enumerable.Empty<JsonElement>();
+        return false;
+    }
+
+    private static bool TryGetPropertyCaseInsensitive(JsonElement element, string propertyName, out JsonElement value)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            value = default;
+            return false;
+        }
+
+        if (element.TryGetProperty(propertyName, out value))
+            return true;
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static int NormalizeAnswerIndex(int rawValue, int optionCount)
+    {
+        if (optionCount <= 0)
+            return Math.Max(0, rawValue);
+
+        if (rawValue >= 0 && rawValue < optionCount)
+            return rawValue;
+
+        if (rawValue >= 1 && rawValue <= optionCount)
+            return rawValue - 1;
+
+        return 0;
+    }
+
+    private async Task LoadCreatedByAsync(Exercise? exercise)
+    {
+        if (exercise == null || !exercise.CreatedByUserId.HasValue)
+            return;
+
+        var reference = _context.Entry(exercise).Reference(e => e.CreatedByUser);
+        if (!reference.IsLoaded)
+        {
+            await reference.LoadAsync();
+        }
+    }
+
+    private async Task<int?> ResolveCreatedByUserIdAsync(string? createdBy)
+    {
+        if (string.IsNullOrWhiteSpace(createdBy))
+            return null;
+
+        if (int.TryParse(createdBy, out var userId))
+        {
+            var exists = await _context.Users.AnyAsync(u => u.Id == userId);
+            if (exists)
+                return userId;
+        }
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u =>
+                u.Username == createdBy ||
+                u.Email == createdBy ||
+                u.FullName == createdBy);
+
+        return user?.Id;
+    }
+
+    private static string SerializeCorrectAnswersFromIndices(IEnumerable<int?> indices)
+    {
+        var letters = indices.Select(idx => IndexToLetter(idx ?? 0)).ToList();
+        return JsonSerializer.Serialize(letters);
+    }
+
+    private static string SerializeCorrectAnswersFromLetters(IEnumerable<string> letters)
+    {
+        var normalized = letters.Select(letter =>
+        {
+            var value = letter?.Trim().ToUpperInvariant();
+            return string.IsNullOrEmpty(value) ? "A" : value.Substring(0, 1);
+        }).ToList();
+
+        return JsonSerializer.Serialize(normalized);
+    }
+
+    private static string IndexToLetter(int index)
+    {
+        return index switch
+        {
+            0 => "A",
+            1 => "B",
+            2 => "C",
+            3 => "D",
+            _ => "A"
+        };
+    }
+
+    private class QuestionData
+    {
+        public int Id { get; set; }
+        public string QuestionText { get; set; } = string.Empty;
+        public List<string> Options { get; set; } = new();
+        public int CorrectAnswer { get; set; }
+        public string? Explanation { get; set; }
+    }
+
+    /// <summary>
+    /// Xóa tất cả bài tập đọc hiểu và đặt lại ID counter
+    /// </summary>
+    /// <returns>Thông báo kết quả xóa</returns>
     public async Task<string> ClearAllExercisesAsync()
     {
         try
         {
-            // Delete all questions first (foreign key constraint)
-            await _context.Database.ExecuteSqlRawAsync("DELETE FROM ReadingQuestions");
-            
-            // Delete all exercises  
-            await _context.Database.ExecuteSqlRawAsync("DELETE FROM ReadingExercises");
-            
-            // Reset identity seeds
-            await _context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT ('ReadingQuestions', RESEED, 0)");
-            await _context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT ('ReadingExercises', RESEED, 0)");
+            // Delete dependent records first to satisfy FK constraints
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM exercise_completion_scores");
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM exercise_completions");
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM exercises");
 
-            _logger.LogInformation("Successfully cleared all reading exercises and questions");
-            return "All reading exercises and questions have been cleared successfully";
+            // Reset auto-increment counters for MySQL
+            await _context.Database.ExecuteSqlRawAsync("ALTER TABLE exercise_completion_scores AUTO_INCREMENT = 1");
+            await _context.Database.ExecuteSqlRawAsync("ALTER TABLE exercise_completions AUTO_INCREMENT = 1");
+            await _context.Database.ExecuteSqlRawAsync("ALTER TABLE exercises AUTO_INCREMENT = 1");
+
+            _logger.LogInformation("Successfully cleared all reading exercises");
+            return "All reading exercises have been cleared successfully";
         }
         catch (Exception ex)
         {
@@ -736,22 +991,26 @@ public class ReadingExerciseService : IReadingExerciseService
         }
     }
 
+    /// <summary>
+    /// Sửa lại SourceType cho các bài tập được tạo bởi AI
+    /// </summary>
+    /// <returns>Thông báo kết quả sửa</returns>
     public async Task<string> FixAISourceTypeAsync()
     {
         try
         {
             // Step 1: Set default 'manual' for NULL or empty SourceType
             var nullCount = await _context.Database.ExecuteSqlRawAsync(
-                @"UPDATE ReadingExercises 
-                  SET SourceType = 'manual' 
-                  WHERE SourceType IS NULL OR SourceType = ''");
+                @"UPDATE exercises 
+                  SET source_type = 'manual' 
+                  WHERE source_type IS NULL OR source_type = ''");
 
             // Step 2: Update AI-generated exercises (based on CreatedBy pattern)
             var aiCount = await _context.Database.ExecuteSqlRawAsync(
-                @"UPDATE ReadingExercises 
-                  SET SourceType = 'ai' 
-                  WHERE (CreatedBy LIKE '%AI%' OR CreatedBy = 'System') 
-                    AND SourceType != 'ai'");
+                @"UPDATE exercises 
+                  SET source_type = 'ai' 
+                  WHERE (created_by LIKE '%AI%' OR created_by = 'System') 
+                    AND source_type != 'ai'");
 
             _logger.LogInformation("Fixed SourceType: {NullFixed} set to 'manual', {AIFixed} set to 'ai'", 
                 nullCount, aiCount);

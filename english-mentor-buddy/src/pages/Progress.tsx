@@ -7,91 +7,301 @@
 import Navbar from "@/components/Navbar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCurrentUserProgress } from "@/hooks/useAdminProgress";
-import { useRecentActivities, useUserStats, useWeeklyProgress } from "@/hooks/useStats";
-import { getSynchronizedData } from "@/services/statsService";
-import { BookOpen, Calendar, Clock, Headphones, Mic, PenTool, RefreshCw, Target, TrendingUp, Trophy, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { apiService } from "@/services/api";
+import { TOEIC_PARTS } from "@/constants/toeicParts";
+import type { ToeicPartKey, ToeicPartScore } from "@/types/toeic";
+import { normalizePartKey, normalizeToeicParts } from "@/utils/toeicParts";
+import { useQuery } from "@tanstack/react-query";
+import { BookOpen, Calendar, Clock, Headphones, RefreshCw, Target, TrendingUp, Trophy } from "lucide-react";
+import { useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-// Generate chart data from weekly progress
-interface WeeklyProgressData {
+// API interfaces matching backend ProgressController
+interface UserProgress {
+  userId: number;
+  username: string;
+  fullName: string;
+  email: string;
+  totalScore: number;
+  listening: number;
+  speaking: number;
+  reading: number;
+  writing: number;
+  totalStudyTime: number;
+  totalXP: number;
+  achievements: string[];
+  lastActive: string;
+  completedExercises: number;
+  totalExercisesAvailable: number;
+  averageAccuracy: number;
+  createdAt: string;
+  updatedAt: string;
+  toeicParts: ToeicPartScore[];
+}
+
+interface Activity {
+  id: number;
+  type: string;
+  topic: string;
+  date: string;
+  score: number;
+  duration: number;
+  assignmentType: string;
+  timeSpentMinutes: number;
+  xpEarned: number;
+  status: string;
+}
+
+interface WeeklyProgress {
   day: string;
   exercises: number;
   time: number;
+  date: string;
+  exercisesCompleted: number;
+  timeSpentMinutes: number;
+  xpEarned: number;
 }
 
-const generateChartData = (weeklyProgressData: WeeklyProgressData[], userScore: number) => {
-  if (!weeklyProgressData?.length) {
-    // Fallback chart data based on current user score
-    const baseScore = userScore || 850;
-    return [
-      { date: "T1", total: Math.round(baseScore * 0.76), listening: Math.round(baseScore * 0.38), speaking: Math.round(baseScore * 0.18), reading: Math.round(baseScore * 0.12), writing: Math.round(baseScore * 0.06) },
-      { date: "T2", total: Math.round(baseScore * 0.82), listening: Math.round(baseScore * 0.41), speaking: Math.round(baseScore * 0.19), reading: Math.round(baseScore * 0.13), writing: Math.round(baseScore * 0.07) },
-      { date: "T3", total: Math.round(baseScore * 0.85), listening: Math.round(baseScore * 0.42), speaking: Math.round(baseScore * 0.20), reading: Math.round(baseScore * 0.13), writing: Math.round(baseScore * 0.07) },
-      { date: "T4", total: Math.round(baseScore * 0.92), listening: Math.round(baseScore * 0.46), speaking: Math.round(baseScore * 0.21), reading: Math.round(baseScore * 0.15), writing: Math.round(baseScore * 0.08) },
-      { date: "T5", total: baseScore, listening: Math.round(baseScore * 0.50), speaking: Math.round(baseScore * 0.25), reading: Math.round(baseScore * 0.20), writing: Math.round(baseScore * 0.05) },
-    ];
-  }
-  
-  return weeklyProgressData.map((day, index) => ({
-    date: day.day,
-    total: Math.round(userScore * (0.8 + (day.exercises / 10) * 0.2)), // Scale based on exercise count
-    listening: Math.round(userScore * 0.5 * (0.8 + (day.exercises / 10) * 0.2)),
-    speaking: Math.round(userScore * 0.25 * (0.8 + (day.exercises / 10) * 0.2)),
-    reading: Math.round(userScore * 0.2 * (0.8 + (day.exercises / 10) * 0.2)),
-    writing: Math.round(userScore * 0.05 * (0.8 + (day.exercises / 10) * 0.2)),
+type ChartFilter = "total" | "listening" | "reading" | "allParts" | ToeicPartKey;
+
+const distributeScore = (total: number, buckets: number) => {
+  const base = Math.floor(total / buckets);
+  const remainder = total % buckets;
+  return Array.from({ length: buckets }, (_, index) => base + (index < remainder ? 1 : 0));
+};
+
+const createFallbackToeicParts = (listeningTotal = 430, readingTotal = 420): ToeicPartScore[] => {
+  const listeningScores = distributeScore(listeningTotal, 4);
+  const readingScores = distributeScore(readingTotal, 3);
+  let listeningIndex = 0;
+  let readingIndex = 0;
+
+  return TOEIC_PARTS.map((part) => {
+    const score =
+      part.skill === "Listening" ? listeningScores[listeningIndex++] : readingScores[readingIndex++];
+
+    return {
+      key: part.key,
+      part: part.part,
+      title: part.title,
+      label: part.label,
+      skill: part.skill,
+      description: part.description,
+      questionTypes: part.questionTypes,
+      score,
+      attempts: Math.max(1, Math.floor(score / 50)),
+      color: part.color,
+    };
+  });
+};
+
+const CHART_OPTIONS: { value: ChartFilter; label: string }[] = [
+  { value: "total", label: "Tổng điểm" },
+  { value: "listening", label: "Listening (Part 1-4)" },
+  { value: "reading", label: "Reading (Part 5-7)" },
+  ...TOEIC_PARTS.map((part) => ({
+    value: part.key,
+    label: part.label,
+  })),
+  { value: "allParts", label: "Tất cả Part" },
+];
+
+// Custom hooks for direct API calls
+const useUserProgress = (userId: number = 1) => {
+  return useQuery({
+    queryKey: ['userProgress', userId],
+    queryFn: async (): Promise<UserProgress> => {
+      try {
+        const response = await apiService.get<UserProgress>(`/api/Progress/user/${userId}`);
+        return response;
+      } catch (error) {
+        console.warn('Progress API not available, using fallback data:', error);
+        // Fallback data if API fails
+        return {
+          userId,
+          username: 'currentuser',
+          fullName: 'Current User',
+          email: 'user@example.com',
+          totalScore: 850,
+          listening: 425,
+          speaking: 170,
+          reading: 425,
+          writing: 170,
+          totalStudyTime: 1900,
+          totalXP: 2500,
+          achievements: ['Reading Champion', 'Week Warrior', 'Grammar Expert'],
+          lastActive: new Date().toISOString(),
+          completedExercises: 45,
+          totalExercisesAvailable: 67,
+          averageAccuracy: 82.5,
+          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+          updatedAt: new Date().toISOString(),
+          toeicParts: createFallbackToeicParts()
+        };
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+const useUserActivities = (userId: number = 1, limit: number = 20) => {
+  return useQuery({
+    queryKey: ['userActivities', userId, limit],
+    queryFn: async (): Promise<Activity[]> => {
+      try {
+        const response = await apiService.get<Activity[]>(`/api/Progress/activities/${userId}?limit=${limit}`);
+        return response;
+      } catch (error) {
+        console.warn('Activities API not available, using fallback data:', error);
+        // Fallback activities
+        return [
+          {
+            id: 1,
+            type: 'Reading Exercise',
+            topic: 'Business Communication',
+            date: new Date().toISOString(),
+            score: 92,
+            duration: 25,
+            assignmentType: 'Part 7',
+            timeSpentMinutes: 25,
+            xpEarned: 120,
+            status: 'Completed'
+          },
+          {
+            id: 2,
+            type: 'Reading Exercise',
+            topic: 'Grammar Practice',
+            date: new Date(Date.now() - 86400000).toISOString(),
+            score: 88,
+            duration: 20,
+            assignmentType: 'Part 5',
+            timeSpentMinutes: 20,
+            xpEarned: 100,
+            status: 'Completed'
+          }
+        ];
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+};
+
+const useUserWeeklyProgress = (userId: number = 1) => {
+  return useQuery({
+    queryKey: ['weeklyProgress', userId],
+    queryFn: async (): Promise<WeeklyProgress[]> => {
+      try {
+        const response = await apiService.get<WeeklyProgress[]>(`/api/Progress/weekly/${userId}`);
+        return response;
+      } catch (error) {
+        console.warn('Weekly progress API not available, using fallback data:', error);
+        // Fallback weekly data
+        return [
+          { day: 'T2', exercises: 3, time: 45, date: new Date().toISOString(), exercisesCompleted: 3, timeSpentMinutes: 45, xpEarned: 150 },
+          { day: 'T3', exercises: 2, time: 30, date: new Date().toISOString(), exercisesCompleted: 2, timeSpentMinutes: 30, xpEarned: 100 },
+          { day: 'T4', exercises: 4, time: 60, date: new Date().toISOString(), exercisesCompleted: 4, timeSpentMinutes: 60, xpEarned: 200 },
+          { day: 'T5', exercises: 1, time: 20, date: new Date().toISOString(), exercisesCompleted: 1, timeSpentMinutes: 20, xpEarned: 80 },
+          { day: 'T6', exercises: 3, time: 50, date: new Date().toISOString(), exercisesCompleted: 3, timeSpentMinutes: 50, xpEarned: 180 },
+          { day: 'T7', exercises: 2, time: 35, date: new Date().toISOString(), exercisesCompleted: 2, timeSpentMinutes: 35, xpEarned: 120 },
+          { day: 'CN', exercises: 1, time: 15, date: new Date().toISOString(), exercisesCompleted: 1, timeSpentMinutes: 15, xpEarned: 60 }
+        ];
+      }
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+// Generate chart data from weekly progress  
+const generateChartData = (
+  weeklyProgressData: WeeklyProgress[],
+  userScore: number,
+  toeicParts: ToeicPartScore[]
+) => {
+  const fallbackDays = ["T2", "T3", "T4", "T5", "T6"];
+  const dataSource = weeklyProgressData?.length ? weeklyProgressData : fallbackDays.map((day, index) => ({
+    day,
+    exercises: 2 + (index % 3),
+    time: 30 + index * 5,
+    date: new Date().toISOString(),
+    exercisesCompleted: 2 + (index % 3),
+    timeSpentMinutes: 30 + index * 5,
+    xpEarned: 120 + index * 10,
   }));
+
+  const partScoreMap = Object.fromEntries(
+    toeicParts.map((part) => [part.key, part.score] as const)
+  ) as Record<ToeicPartKey, number>;
+
+  const listeningTotal = TOEIC_PARTS.filter((part) => part.skill === "Listening")
+    .map((part) => partScoreMap[part.key] ?? 0)
+    .reduce((sum, value) => sum + value, 0);
+
+  const readingTotal = TOEIC_PARTS.filter((part) => part.skill === "Reading")
+    .map((part) => partScoreMap[part.key] ?? 0)
+    .reduce((sum, value) => sum + value, 0);
+
+  return dataSource.map((day, index) => {
+    const intensity = 0.75 + (day.exercises / 10) * 0.25 + index * 0.02;
+    const entry: Record<string, number | string> = {
+      date: "day" in day ? day.day : day,
+      total: Math.round((userScore || 850) * intensity),
+      listening: Math.round(listeningTotal * intensity),
+      reading: Math.round(readingTotal * intensity),
+    };
+
+    TOEIC_PARTS.forEach((part) => {
+      entry[part.key] = Math.round((partScoreMap[part.key] ?? (userScore / 7)) * intensity);
+    });
+
+    return entry;
+  });
 };
 
 // mockHistory removed - now using synchronized data from statsService
 
 export default function Progress() {
   const [timeFilter, setTimeFilter] = useState("week");
-  const [chartType, setChartType] = useState("total");
-  const [showAdminNotice, setShowAdminNotice] = useState(false);
+  const [chartType, setChartType] = useState<ChartFilter>("total");
   
-  // Get synchronized data from statsService
-  const { data: userStats, isLoading: statsLoading } = useUserStats(1);
-  const { data: activities, isLoading: activitiesLoading } = useRecentActivities(1, 20);
-  const { data: weeklyProgress, isLoading: weeklyLoading } = useWeeklyProgress(1);
-  const { data: adminUserData, isLoading: adminLoading, refetch: refetchAdminData } = useCurrentUserProgress();
-  const syncData = getSynchronizedData();
+  // Direct API calls to ProgressController
+  const { data: userProgress, isLoading: progressLoading, error: progressError } = useUserProgress(1);
+  const { data: activities, isLoading: activitiesLoading } = useUserActivities(1, 20);
+  const { data: weeklyProgress, isLoading: weeklyLoading } = useUserWeeklyProgress(1);
   
-  // Check if admin data exists and show notification
-  useEffect(() => {
-    if (adminUserData && !adminLoading) {
-      setShowAdminNotice(true);
-    }
-  }, [adminUserData, adminLoading]);
+  // Use real data from API
   
-  // Use admin data first, then synchronized data or fallbacks - READING FOCUS
-  const completionRate = adminUserData 
-    ? (adminUserData.exercisesCompleted / 100 * 100) // Reading exercises completion rate
-    : userStats ? (userStats.completedExercises / userStats.totalExercises * 100) : 67;
+  // Use real data from API
+  const completionRate = userProgress 
+    ? (userProgress.completedExercises / userProgress.totalExercisesAvailable * 100) 
+    : 67;
   
-  const averageScore = adminUserData?.averageScore || userStats?.averageScore || syncData.userStats.averageScore;
-  const skillScores = adminUserData ? {
-    listening: 0, // Reading-only focus
-    speaking: 0,  
-    reading: adminUserData.averageScore,
-    writing: 0
-  } : null;
-  
-  const userRank = 4; // From leaderboard data (englishlearner01)
+  const averageScore = userProgress?.totalScore || 850;
+  const userRank = 4; // Could come from leaderboard API
   const totalUsers = 1000;
-  const studyStreak = adminUserData?.streakDays || 8;
-  const totalStudyTime = adminUserData ? adminUserData.totalXp * 10 : 1900; // Estimate from XP
-  const achievements = adminUserData?.achievements || [];
-  const userLevel = adminUserData ? `Level ${adminUserData.level}` : "Intermediate";
+  const totalStudyTime = userProgress?.totalStudyTime || 1900;
+  const achievements = userProgress?.achievements || [];
+  const toeicParts = useMemo(
+    () => normalizeToeicParts(userProgress?.toeicParts ?? []),
+    [userProgress]
+  );
+  const listeningParts = useMemo(
+    () => toeicParts.filter((part) => part.skill === "Listening"),
+    [toeicParts]
+  );
+  const readingParts = useMemo(
+    () => toeicParts.filter((part) => part.skill === "Reading"),
+    [toeicParts]
+  );
+  const listeningTotal = listeningParts.reduce((sum, part) => sum + part.score, 0);
+  const readingTotal = readingParts.reduce((sum, part) => sum + part.score, 0);
   
   // Calculate improvement based on recent activities
-  const recentActivities = activities || syncData.activities;
+  // Calculate improvement based on recent activities
+  const recentActivities = activities || [];
   const getComparisonScore = (period: string) => {
     if (!recentActivities.length) return averageScore - 30;
     
@@ -123,72 +333,58 @@ export default function Progress() {
   const comparisonScore = getComparisonScore(timeFilter);
   const improvement = ((averageScore - comparisonScore) / comparisonScore * 100).toFixed(1);
   
-  // Use fallback skill scores if no admin data available
-  const skillActivities = recentActivities.filter(activity => activity.assignmentType);
-  const finalSkillScores = skillScores || {
-    listening: Math.round(averageScore * 0.5), // Listening is typically 50% of TOEIC
-    speaking: Math.round(averageScore * 0.25), // Speaking is 25%  
-    reading: Math.round(averageScore * 0.2),   // Reading is 20%
-    writing: Math.round(averageScore * 0.05),  // Writing is 5%
-  };
-
-  // Generate chart data based on synchronized weekly progress
-  const chartData = generateChartData(weeklyProgress || syncData.weeklyProgress, averageScore);
+  // Generate chart data based on weekly progress
+  const chartData = useMemo(
+    () => generateChartData(weeklyProgress || [], averageScore, toeicParts),
+    [weeklyProgress, averageScore, toeicParts]
+  );
 
   // Convert activities to history format for table display
-  const historyData = (recentActivities || []).map((activity, index) => ({
-    id: activity.id,
-    exam: activity.type + (activity.topic ? ` - ${activity.topic}` : ''),
-    date: activity.date,
-    totalScore: activity.score,
-    listening: activity.assignmentType ? Math.round(activity.score * 0.5) : 0,
-    speaking: activity.assignmentType ? Math.round(activity.score * 0.25) : 0,
-    reading: activity.assignmentType ? Math.round(activity.score * 0.2) : 0,
-    writing: activity.assignmentType ? Math.round(activity.score * 0.05) : 0,
-    attempts: 1,
-    totalTime: activity.duration ? `${activity.duration} phút` : "N/A",
-    timeBreakdown: {
-      listening: activity.duration ? `${Math.round(activity.duration * 0.4)}p` : "N/A",
-      speaking: activity.duration ? `${Math.round(activity.duration * 0.2)}p` : "N/A", 
-      reading: activity.duration ? `${Math.round(activity.duration * 0.3)}p` : "N/A",
-      writing: activity.duration ? `${Math.round(activity.duration * 0.1)}p` : "N/A"
-    }
-  }));
+  const historyData = (recentActivities || []).map((activity) => {
+    const partKey = normalizePartKey(activity.assignmentType);
+    const partMeta = TOEIC_PARTS.find((part) => part.key === partKey);
+
+    return {
+      id: activity.id,
+      exam: activity.type + (activity.topic ? ` - ${activity.topic}` : ""),
+      date: new Date(activity.date).toLocaleString("vi-VN"),
+      partLabel: partMeta?.label ?? partKey.toUpperCase(),
+      partDescription: partMeta?.description ?? "",
+      score: activity.score,
+      duration: activity.duration ? `${activity.duration} phút` : "N/A",
+      xp: activity.xpEarned,
+      status: activity.status ?? "Completed",
+    };
+  });
+
+const pageGradient =
+  "min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 dark:from-pink-950 dark:via-rose-950 dark:to-fuchsia-950 text-slate-900 dark:text-slate-100";
+const surfaceCard =
+  "rounded-2xl bg-white/80 dark:bg-slate-900/70 border border-pink-100/60 dark:border-pink-900/40 shadow-lg shadow-pink-100/30 dark:shadow-none backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-pink-200/60";
+const sectionCard =
+  "rounded-3xl bg-white/85 dark:bg-slate-900/70 border border-rose-100/60 dark:border-rose-900/40 shadow-xl shadow-pink-100/40 dark:shadow-none backdrop-blur";
+const badgeHighlight =
+  "bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 text-white shadow-md shadow-pink-200/60";
 
   return (
-    <div className="min-h-screen">
+  <div className={pageGradient}>
       <Navbar />
       
-      {/* Admin Data Notice */}
-      {showAdminNotice && adminUserData && (
-        <Alert className="mx-4 mb-4 border-blue-200 bg-blue-50">
-          <Users className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span className="text-blue-800">
-              🎯 Dữ liệu tiến độ đã được đồng bộ từ hệ thống quản lý admin. 
-              Cấp độ hiện tại: <strong>{userLevel}</strong> • 
-              Chuỗi học tập: <strong>{studyStreak} ngày</strong> • 
-              {achievements.length > 0 && `Thành tích: ${achievements.length}`}
-            </span>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => refetchAdminData()}
-                className="text-blue-600 border-blue-200"
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Làm mới
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowAdminNotice(false)}
-                className="text-blue-600"
-              >
-                ✕
-              </Button>
-            </div>
+      {/* Loading State */}
+      {progressLoading && (
+      <Alert className="mx-4 mb-4 border border-pink-200/70 bg-white/80 dark:bg-slate-900/70 shadow-lg shadow-pink-100/40 backdrop-blur">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+        <AlertDescription className="text-pink-800 dark:text-pink-200">
+            Đang tải dữ liệu tiến độ từ cơ sở dữ liệu...
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Error State */}
+      {progressError && (
+      <Alert className="mx-4 mb-4 border border-rose-200/70 bg-white/80 dark:bg-slate-900/70 shadow-lg shadow-rose-100/40 backdrop-blur">
+        <AlertDescription className="text-rose-800 dark:text-rose-200">
+            ⚠️ Không thể tải dữ liệu từ server. Đang sử dụng dữ liệu mẫu.
           </AlertDescription>
         </Alert>
       )}
@@ -205,7 +401,7 @@ export default function Progress() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="gradient-card shadow-soft hover:shadow-hover transition-all duration-300">
+          <Card className={surfaceCard}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Tiến độ hoàn thành</CardTitle>
               <Target className="h-4 w-4 text-primary" />
@@ -219,14 +415,14 @@ export default function Progress() {
             </CardContent>
           </Card>
 
-          <Card className="gradient-card shadow-soft hover:shadow-hover transition-all duration-300">
+          <Card className={surfaceCard}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Điểm trung bình</CardTitle>
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {statsLoading ? "..." : `${averageScore}/990`}
+                {progressLoading ? "..." : `${averageScore}/990`}
               </div>
               <div className="flex items-center gap-2 mt-2">
                 <Select value={timeFilter} onValueChange={setTimeFilter}>
@@ -239,14 +435,14 @@ export default function Progress() {
                     <SelectItem value="month">So với tháng trước</SelectItem>
                   </SelectContent>
                 </Select>
-                <Badge variant="secondary" className="bg-primary/10 text-primary">
+                <Badge variant="secondary" className={badgeHighlight}>
                   +{improvement}%
                 </Badge>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="gradient-card shadow-soft hover:shadow-hover transition-all duration-300">
+          <Card className={surfaceCard}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Xếp hạng cá nhân</CardTitle>
               <Trophy className="h-4 w-4 text-primary" />
@@ -260,82 +456,115 @@ export default function Progress() {
           </Card>
         </div>
 
-        {/* Skill Breakdown Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="gradient-card shadow-soft hover:shadow-hover transition-all duration-300">
+        {/* TOEIC Part Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+          <Card className={sectionCard}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Listening</CardTitle>
-              <Headphones className="h-4 w-4 text-primary" />
+              <div>
+                <CardTitle className="text-sm font-medium">Listening (Part 1 → Part 4)</CardTitle>
+                <CardDescription>
+                  Tổng điểm: {Math.round(listeningTotal)} / 495
+                </CardDescription>
+              </div>
+              <Headphones className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{finalSkillScores.listening}</div>
-              <ProgressBar value={(finalSkillScores.listening / 495) * 100} className="mt-2" />
-              <p className="text-xs text-muted-foreground mt-1">Trung bình: 45 phút</p>
+              <div className="space-y-4">
+                {listeningParts.map((part) => (
+                  <div
+                    key={part.key}
+                    className="rounded-2xl border border-pink-100/60 dark:border-pink-900/40 bg-white/80 dark:bg-slate-900/50 p-4 shadow-sm shadow-pink-100/40"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-sm font-semibold">
+                      <span>{part.part} · {part.title}</span>
+                      <span>{Math.round(part.score)}</span>
+                    </div>
+                    <ProgressBar
+                      value={listeningTotal > 0 ? (part.score / listeningTotal) * 100 : 0}
+                      className="mt-3"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {part.questionTypes.slice(0, 3).map((type) => (
+                        <Badge key={type} variant="secondary" className={`${badgeHighlight} text-xs px-2 py-0.5`}>
+                          {type}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Attempts: {part.attempts}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="gradient-card shadow-soft hover:shadow-hover transition-all duration-300">
+          <Card className={sectionCard}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Speaking</CardTitle>
-              <Mic className="h-4 w-4 text-primary" />
+              <div>
+                <CardTitle className="text-sm font-medium">Reading (Part 5 → Part 7)</CardTitle>
+                <CardDescription>
+                  Tổng điểm: {Math.round(readingTotal)} / 495
+                </CardDescription>
+              </div>
+              <BookOpen className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{finalSkillScores.speaking}</div>
-              <ProgressBar value={(finalSkillScores.speaking / 200) * 100} className="mt-2" />
-              <p className="text-xs text-muted-foreground mt-1">Trung bình: 18 phút</p>
-            </CardContent>
-          </Card>
-
-          <Card className="gradient-card shadow-soft hover:shadow-hover transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Reading</CardTitle>
-              <BookOpen className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{finalSkillScores.reading}</div>
-              <ProgressBar value={(finalSkillScores.reading / 200) * 100} className="mt-2" />
-              <p className="text-xs text-muted-foreground mt-1">Trung bình: 34 phút</p>
-            </CardContent>
-          </Card>
-
-          <Card className="gradient-card shadow-soft hover:shadow-hover transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Writing</CardTitle>
-              <PenTool className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{finalSkillScores.writing}</div>
-              <ProgressBar value={(finalSkillScores.writing / 100) * 100} className="mt-2" />
-              <p className="text-xs text-muted-foreground mt-1">Trung bình: 20 phút</p>
+              <div className="space-y-4">
+                {readingParts.map((part) => (
+                  <div
+                    key={part.key}
+                    className="rounded-2xl border border-rose-100/60 dark:border-rose-900/40 bg-white/80 dark:bg-slate-900/50 p-4 shadow-sm shadow-rose-100/40"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-sm font-semibold">
+                      <span>{part.part} · {part.title}</span>
+                      <span>{Math.round(part.score)}</span>
+                    </div>
+                    <ProgressBar
+                      value={readingTotal > 0 ? (part.score / readingTotal) * 100 : 0}
+                      className="mt-3"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {part.questionTypes.slice(0, 3).map((type) => (
+                        <Badge key={type} variant="secondary" className={`${badgeHighlight} text-xs px-2 py-0.5`}>
+                          {type}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Attempts: {part.attempts}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Charts */}
-        <Card className="gradient-card shadow-soft mb-8">
+        <Card className={`${sectionCard} mb-8`}>
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle>Biểu đồ tiến bộ</CardTitle>
                 <CardDescription>Theo dõi sự phát triển điểm số TOEIC theo thời gian</CardDescription>
               </div>
-              <Select value={chartType} onValueChange={setChartType}>
+              <Select value={chartType} onValueChange={(value) => setChartType(value as ChartFilter)}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="total">Tổng điểm</SelectItem>
-                  <SelectItem value="listening">Listening</SelectItem>
-                  <SelectItem value="speaking">Speaking</SelectItem>
-                  <SelectItem value="reading">Reading</SelectItem>
-                  <SelectItem value="writing">Writing</SelectItem>
-                  <SelectItem value="all">Tất cả kỹ năng</SelectItem>
+                  {CHART_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </CardHeader>
           <CardContent>
-            {chartType === "all" ? (
+            {chartType === "allParts" ? (
               <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -349,10 +578,16 @@ export default function Progress() {
                     }}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="listening" stroke="#FF80AB" strokeWidth={2} name="Listening" />
-                  <Line type="monotone" dataKey="speaking" stroke="#CE93D8" strokeWidth={2} name="Speaking" />
-                  <Line type="monotone" dataKey="reading" stroke="#90CAF9" strokeWidth={2} name="Reading" />
-                  <Line type="monotone" dataKey="writing" stroke="#A5D6A7" strokeWidth={2} name="Writing" />
+                  {TOEIC_PARTS.map((part) => (
+                    <Line
+                      key={part.key}
+                      type="monotone"
+                      dataKey={part.key}
+                      stroke={part.color ?? "#6366f1"}
+                      strokeWidth={2}
+                      name={part.label}
+                    />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -373,6 +608,7 @@ export default function Progress() {
                     dataKey={chartType}
                     stroke="hsl(var(--primary))"
                     strokeWidth={3}
+                    name={CHART_OPTIONS.find((option) => option.value === chartType)?.label}
                     dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 5 }}
                   />
                 </LineChart>
@@ -382,7 +618,7 @@ export default function Progress() {
         </Card>
 
         {/* History Table */}
-        <Card className="gradient-card shadow-soft">
+        <Card className={sectionCard}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -396,13 +632,11 @@ export default function Progress() {
                 <TableRow>
                   <TableHead>Tên kỳ thi</TableHead>
                   <TableHead>Ngày</TableHead>
-                  <TableHead>Tổng</TableHead>
-                  <TableHead>L</TableHead>
-                  <TableHead>S</TableHead>
-                  <TableHead>R</TableHead>
-                  <TableHead>W</TableHead>
+                  <TableHead>Part</TableHead>
+                  <TableHead>Điểm</TableHead>
                   <TableHead>Thời gian</TableHead>
-                  <TableHead className="text-right">Lần thử</TableHead>
+                  <TableHead>XP</TableHead>
+                  <TableHead className="text-right">Trạng thái</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -411,32 +645,28 @@ export default function Progress() {
                     <TableCell className="font-medium">{item.exam}</TableCell>
                     <TableCell>{item.date}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="bg-primary/10 text-primary">
-                        {item.totalScore}
+                      <Badge variant="outline" className={`${badgeHighlight} bg-clip-padding px-3 py-1`}>
+                        {item.partLabel}
                       </Badge>
+                      {item.partDescription && (
+                        <p className="text-xs text-muted-foreground mt-1">{item.partDescription}</p>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">{item.listening}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{item.speaking}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{item.reading}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{item.writing}</span>
+                      <Badge variant="secondary" className={`${badgeHighlight} px-3 py-1`}>
+                        {item.score}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs">{item.totalTime}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        L:{item.timeBreakdown.listening} S:{item.timeBreakdown.speaking} R:{item.timeBreakdown.reading} W:{item.timeBreakdown.writing}
+                        <span className="text-xs">{item.duration}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">{item.attempts}</TableCell>
+                    <TableCell>{item.xp}</TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {item.status}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

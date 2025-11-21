@@ -1,6 +1,8 @@
 using EngAce.Api.DTO.Core;
+using EngAce.Api.Helpers;
 using EngAce.Api.Services.Interfaces;
 using Entities.Data;
+using Entities.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace EngAce.Api.Services;
@@ -16,12 +18,16 @@ public class LeaderboardService : ILeaderboardService
 
     public async Task<IEnumerable<LeaderboardEntryDto>> GetLeaderboardAsync(string? timeFilter = null, string? skill = null)
     {
+        var completionsQuery = _context.Completions
+            .Include(c => c.Exercise);
+
+        // Updated to use new schema: Users and Completions instead of UserProgresses
         var query = _context.Users
-            .Where(u => u.IsActive)
-            .Join(_context.UserProgresses,
+            .Where(u => u.Status == "active")
+            .GroupJoin(completionsQuery,
                 u => u.Id,
-                p => p.UserId,
-                (u, p) => new { User = u, Progress = p });
+                c => c.UserId,
+                (u, completions) => new { User = u, Completions = completions });
 
         // Apply time filter
         if (!string.IsNullOrEmpty(timeFilter))
@@ -43,33 +49,50 @@ public class LeaderboardService : ILeaderboardService
         var userProgressData = await query.ToListAsync();
 
         // Sort by skill or total score
-        var leaderboard = userProgressData.Select(up => new LeaderboardEntryDto
+        var leaderboard = userProgressData.Select(uc =>
         {
-            UserId = up.User.Id.ToString(),
-            Username = up.User.Username,
-            FullName = up.User.FullName,
-            Level = up.User.Level,
-            TotalXP = up.User.TotalXP,
-            ListeningScore = up.Progress.ListeningScore,
-            SpeakingScore = up.Progress.SpeakingScore,
-            ReadingScore = up.Progress.ReadingScore,
-            WritingScore = up.Progress.WritingScore,
-            TotalScore = up.Progress.TotalScore,
-            StudyStreak = up.User.StudyStreak,
-            CompletedExercises = up.Progress.CompletedExercises,
-            AverageAccuracy = up.Progress.AverageAccuracy,
-            LastActive = up.User.LastActiveAt
+            var completionList = uc.Completions?.ToList() ?? new List<Completion>();
+            var toeicParts = ToeicPartHelper.BuildPartScores(completionList);
+            var listeningScore = ToeicPartHelper.SumListening(toeicParts);
+            var readingScore = ToeicPartHelper.SumReading(toeicParts);
+
+            return new LeaderboardEntryDto
+            {
+                UserId = uc.User.Id,
+                Username = uc.User.Username,
+                FullName = uc.User.FullName,
+                Level = UserProfileHelper.GetProfileTier(uc.User.TotalXp),
+                TotalXP = uc.User.TotalXp,
+                ListeningScore = (int)Math.Round(listeningScore),
+                SpeakingScore = 0,
+                ReadingScore = (int)Math.Round(readingScore),
+                WritingScore = 0,
+                TotalScore = completionList.Any() ? (int)completionList.Sum(c => c.Score) : 0,
+                StudyStreak = UserProfileHelper.CalculateStudyStreak(completionList),
+                CompletedExercises = completionList.Count,
+                AverageScore = completionList.Any() ? (double)completionList.Average(c => c.Score) : 0,
+                AverageAccuracy = completionList.Any() ? (decimal)completionList.Average(c => c.Score) : 0,
+                LastActive = uc.User.LastActiveAt,
+                LastActivity = uc.User.LastActiveAt,
+                ToeicParts = toeicParts
+            };
         });
 
-        // Sort by specific skill or total score
-        leaderboard = skill?.ToLower() switch
+        var normalizedFilter = skill?.ToLowerInvariant();
+        if (ToeicPartHelper.IsPartFilter(normalizedFilter))
         {
-            "listening" => leaderboard.OrderByDescending(l => l.ListeningScore),
-            "speaking" => leaderboard.OrderByDescending(l => l.SpeakingScore),
-            "reading" => leaderboard.OrderByDescending(l => l.ReadingScore),
-            "writing" => leaderboard.OrderByDescending(l => l.WritingScore),
-            _ => leaderboard.OrderByDescending(l => l.TotalXP)
-        };
+            leaderboard = leaderboard.OrderByDescending(entry =>
+                ToeicPartHelper.GetPartScore(entry.ToeicParts, normalizedFilter));
+        }
+        else
+        {
+            leaderboard = normalizedFilter switch
+            {
+                "listening" => leaderboard.OrderByDescending(entry => ToeicPartHelper.SumListening(entry.ToeicParts)),
+                "reading" => leaderboard.OrderByDescending(entry => ToeicPartHelper.SumReading(entry.ToeicParts)),
+                _ => leaderboard.OrderByDescending(entry => entry.TotalXP)
+            };
+        }
 
         // Add ranks
         var rankedLeaderboard = leaderboard
@@ -86,14 +109,19 @@ public class LeaderboardService : ILeaderboardService
     public async Task<UserRankDto?> GetUserRankAsync(int userId)
     {
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+            .FirstOrDefaultAsync(u => u.Id == userId && u.Status == "active");
 
         if (user == null) return null;
 
-        var totalUsers = await _context.Users.CountAsync(u => u.IsActive);
+        var totalUsers = await _context.Users.CountAsync(u => u.Status == "active");
+        var userCompletions = await _context.Completions
+            .Where(c => c.UserId == userId && c.CompletedAt.HasValue)
+            .Include(c => c.Exercise)
+            .ToListAsync();
+        var toeicParts = ToeicPartHelper.BuildPartScores(userCompletions);
         
         var usersWithHigherXP = await _context.Users
-            .CountAsync(u => u.IsActive && u.TotalXP > user.TotalXP);
+            .CountAsync(u => u.Status == "active" && u.TotalXp > user.TotalXp);
 
         var currentRank = usersWithHigherXP + 1;
         var percentile = totalUsers > 0 ? 
@@ -101,60 +129,70 @@ public class LeaderboardService : ILeaderboardService
 
         return new UserRankDto
         {
-            UserId = userId.ToString(),
+            UserId = user.Id,
             Username = user.Username,
             CurrentRank = currentRank,
             TotalUsers = totalUsers,
-            TotalXP = user.TotalXP,
-            Percentile = percentile
+            TotalXP = user.TotalXp,
+            Percentile = percentile,
+            ToeicParts = toeicParts
         };
     }
 
     public async Task<IEnumerable<LeaderboardEntryDto>> GetTopUsersAsync(int count = 10)
     {
+        var completionsQuery = _context.Completions.Include(c => c.Exercise);
+
         var topUsers = await _context.Users
-            .Where(u => u.IsActive)
-            .Join(_context.UserProgresses,
+            .Where(u => u.Status == "active")
+            .GroupJoin(completionsQuery,
                 u => u.Id,
-                p => p.UserId,
-                (u, p) => new { User = u, Progress = p })
-            .OrderByDescending(up => up.User.TotalXP)
+                c => c.UserId,
+                (u, completions) => new { User = u, Completions = completions })
+            .OrderByDescending(uc => uc.User.TotalXp)
             .Take(count)
             .ToListAsync();
 
-        return topUsers.Select((up, index) => new LeaderboardEntryDto
+        return topUsers.Select((uc, index) =>
         {
-            Rank = index + 1,
-            UserId = up.User.Id.ToString(),
-            Username = up.User.Username,
-            FullName = up.User.FullName,
-            Level = up.User.Level,
-            TotalXP = up.User.TotalXP,
-            ListeningScore = up.Progress.ListeningScore,
-            SpeakingScore = up.Progress.SpeakingScore,
-            ReadingScore = up.Progress.ReadingScore,
-            WritingScore = up.Progress.WritingScore,
-            TotalScore = up.Progress.TotalScore,
-            StudyStreak = up.User.StudyStreak,
-            CompletedExercises = up.Progress.CompletedExercises,
-            AverageAccuracy = up.Progress.AverageAccuracy,
-            LastActive = up.User.LastActiveAt
+            var completionList = uc.Completions?.ToList() ?? new List<Completion>();
+            var toeicParts = ToeicPartHelper.BuildPartScores(completionList);
+
+            return new LeaderboardEntryDto
+            {
+                Rank = index + 1,
+                UserId = uc.User.Id,
+                Username = uc.User.Username,
+                FullName = uc.User.FullName,
+                Level = UserProfileHelper.GetProfileTier(uc.User.TotalXp),
+                TotalXP = uc.User.TotalXp,
+                ListeningScore = (int)Math.Round(ToeicPartHelper.SumListening(toeicParts)),
+                SpeakingScore = 0,
+                ReadingScore = (int)Math.Round(ToeicPartHelper.SumReading(toeicParts)),
+                WritingScore = 0,
+                TotalScore = completionList.Any() ? (int)completionList.Sum(c => c.Score) : 0,
+                StudyStreak = UserProfileHelper.CalculateStudyStreak(completionList),
+                CompletedExercises = completionList.Count,
+                AverageAccuracy = completionList.Any() ? (decimal)completionList.Average(c => c.Score) : 0,
+                LastActive = uc.User.LastActiveAt,
+                ToeicParts = toeicParts
+            };
         });
     }
 
     public async Task<LeaderboardStatsDto> GetLeaderboardStatsAsync()
     {
-        var totalUsers = await _context.Users.CountAsync(u => u.IsActive);
+        var totalUsers = await _context.Users.CountAsync(u => u.Status == "active");
         
         var today = DateTime.UtcNow.Date;
         var activeUsersToday = await _context.Users
-            .CountAsync(u => u.IsActive && u.LastActiveAt >= today);
+            .CountAsync(u => u.Status == "active" && u.LastActiveAt >= today);
 
-        var averageScore = await _context.UserProgresses
-            .AverageAsync(p => (double?)p.TotalScore) ?? 0;
+        var averageScore = await _context.Completions
+            .AverageAsync(c => (double?)c.Score) ?? 0;
 
-        var totalExercisesCompleted = await _context.ReadingExerciseResults
-            .CountAsync(r => r.IsCompleted);
+        var totalExercisesCompleted = await _context.Completions
+            .CountAsync(c => c.CompletedAt.HasValue);
 
         return new LeaderboardStatsDto
         {

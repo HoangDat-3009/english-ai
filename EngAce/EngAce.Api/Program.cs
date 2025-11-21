@@ -8,29 +8,19 @@ using Entities.Data;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.IISIntegration;
 using EngAce.Api;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database Configuration - Support both SQL Server and MySQL
+// Database Configuration - Using MySQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var databaseProvider = builder.Configuration["DatabaseProvider"];
 
-if (databaseProvider?.ToLower() == "mysql")
-{
-    connectionString = builder.Configuration.GetConnectionString("MySqlConnection");
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
-            b => b.MigrationsAssembly("EngAce.Api"))
-    );
-}
-else
-{
-    // Default to SQL Server
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(connectionString,
-            b => b.MigrationsAssembly("EngAce.Api"))
-    );
-}
+// Configure MySQL database
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseMySql(connectionString,
+        new MySqlServerVersion(new Version(8, 0, 21)),
+        b => b.MigrationsAssembly("EngAce.Api"))
+);
 
 // Add controllers with JSON options (keep original property names)
 builder.Services.AddControllers()
@@ -67,14 +57,17 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddMemoryCache();
 
-// Register Services
+// Register Services - Temporarily simplified for 3 core functions
 builder.Services.AddScoped<EngAce.Api.Services.Interfaces.IReadingExerciseService, EngAce.Api.Services.ReadingExerciseService>();
 builder.Services.AddScoped<EngAce.Api.Services.Interfaces.IProgressService, EngAce.Api.Services.ProgressService>();
 builder.Services.AddScoped<EngAce.Api.Services.Interfaces.ILeaderboardService, EngAce.Api.Services.LeaderboardService>();
 builder.Services.AddScoped<EngAce.Api.Services.Interfaces.IGeminiService, EngAce.Api.Services.AI.GeminiService>();
 
-// Register HttpClient for Gemini service
-builder.Services.AddHttpClient<EngAce.Api.Services.AI.GeminiService>();
+// Register HttpClient for Gemini service with timeout configuration
+builder.Services.AddHttpClient<EngAce.Api.Services.AI.GeminiService>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(2); // 2 minutes timeout for AI operations
+});
 
 // Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -164,6 +157,18 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddResponseCaching();
+
+// Utility: allow one-off database reset via command line switch
+if (args.Any(arg => string.Equals(arg, "--reset-db", StringComparison.OrdinalIgnoreCase)))
+{
+    Console.WriteLine(">>> Resetting MySQL database (EnsureDeleted + Migrate)...");
+    using var scope = builder.Services.BuildServiceProvider().CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.EnsureDeletedAsync();
+    await dbContext.Database.MigrateAsync();
+    Console.WriteLine(">>> Database reset completed successfully.");
+    return;
+}
 
 var app = builder.Build();
 

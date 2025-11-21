@@ -13,7 +13,7 @@ namespace EngAce.Api.DTO.Core;
 public class UserProgressDto
 {
     public string Id { get; set; } = string.Empty;
-    public string UserId { get; set; } = string.Empty;
+    public int UserId { get; set; }
     public int CompletedExercises { get; set; }
     public int TimeSpentToday { get; set; }
     public DateTime LastActivity { get; set; }
@@ -28,12 +28,18 @@ public class UserProgressDto
     public string Email { get; set; } = string.Empty;
     public string Level { get; set; } = string.Empty;
     
-    // Skill scores
+    // Skill scores (legacy - derived from TOEIC parts for backward compatibility)
     public int Listening { get; set; }
     public int Speaking { get; set; }
     public int Reading { get; set; }
     public int Writing { get; set; }
     public int Exams { get; set; }
+
+    /// <summary>
+    /// Detailed TOEIC part breakdown (Part 1 - Part 7)
+    /// </summary>
+    [JsonPropertyName("toeicParts")]
+    public List<ToeicPartScoreDto> ToeicParts { get; set; } = new();
     
     // Progress tracking
     public int CompletedLessons { get; set; }
@@ -66,24 +72,11 @@ public class UserProgressDto
     
     // === FRONTEND COMPATIBILITY PROPERTIES ===
     // Match UserStats interface from statsService.ts
-    [JsonPropertyName("totalExercises")]
     public int TotalExercises => TotalExercisesAvailable;
-    
-    [JsonPropertyName("totalStudyTime")]
     public int TotalStudyTimeMinutes => (int)TotalStudyTime.TotalMinutes;
-    
-    [JsonPropertyName("averageScore")]
     public double AverageScore => AverageAccuracy;
-    
-    [JsonPropertyName("experiencePoints")]
     public int ExperiencePoints => TotalXP;
-    
-    [JsonPropertyName("currentStreak")]
     public int CurrentStreakAlias => StudyStreak;
-    
-    // ID type compatibility for frontend (string to int conversion)
-    [JsonPropertyName("userId")]
-    public int UserIdInt => int.TryParse(UserId, out var id) ? id : 0;
 }
 
 /// <summary>
@@ -91,7 +84,7 @@ public class UserProgressDto
 /// </summary>
 public class UpdateProgressDto
 {
-    public string UserId { get; set; } = string.Empty;
+    public int UserId { get; set; }
     public string ExerciseId { get; set; } = string.Empty;
     public int Score { get; set; }
     public int ExerciseScore { get; set; } // Alias for Score
@@ -125,10 +118,7 @@ public class WeeklyProgressDto
     public DateTime Date { get; set; }
     
     // Frontend compatibility - convert TimeSpan to number (minutes)
-    [JsonPropertyName("time")]
     public int TimeMinutes => (int)Time.TotalMinutes;
-    
-    [JsonPropertyName("totalStudyTime")]
     public int TotalStudyTimeMinutes => (int)TotalStudyTime.TotalMinutes;
     
     // Properties used in services
@@ -159,10 +149,7 @@ public class DailyProgressDto
     public TimeSpan Time { get; set; }
     
     // Frontend compatibility - convert TimeSpan to number (minutes)
-    [JsonPropertyName("time")]
     public int TimeMinutes => (int)Time.TotalMinutes;
-    
-    [JsonPropertyName("studyTime")]
     public int StudyTimeMinutes => (int)StudyTime.TotalMinutes;
 }
 
@@ -173,7 +160,7 @@ public class DailyProgressDto
 public class ActivityDto
 {
     public string Id { get; set; } = string.Empty;
-    public string UserId { get; set; } = string.Empty;
+    public int UserId { get; set; }
     public string ActivityType { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty; // Alias for ActivityType
     public string Description { get; set; } = string.Empty;
@@ -207,10 +194,8 @@ public class ActivityDto
     // ExerciseType alias property - no JsonPropertyName to avoid conflicts
     public string ExerciseTypeAlias => AssignmentType;
     
-    // ID type compatibility for frontend (string to int conversion) - no JsonPropertyName to avoid conflicts
+    // ID type compatibility for frontend - no JsonPropertyName to avoid conflicts
     public int IdInt => int.TryParse(Id, out var id) ? id : 0;
-    
-    public int UserIdInt => int.TryParse(UserId, out var userId) ? userId : 0;
 }
 
 
@@ -239,4 +224,37 @@ public class ProgressAdminResponseDto
     public int TotalUsers { get; set; }
     public int CurrentPage { get; set; }
     public int TotalPages { get; set; }
+}
+
+/// <summary>
+/// DTO mô tả điểm số của từng Part TOEIC (1-7)
+/// </summary>
+public class ToeicPartScoreDto
+{
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = string.Empty; // part1, part2,...
+
+    [JsonPropertyName("part")]
+    public string Part { get; set; } = string.Empty; // Part 1
+
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty; // Part 1 - Photographs
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("skill")]
+    public string Skill { get; set; } = string.Empty; // Listening / Reading
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("questionTypes")]
+    public List<string> QuestionTypes { get; set; } = new();
+
+    [JsonPropertyName("score")]
+    public double Score { get; set; }
+
+    [JsonPropertyName("attempts")]
+    public int Attempts { get; set; }
 }
