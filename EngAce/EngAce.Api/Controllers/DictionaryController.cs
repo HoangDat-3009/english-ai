@@ -15,7 +15,7 @@ namespace EngAce.Api.Controllers
         private readonly string _accessKey = HttpContextHelper.GetAccessKey();
 
         [HttpGet("Search")]
-        [ResponseCache(Duration = QuizScope.ThreeDaysAsCachingAge, Location = ResponseCacheLocation.Any, NoStore = false)]
+        [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any, NoStore = false)]
         public async Task<ActionResult<SearchResult>> Search(string keyword, string? context)
         {
             if (string.IsNullOrEmpty(_accessKey))
@@ -68,7 +68,7 @@ namespace EngAce.Api.Controllers
             try
             {
                 var result = await SearchScope.Search(_accessKey, keyword, context);
-                _cache.Set(cacheKey, result, TimeSpan.FromHours(1));
+                _cache.Set(cacheKey, result, TimeSpan.FromDays(1));
 
                 _logger.LogInformation("{_accessKey} searched: {Keyword} - Context: {Context}", _accessKey[..10], keyword, context);
                 return Created("Success", result);

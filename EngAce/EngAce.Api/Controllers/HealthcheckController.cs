@@ -72,7 +72,7 @@ namespace EngAce.Api.Controllers
         }
 
         [HttpGet("GetLatestGithubCommit")]
-        [ResponseCache(Duration = 60 * 60 * 2, Location = ResponseCacheLocation.Any, NoStore = false)]
+        [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any, NoStore = false)]
         public async Task<ActionResult<CommitInfo>> GetLatestGithubCommit()
         {
             try

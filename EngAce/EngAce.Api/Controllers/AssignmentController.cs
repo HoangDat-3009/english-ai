@@ -55,7 +55,7 @@ namespace EngAce.Api.Controllers
             try
             {
                 var quizzes = await QuizScope.GenerateQuizes(_accessKey, request.Topic, request.AssignmentTypes, request.EnglishLevel, request.TotalQuestions);
-                _cache.Set(cacheKey, quizzes, TimeSpan.FromMinutes(request.TotalQuestions));
+                _cache.Set(cacheKey, quizzes, TimeSpan.FromDays(1));
 
                 _logger.LogInformation("{_accessKey} generated: {Topic} - Quizz Types: {Types}", _accessKey[..10], request.Topic, string.Join("-", request.AssignmentTypes.Select(t => t.ToString())));
 
@@ -96,7 +96,7 @@ namespace EngAce.Api.Controllers
                     .Take(totalTopics)
                     .ToList();
 
-                _cache.Set(cacheKey, topics, TimeSpan.FromDays(QuizScope.ThreeDaysAsCachingAge));
+                _cache.Set(cacheKey, topics, TimeSpan.FromDays(1));
 
                 return Created("Success", selectedTopics);
             }
@@ -114,7 +114,7 @@ namespace EngAce.Api.Controllers
         /// </returns>
         /// <response code="200">Returns a dictionary of English levels and their descriptions.</response>
         [HttpGet("GetEnglishLevels")]
-        [ResponseCache(Duration = QuizScope.MaxTimeAsCachingAge, Location = ResponseCacheLocation.Any, NoStore = false)]
+        [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any, NoStore = false)]
         public ActionResult<Dictionary<int, string>> GetEnglishLevels()
         {
             var descriptions = Enum
@@ -134,7 +134,7 @@ namespace EngAce.Api.Controllers
         /// </returns>
         /// <response code="200">Returns a dictionary of quiz types and their descriptions.</response>
         [HttpGet("GetAssignmentTypes")]
-        [ResponseCache(Duration = QuizScope.ThreeDaysAsCachingAge, Location = ResponseCacheLocation.Any, NoStore = false)]
+        [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any, NoStore = false)]
         public ActionResult<Dictionary<int, string>> GetAssignmentTypes()
         {
             var descriptions = Enum
