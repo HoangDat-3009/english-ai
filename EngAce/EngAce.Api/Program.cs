@@ -20,7 +20,14 @@ builder.Services.AddControllers()
 
 builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddHttpContextAccessor();
-HttpContextHelper.Configure(builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>());
+
+// Đăng ký GeminiKeyManager để quản lý rotation API keys
+builder.Services.AddSingleton<GeminiKeyManager>();
+
+var serviceProvider = builder.Services.BuildServiceProvider();
+HttpContextHelper.Configure(serviceProvider.GetRequiredService<IHttpContextAccessor>());
+HttpContextHelper.ConfigureKeyManager(serviceProvider.GetRequiredService<GeminiKeyManager>());
+
 builder.Services.AddMemoryCache();
 
 builder.Services.AddEndpointsApiExplorer();
