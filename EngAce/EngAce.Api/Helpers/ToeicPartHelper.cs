@@ -148,7 +148,7 @@ public static class ToeicPartHelper
             var aggregate = aggregates[partLabel];
             aggregates[partLabel] = aggregate with
             {
-                TotalScore = aggregate.TotalScore + completion.Score,
+                TotalScore = aggregate.TotalScore + (completion.Score ?? 0),
                 Attempts = aggregate.Attempts + 1
             };
         }

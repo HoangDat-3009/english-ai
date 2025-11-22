@@ -70,10 +70,10 @@ public class LeaderboardService : ILeaderboardService
                 TotalScore = completionList.Any() ? (int)completionList.Sum(c => c.Score) : 0,
                 StudyStreak = UserProfileHelper.CalculateStudyStreak(completionList),
                 CompletedExercises = completionList.Count,
-                AverageScore = completionList.Any() ? (double)completionList.Average(c => c.Score) : 0,
-                AverageAccuracy = completionList.Any() ? (decimal)completionList.Average(c => c.Score) : 0,
-                LastActive = uc.User.LastActiveAt,
-                LastActivity = uc.User.LastActiveAt,
+                AverageScore = completionList.Any() ? (double)completionList.Average(c => c.Score ?? 0) : 0,
+                AverageAccuracy = completionList.Any() ? (decimal)completionList.Average(c => c.Score ?? 0) : 0,
+                LastActive = uc.User.LastActiveAt ?? DateTime.UtcNow,
+                LastActivity = uc.User.LastActiveAt ?? DateTime.UtcNow,
                 ToeicParts = toeicParts
             };
         });
@@ -174,7 +174,7 @@ public class LeaderboardService : ILeaderboardService
                 StudyStreak = UserProfileHelper.CalculateStudyStreak(completionList),
                 CompletedExercises = completionList.Count,
                 AverageAccuracy = completionList.Any() ? (decimal)completionList.Average(c => c.Score) : 0,
-                LastActive = uc.User.LastActiveAt,
+                LastActive = uc.User.LastActiveAt ?? DateTime.UtcNow,
                 ToeicParts = toeicParts
             };
         });
