@@ -72,8 +72,8 @@ public class ProgressService : IProgressService
             Writing = 0,
             Exams = uniqueExercises,
             TotalScore = (int)Math.Round(averageScore),
-            LastActivity = user.LastActiveAt,
-            LastActive = user.LastActiveAt,
+            LastActivity = user.LastActiveAt ?? DateTime.UtcNow,
+            LastActive = user.LastActiveAt ?? DateTime.UtcNow,
             LastUpdated = DateTime.UtcNow,
             CreatedAt = user.CreatedAt,
             UpdatedAt = DateTime.UtcNow,
@@ -151,12 +151,12 @@ public class ProgressService : IProgressService
             Id = c.CompletionId.ToString(),
             Type = "Reading Exercise", // Frontend expects 'Type'
             Topic = c.Exercise?.Title ?? "Reading Exercise", // Frontend expects 'Topic'
-            Timestamp = c.CompletedAt ?? c.StartedAt, // Frontend expects DateTime
-            Score = (int?)Math.Round(c.Score), // Convert decimal to int
+            Timestamp = c.CompletedAt ?? c.StartedAt ?? DateTime.UtcNow, // Frontend expects DateTime
+            Score = c.Score.HasValue ? (int?)Math.Round(c.Score.Value) : null, // Convert decimal? to int?
             Duration = c.TimeSpent ?? TimeSpan.FromMinutes(30), // Frontend expects 'Duration'
             AssignmentType = c.Exercise?.Type ?? "Part 7", // Frontend expects this field
             TimeSpentMinutes = (int)(c.TimeSpent?.TotalMinutes ?? 30),
-            XPEarned = (int)Math.Round(c.Score),
+            XPEarned = c.Score.HasValue ? (int)Math.Round(c.Score.Value) : 0,
             Status = "Completed"
         }));
 

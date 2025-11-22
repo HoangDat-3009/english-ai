@@ -181,7 +181,7 @@ public partial class AuthController : ControllerBase
                 user.Password = request.Password;
 
             if (!string.IsNullOrWhiteSpace(request.Avatar))
-                user.Avatar = request.Avatar;
+                user.AvatarUrl = request.Avatar;
 
             if (!string.IsNullOrWhiteSpace(request.AccountType))
                 user.AccountType = request.AccountType;

@@ -92,8 +92,8 @@ namespace EngAce.Api.Controllers
                     : 0;
                     
                 var averageCompletionTime = completedResults.Any()
-                    ? completedResults.Where(p => p.CompletedAt.HasValue)
-                        .Average(p => (p.CompletedAt!.Value - p.StartedAt).TotalMinutes)
+                    ? completedResults.Where(p => p.CompletedAt.HasValue && p.StartedAt.HasValue)
+                        .Average(p => (p.CompletedAt!.Value - p.StartedAt!.Value).TotalMinutes)
                     : 0;
                     
                 stats = new SystemStatistics
@@ -261,8 +261,8 @@ namespace EngAce.Api.Controllers
                     MaxScore = scores.Max(),
                     AverageCompletionTime = TimeSpan.FromMinutes(
                         completedResults.Any()
-                            ? completedResults.Where(p => p.CompletedAt.HasValue)
-                                .Average(p => p.CompletedAt.HasValue ? (p.CompletedAt.Value - p.StartedAt).TotalMinutes : 0) // Handle nullable CompletedAt
+                            ? completedResults.Where(p => p.CompletedAt.HasValue && p.StartedAt.HasValue)
+                                .Average(p => (p.CompletedAt!.Value - p.StartedAt!.Value).TotalMinutes)
                             : 0
                     ),
                     ScoreDistribution = scoreDistribution,
