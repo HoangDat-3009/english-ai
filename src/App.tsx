@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, HashRouter } from "react-router-dom";
 import Index from "./pages/Index";
 import ListeningPractice from "./pages/ListeningPractice";
 import ListeningPracticeLesson from "./pages/ListeningPracticeLesson";
@@ -31,7 +31,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/listening-practice" element={<ListeningPractice />} />
@@ -40,12 +40,12 @@ const App = () => (
           <Route path="/create-lesson" element={<CreateLesson />} />
           <Route path="/conversation-practice" element={<ConversationPractice />} />
           <Route path="/writing-practice" element={<WritingPractice />} />
-        
-        <Route path="/vocabulary-group/:topicId" element={<VocabularyGroup />} />
-        <Route path="/flashcard-groups" element={<FlashcardGroups />} />
-        <Route path="/flashcard-selection" element={<FlashcardPracticeSelection />} />
-        <Route path="/flashcard-practice" element={<FlashcardPractice />} />
-        <Route path="/vocabulary-test" element={<VocabularyTest />} />
+
+          <Route path="/vocabulary-group/:topicId" element={<VocabularyGroup />} />
+          <Route path="/flashcard-groups" element={<FlashcardGroups />} />
+          <Route path="/flashcard-selection" element={<FlashcardPracticeSelection />} />
+          <Route path="/flashcard-practice" element={<FlashcardPractice />} />
+          <Route path="/vocabulary-test" element={<VocabularyTest />} />
           <Route path="/guess-word" element={<GuessWord />} />
           <Route path="/sentence-practice" element={<SentencePractice />} />
           <Route path="/grammar-practice" element={<GrammarPractice />} />
@@ -55,7 +55,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );

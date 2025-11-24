@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { X, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Flag, Settings } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useTestDetail, TestQuestion } from "@/hooks/useTestDetail";
@@ -12,7 +12,7 @@ const TestExam = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: testDetail, isLoading } = useTestDetail(testId || null);
-  
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
@@ -83,12 +83,12 @@ const TestExam = () => {
             <h1 className="text-3xl font-bold mb-8">Part 1: PHOTOGRAPHS</h1>
             <div className="prose prose-lg max-w-none text-muted-foreground">
               <p className="mb-4">
-                <strong>Directions:</strong> For each question, you will listen to four short statements about a picture in your test book. 
-                These statements will not be printed and will only be spoken one time. Select the statement that best describes what 
+                <strong>Directions:</strong> For each question, you will listen to four short statements about a picture in your test book.
+                These statements will not be printed and will only be spoken one time. Select the statement that best describes what
                 is happening in the picture and mark the corresponding letter (A), (B), (C), or (D) on the answer sheet.
               </p>
               <p className="mb-4">
-                The statement that best describes the picture is (B), "The man is sitting at the desk." So, you should mark letter (B) 
+                The statement that best describes the picture is (B), "The man is sitting at the desk." So, you should mark letter (B)
                 on the answer sheet.
               </p>
             </div>
@@ -125,15 +125,9 @@ const TestExam = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Flag className="w-5 h-5" />
-            </Button>
             <div className="bg-destructive text-white px-4 py-2 rounded-lg font-mono font-semibold">
               {formatTime(timeLeft)}
             </div>
-            <Button variant="ghost" size="icon">
-              <Settings className="w-5 h-5" />
-            </Button>
           </div>
         </div>
       </div>
@@ -145,7 +139,7 @@ const TestExam = () => {
           <div className="space-y-6">
             <Card className="p-6">
               <h2 className="text-xl font-bold mb-4">Câu {currentQuestionIndex + 1}</h2>
-              
+
               {currentQuestion.questionType && (
                 <div className="mb-4 p-3 bg-primary/10 rounded-lg">
                   <p className="font-semibold text-sm">{currentQuestion.questionType.trim()}</p>
@@ -155,18 +149,6 @@ const TestExam = () => {
               {/* Audio Player */}
               {currentQuestion.audioUrl && (
                 <div className="mb-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Button size="icon" variant="default" className="rounded-full">
-                      <Play className="w-5 h-5" />
-                    </Button>
-                    <Button size="icon" variant="outline" className="rounded-full">
-                      <Pause className="w-5 h-5" />
-                    </Button>
-                    <Button size="icon" variant="outline" className="rounded-full">
-                      <RotateCcw className="w-5 h-5" />
-                    </Button>
-                  </div>
-                  
                   <iframe
                     src={convertGoogleDriveUrl(currentQuestion.audioUrl) || ''}
                     className="w-full h-16 border rounded-lg"
@@ -197,16 +179,19 @@ const TestExam = () => {
             <div className="flex items-center justify-center gap-4">
               <Button
                 variant="outline"
+                onClick={() => navigate("/")}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Trang chủ
+              </Button>
+
+              <Button
+                variant="outline"
                 onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
                 disabled={currentQuestionIndex === 0}
               >
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Câu trước
-              </Button>
-              
-              <Button variant="ghost">
-                <Flag className="w-4 h-4 mr-2" />
-                Đáp án
               </Button>
 
               <Button
@@ -224,7 +209,7 @@ const TestExam = () => {
           <div>
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-6">Chọn đáp án</h3>
-              
+
               <RadioGroup
                 value={userAnswers[currentQuestion.questionId] || ""}
                 onValueChange={(value) => {
@@ -243,10 +228,10 @@ const TestExam = () => {
                   const isSelected = userAnswers[currentQuestion.questionId] === option;
                   const isCorrect = currentQuestion.correctAnswerLabel === option;
                   const shouldShowResult = showExplanation[currentQuestion.questionId];
-                  
+
                   let borderColor = "border-border";
                   let bgColor = "";
-                  
+
                   if (shouldShowResult) {
                     if (isSelected && isCorrect) {
                       borderColor = "border-success";
@@ -259,7 +244,7 @@ const TestExam = () => {
                       bgColor = "bg-success/5";
                     }
                   }
-                  
+
                   return (
                     <div
                       key={option}

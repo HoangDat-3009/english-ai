@@ -4,7 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? '/pixel-perfect-labs-01876-96953-53253-15-94322/' : '/',
+  base: mode === 'production' ? '/LuyenTap/' : '/',
   server: {
     host: "::",
     port: 8080,
