@@ -78,7 +78,12 @@ const Login: React.FC = () => {
                 variant: "default",
             });
 
-            navigate('/index');
+            // Điều hướng dựa trên role
+            if (response.user?.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/index');
+            }
 
         } catch (error: any) {
             console.error('Login error:', error);

@@ -4,7 +4,7 @@ namespace Helper
 {
     public static class HttpContextHelper
     {
-        private static IHttpContextAccessor _accessor;
+        private static IHttpContextAccessor? _accessor;
 
         public static void Configure(IHttpContextAccessor accessor)
         {

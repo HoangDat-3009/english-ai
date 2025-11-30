@@ -227,7 +227,7 @@ namespace EngAce.Api.Controllers
                                     Address = reader.IsDBNull(reader.GetOrdinal("address"))
                                         ? null
                                         : reader.GetString("address"),
-                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                    Avatar = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
                                         ? null
                                         : reader.GetString("avatar_url"),
                                     TotalStudyTime = reader.GetInt32("total_study_time"),
@@ -235,7 +235,7 @@ namespace EngAce.Api.Controllers
                                     PremiumExpiresAt = reader.IsDBNull(reader.GetOrdinal("premium_expires_at"))
                                         ? (DateTime?)null
                                         : reader.GetDateTime("premium_expires_at"),
-                                    LastActiveAt = reader.IsDBNull(reader.GetOrdinal("last_active_at"))
+                                    LastLoginAt = reader.IsDBNull(reader.GetOrdinal("last_active_at"))
                                         ? (DateTime?)null
                                         : reader.GetDateTime("last_active_at"),
                                     CreatedAt = reader.GetDateTime("created_at"),
