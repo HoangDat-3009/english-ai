@@ -52,12 +52,12 @@ namespace EngAce.Api.Services
                 var user = new User
                 {
                     Email = request.Email.ToLower().Trim(),
-                    Username = request.Username.Trim(),
-                    FullName = request.FullName.Trim(),
+                    Username = request.Username?.Trim(),
+                    FullName = request.FullName?.Trim(),
                     PasswordHash = passwordHash,
-                    Role = "user",
+                    UserRole = "user", // Default role
                     Status = "active",
-                    EmailVerified = false,
+                    AccountType = "free",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -79,9 +79,9 @@ namespace EngAce.Api.Services
                         Username = createdUser.Username,
                         FullName = createdUser.FullName,
                         Avatar = createdUser.Avatar,
-                        Role = createdUser.Role,
+                        Role = "user",
                         Status = createdUser.Status,
-                        EmailVerified = createdUser.EmailVerified
+                        EmailVerified = true
                     }
                 };
             }
@@ -126,6 +126,8 @@ namespace EngAce.Api.Services
                 }
 
                 // Check if user has password (not OAuth-only user)
+                _logger.LogInformation($"🔍 Password Hash Check - IsNull: {user.PasswordHash == null}, IsEmpty: {user.PasswordHash == string.Empty}, Length: {user.PasswordHash?.Length ?? 0}");
+                
                 if (string.IsNullOrEmpty(user.PasswordHash))
                 {
                     _logger.LogWarning("⚠️ OAuth-only account attempted password login: {Email}", user.Email);
@@ -182,9 +184,9 @@ namespace EngAce.Api.Services
                         Username = user.Username,
                         FullName = user.FullName,
                         Avatar = user.Avatar,
-                        Role = user.Role,
+                        Role = "user",
                         Status = user.Status,
-                        EmailVerified = user.EmailVerified
+                        EmailVerified = true
                     }
                 };
             }
@@ -248,9 +250,9 @@ namespace EngAce.Api.Services
                         Email = request.Email.ToLower().Trim(),
                         FullName = request.FullName?.Trim(),
                         Avatar = request.Avatar,
-                        Role = "user",
+                        UserRole = "user", // Default role
                         Status = "active",
-                        EmailVerified = true, // OAuth emails are pre-verified
+                        AccountType = "free",
                         PasswordHash = null, // No password for OAuth users
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow,
@@ -290,9 +292,9 @@ namespace EngAce.Api.Services
                         Username = user.Username,
                         FullName = user.FullName,
                         Avatar = user.Avatar,
-                        Role = user.Role,
+                        Role = "user",
                         Status = user.Status,
-                        EmailVerified = user.EmailVerified
+                        EmailVerified = true
                     }
                 };
             }

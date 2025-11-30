@@ -1,6 +1,6 @@
 using Dapper;
 using Entities;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 using System.Threading.Tasks;
 
 namespace EngAce.Api.Repositories
@@ -19,10 +19,10 @@ namespace EngAce.Api.Repositories
             _logger.LogInformation($"🔌 Database Connection String: {MaskPassword(_connectionString)}");
         }
 
-        private SqlConnection GetConnection()
+        private MySqlConnection GetConnection()
         {
-            _logger.LogInformation("🔗 Opening database connection...");
-            return new SqlConnection(_connectionString);
+            _logger.LogInformation("🔗 Opening MySQL database connection...");
+            return new MySqlConnection(_connectionString);
         }
 
         private string MaskPassword(string connectionString)
@@ -30,9 +30,11 @@ namespace EngAce.Api.Repositories
             var parts = connectionString.Split(';');
             for (int i = 0; i < parts.Length; i++)
             {
-                if (parts[i].Trim().StartsWith("Password=", StringComparison.OrdinalIgnoreCase))
+                if (parts[i].Trim().StartsWith("Password=", StringComparison.OrdinalIgnoreCase) ||
+                    parts[i].Trim().StartsWith("Pwd=", StringComparison.OrdinalIgnoreCase))
                 {
-                    parts[i] = "Password=***";
+                    var key = parts[i].Split('=')[0];
+                    parts[i] = $"{key}=***";
                 }
             }
             return string.Join(";", parts);
@@ -41,7 +43,7 @@ namespace EngAce.Api.Repositories
         public async Task<User?> GetByIdAsync(int userId)
         {
             using var connection = GetConnection();
-            var sql = "SELECT * FROM [User] WHERE UserID = @UserID";
+            var sql = "SELECT * FROM users WHERE id = @UserID";
             return await connection.QueryFirstOrDefaultAsync<User>(sql, new { UserID = userId });
         }
 
@@ -49,7 +51,7 @@ namespace EngAce.Api.Repositories
         {
             _logger.LogInformation($"📧 Searching user by email: {email}");
             using var connection = GetConnection();
-            var sql = "SELECT * FROM [User] WHERE Email = @Email";
+            var sql = "SELECT * FROM users WHERE email = @Email";
             var user = await connection.QueryFirstOrDefaultAsync<User>(sql, new { Email = email });
             _logger.LogInformation($"✅ User found: {user != null}");
             return user;
@@ -59,7 +61,7 @@ namespace EngAce.Api.Repositories
         {
             _logger.LogInformation($"👤 Searching user by username: {username}");
             using var connection = GetConnection();
-            var sql = "SELECT * FROM [User] WHERE Username = @Username";
+            var sql = "SELECT * FROM users WHERE username = @Username";
             var user = await connection.QueryFirstOrDefaultAsync<User>(sql, new { Username = username });
             _logger.LogInformation($"✅ User found: {user != null}");
             return user;
@@ -68,14 +70,14 @@ namespace EngAce.Api.Repositories
         public async Task<User?> GetByGoogleIdAsync(string googleId)
         {
             using var connection = GetConnection();
-            var sql = "SELECT * FROM [User] WHERE GoogleID = @GoogleID";
+            var sql = "SELECT * FROM users WHERE google_id = @GoogleID";
             return await connection.QueryFirstOrDefaultAsync<User>(sql, new { GoogleID = googleId });
         }
 
         public async Task<User?> GetByFacebookIdAsync(string facebookId)
         {
             using var connection = GetConnection();
-            var sql = "SELECT * FROM [User] WHERE FacebookID = @FacebookID";
+            var sql = "SELECT * FROM users WHERE facebook_id = @FacebookID";
             return await connection.QueryFirstOrDefaultAsync<User>(sql, new { FacebookID = facebookId });
         }
 
@@ -83,14 +85,27 @@ namespace EngAce.Api.Repositories
         {
             _logger.LogInformation("➕ Creating new user: {Email}", user.Email);
             using var connection = GetConnection();
+            
+            // Generate username if not provided (for OAuth users)
+            if (string.IsNullOrWhiteSpace(user.Username))
+            {
+                user.Username = $"user_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            }
+            
+            // Set empty password hash if not provided (for OAuth users)
+            if (string.IsNullOrWhiteSpace(user.PasswordHash))
+            {
+                user.PasswordHash = string.Empty;
+            }
+            
             var sql = @"
-                INSERT INTO [User] (Email, Username, FullName, PasswordHash, Phone, Avatar, 
-                                   Role, Status, EmailVerified, GoogleID, FacebookID, 
-                                   CreatedAt, UpdatedAt)
+                INSERT INTO users (email, username, full_name, password_hash, phone, avatar_url, 
+                                   status, account_type, role, google_id, facebook_id, 
+                                   created_at, updated_at)
                 VALUES (@Email, @Username, @FullName, @PasswordHash, @Phone, @Avatar,
-                        @Role, @Status, @EmailVerified, @GoogleID, @FacebookID,
+                        @Status, @AccountType, @UserRole, @GoogleID, @FacebookID,
                         @CreatedAt, @UpdatedAt);
-                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                SELECT LAST_INSERT_ID();";
             
             var userId = await connection.ExecuteScalarAsync<int>(sql, user);
             user.UserID = userId;
@@ -104,23 +119,21 @@ namespace EngAce.Api.Repositories
             user.UpdatedAt = DateTime.UtcNow;
             
             var sql = @"
-                UPDATE [User] 
-                SET Email = @Email, 
-                    Username = @Username, 
-                    FullName = @FullName, 
-                    PasswordHash = @PasswordHash,
-                    Phone = @Phone, 
-                    Avatar = @Avatar, 
-                    Role = @Role, 
-                    Status = @Status,
-                    EmailVerified = @EmailVerified, 
-                    GoogleID = @GoogleID, 
-                    FacebookID = @FacebookID,
-                    LastLoginAt = @LastLoginAt, 
-                    UpdatedAt = @UpdatedAt,
-                    ResetToken = @ResetToken,
-                    ResetTokenExpires = @ResetTokenExpires
-                WHERE UserID = @UserID";
+                UPDATE users 
+                SET email = @Email, 
+                    username = @Username, 
+                    full_name = @FullName, 
+                    password_hash = @PasswordHash,
+                    phone = @Phone, 
+                    avatar_url = @Avatar, 
+                    status = @Status,
+                    account_type = @AccountType,
+                    role = @UserRole,
+                    google_id = @GoogleID, 
+                    facebook_id = @FacebookID,
+                    last_active_at = @LastLoginAt, 
+                    updated_at = @UpdatedAt
+                WHERE id = @UserID";
             
             await connection.ExecuteAsync(sql, user);
             return user;
@@ -129,7 +142,7 @@ namespace EngAce.Api.Repositories
         public async Task<bool> EmailExistsAsync(string email)
         {
             using var connection = GetConnection();
-            var sql = "SELECT COUNT(1) FROM [User] WHERE Email = @Email";
+            var sql = "SELECT COUNT(1) FROM users WHERE email = @Email";
             var count = await connection.ExecuteScalarAsync<int>(sql, new { Email = email });
             return count > 0;
         }
@@ -140,7 +153,7 @@ namespace EngAce.Api.Repositories
                 return false;
 
             using var connection = GetConnection();
-            var sql = "SELECT COUNT(1) FROM [User] WHERE Username = @Username";
+            var sql = "SELECT COUNT(1) FROM users WHERE username = @Username";
             var count = await connection.ExecuteScalarAsync<int>(sql, new { Username = username });
             return count > 0;
         }
