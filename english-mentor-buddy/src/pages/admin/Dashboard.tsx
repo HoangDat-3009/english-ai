@@ -50,40 +50,55 @@ const AdminDashboard = () => {
       value: formatNumber(statistics.TotalUsers), 
       note: "Học viên trong hệ thống",
       icon: Users,
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-50 dark:bg-blue-900/20"
+      gradient: "from-blue-50 to-cyan-50",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+      textColor: "text-blue-900",
+      borderColor: "border-blue-100"
     },
     { 
       label: "Mới tháng này", 
       value: formatNumber(statistics.NewUsersThisMonth), 
       note: "Người dùng mới",
       icon: Users,
-      color: "text-orange-600 dark:text-orange-400",
-      bgColor: "bg-orange-50 dark:bg-orange-900/20"
+      gradient: "from-pink-50 to-rose-50",
+      iconBg: "bg-pink-100",
+      iconColor: "text-pink-600",
+      textColor: "text-pink-900",
+      borderColor: "border-pink-100"
     },
     { 
       label: "Tổng doanh thu", 
       value: formatCurrency(statistics.TotalRevenue), 
-      note: "Tổng doanh thu",
+      note: "Tổng doanh thu toàn hệ thống",
       icon: DollarSign,
-      color: "text-purple-600 dark:text-purple-400",
-      bgColor: "bg-purple-50 dark:bg-purple-900/20"
+      gradient: "from-purple-50 to-indigo-50",
+      iconBg: "bg-purple-100",
+      iconColor: "text-purple-600",
+      textColor: "text-purple-900",
+      borderColor: "border-purple-100"
     },
     { 
-      label: "Doanh thu tháng", 
+      label: "Doanh thu tháng này", 
       value: formatCurrency(statistics.RevenueThisMonth), 
-      note: "Doanh thu tháng này",
+      note: "So với tháng trước: 5.6M VNĐ",
       icon: DollarSign,
-      color: "text-green-600 dark:text-green-400",
-      bgColor: "bg-green-50 dark:bg-green-900/20"
+      gradient: "from-green-50 to-emerald-50",
+      iconBg: "bg-green-100",
+      iconColor: "text-green-600",
+      textColor: "text-green-900",
+      borderColor: "border-green-100"
     },
     { 
-      label: "Thanh toán chờ", 
+      label: "Thanh toán chờ xử lý", 
       value: formatNumber(statistics.PendingPayments), 
-      note: "Chờ xử lý",
+      note: "Thanh toán đang chờ xác nhận",
       icon: CreditCard,
-      color: "text-yellow-600 dark:text-yellow-400",
-      bgColor: "bg-yellow-50 dark:bg-yellow-900/20"
+      gradient: "from-amber-50 to-orange-50",
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-600",
+      textColor: "text-amber-900",
+      borderColor: "border-amber-100"
     },
   ] : [];
 
@@ -98,14 +113,14 @@ const AdminDashboard = () => {
       )}
 
       {/* Dashboard Cards - with real data from API */}
-      <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {loading ? (
           // Loading skeleton
           Array.from({ length: 5 }).map((_, i) => (
-            <Card key={i} className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+            <Card key={i} className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 animate-pulse">
+              <CardContent className="p-4">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-1"></div>
               </CardContent>
             </Card>
           ))
@@ -119,17 +134,17 @@ const AdminDashboard = () => {
                 animate={{ opacity: 1, y: 0 }} 
                 transition={{ delay: i * 0.05 }}
               >
-                <Card className="rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{s.label}</p>
-                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{s.value}</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{s.note}</p>
+                <Card className={`rounded-xl bg-gradient-to-br ${s.gradient} border ${s.borderColor} shadow-sm hover:shadow-md transition-all duration-200`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className={`p-2 rounded-lg ${s.iconBg}`}>
+                        <Icon className={`h-4 w-4 ${s.iconColor}`} />
                       </div>
-                      <div className={`p-3 rounded-lg ${s.bgColor} flex-shrink-0`}>
-                        <Icon className={`h-6 w-6 ${s.color}`} />
-                      </div>
+                    </div>
+                    <div>
+                      <p className={`text-xs ${s.textColor} mb-1 font-medium opacity-70`}>{s.label}</p>
+                      <h3 className={`text-xl font-bold ${s.textColor} mb-0.5`}>{s.value}</h3>
+                      <p className={`text-[10px] ${s.textColor} opacity-60 leading-tight`}>{s.note}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -137,7 +152,7 @@ const AdminDashboard = () => {
             );
           })
         ) : (
-          <div className="col-span-5 text-center text-gray-500 dark:text-gray-400">
+          <div className="col-span-4 text-center text-gray-500 dark:text-gray-400">
             Không có dữ liệu thống kê
           </div>
         )}
