@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
     // HTTPS is enabled via basicSsl plugin
     proxy: {
       "/api": {
-        target: "http://localhost:5283", // Local API endpoint
+        target: "http://localhost:5000", // Local API endpoint
         changeOrigin: true,
         secure: false,
       },

@@ -184,7 +184,7 @@ namespace EngAce.Api.Services
                         Username = user.Username,
                         FullName = user.FullName,
                         Avatar = user.Avatar,
-                        Role = "user",
+                        Role = user.Role,
                         Status = user.Status,
                         EmailVerified = true
                     }
