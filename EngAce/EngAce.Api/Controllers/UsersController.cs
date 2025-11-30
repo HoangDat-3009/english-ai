@@ -734,6 +734,161 @@ namespace EngAce.Api.Controllers
             return StatusCode(500, $"An error occurred: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Get detailed chart data for user analytics
+    /// </summary>
+    /// <returns>Chart data including monthly growth, status distribution, account type distribution, and XP distribution</returns>
+    [HttpGet("charts")]
+    public async Task<ActionResult<object>> GetUserCharts()
+    {
+        try
+        {
+            var connectionString = _configuration.GetConnectionString("LearningSystemDb");
+            
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                _logger.LogError("Database connection string is not configured");
+                return StatusCode(500, "Database connection not configured");
+            }
+
+            using (var connection = new MySqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+
+                // 1. Status Distribution
+                var statusDistribution = new List<object>();
+                var statusQuery = @"
+                    SELECT 
+                        status,
+                        COUNT(*) as count
+                    FROM users
+                    GROUP BY status";
+                
+                using (var command = new MySqlCommand(statusQuery, connection))
+                {
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            statusDistribution.Add(new
+                            {
+                                status = reader.GetString("status"),
+                                count = reader.GetInt32("count")
+                            });
+                        }
+                    }
+                }
+
+                // 2. Account Type Distribution
+                var accountTypeDistribution = new List<object>();
+                var accountTypeQuery = @"
+                    SELECT 
+                        account_type,
+                        COUNT(*) as count
+                    FROM users
+                    GROUP BY account_type";
+                
+                using (var command = new MySqlCommand(accountTypeQuery, connection))
+                {
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            accountTypeDistribution.Add(new
+                            {
+                                accountType = reader.GetString("account_type"),
+                                count = reader.GetInt32("count")
+                            });
+                        }
+                    }
+                }
+
+                // 3. Monthly Growth (last 6 months)
+                var monthlyGrowth = new List<object>();
+                var monthlyQuery = @"
+                    SELECT 
+                        DATE_FORMAT(created_at, '%Y-%m') as month,
+                        COUNT(*) as count
+                    FROM users
+                    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+                    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+                    ORDER BY month ASC";
+                
+                using (var command = new MySqlCommand(monthlyQuery, connection))
+                {
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            monthlyGrowth.Add(new
+                            {
+                                month = reader.GetString("month"),
+                                count = reader.GetInt32("count")
+                            });
+                        }
+                    }
+                }
+
+                // 4. XP Distribution
+                var xpDistribution = new List<object>();
+                var xpQuery = @"
+                    SELECT 
+                        CASE 
+                            WHEN total_xp BETWEEN 0 AND 100 THEN '0-100'
+                            WHEN total_xp BETWEEN 101 AND 500 THEN '101-500'
+                            WHEN total_xp BETWEEN 501 AND 1000 THEN '501-1000'
+                            ELSE '1000+'
+                        END as xp_range,
+                        COUNT(*) as count
+                    FROM users
+                    GROUP BY xp_range
+                    ORDER BY 
+                        CASE xp_range
+                            WHEN '0-100' THEN 1
+                            WHEN '101-500' THEN 2
+                            WHEN '501-1000' THEN 3
+                            WHEN '1000+' THEN 4
+                        END";
+                
+                using (var command = new MySqlCommand(xpQuery, connection))
+                {
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            xpDistribution.Add(new
+                            {
+                                range = reader.GetString("xp_range"),
+                                count = reader.GetInt32("count")
+                            });
+                        }
+                    }
+                }
+
+                var chartData = new
+                {
+                    StatusDistribution = statusDistribution,
+                    AccountTypeDistribution = accountTypeDistribution,
+                    MonthlyGrowth = monthlyGrowth,
+                    XpDistribution = xpDistribution
+                };
+
+                _logger.LogInformation("Retrieved user chart data");
+                return Ok(chartData);
+            }
+        }
+        catch (MySqlException ex)
+        {
+            _logger.LogError(ex, "MySQL error occurred while retrieving user chart data");
+            return StatusCode(500, $"Database error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred while retrieving user chart data");
+            return StatusCode(500, $"An error occurred: {ex.Message}");
+        }
+    }
 }
 
 /// <summary>

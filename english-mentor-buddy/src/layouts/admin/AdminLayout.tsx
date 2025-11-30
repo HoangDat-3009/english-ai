@@ -24,7 +24,8 @@ import {
   User,
   ChevronDown,
   Moon,
-  Sun
+  Sun,
+  DollarSign
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -58,6 +59,12 @@ const AdminLayout = () => {
       href: '/admin/users',
       icon: Users,
       current: location.pathname === '/admin/users'
+    },
+    {
+      name: 'Doanh thu',
+      href: '/admin/revenue',
+      icon: DollarSign,
+      current: location.pathname === '/admin/revenue'
     },
     {
       name: 'Tài khoản',
