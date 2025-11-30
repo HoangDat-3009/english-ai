@@ -5,9 +5,12 @@ export interface User {
   Username: string;
   Email: string;
   Phone?: string;
-  Role: string; // 'admin', 'student', 'teacher'
+  AccountType: string; // 'free', 'premium'
   Status: string; // 'active', 'inactive', 'banned'
-  FullName?: string; // Full name from UserProfile
+  FullName?: string;
+  AvatarUrl?: string;
+  TotalXP?: number;
+  PremiumExpiresAt?: string;
 }
 
 export interface UserProfile {
@@ -15,24 +18,19 @@ export interface UserProfile {
   Username: string;
   Email: string;
   Phone?: string;
-  Role: string;
+  AccountType: string; // 'free', 'premium'
   Status: string;
   // Profile fields
   FullName?: string;
   AvatarURL?: string;
-  DOB?: string; // ISO date string
-  Gender?: 'male' | 'female' | 'other';
   Address?: string;
   Bio?: string;
-  PreferredLevel?: string;
-  LearningGoal?: string;
-  Timezone?: string;
-  Locale?: string;
+  TotalStudyTime?: number; // in minutes
+  TotalXP?: number;
+  PremiumExpiresAt?: string; // NULL = lifetime premium
+  LastActiveAt?: string;
   CreatedAt?: string;
   UpdatedAt?: string;
-  // Preference fields
-  EmailNotify?: boolean;
-  DarkMode?: boolean;
 }
 
 export interface UserStatistics {
@@ -88,7 +86,7 @@ class UserService {
   /**
    * Get users with pagination
    */
-  async getUsers(page: number = 1, pageSize: number = 10, role?: string, search?: string, status?: string): Promise<PaginatedResponse<User>> {
+  async getUsers(page: number = 1, pageSize: number = 10, role?: string, search?: string, status?: string, accountType?: string): Promise<PaginatedResponse<User>> {
     try {
       const params = new URLSearchParams();
       params.append('page', page.toString());
@@ -101,6 +99,9 @@ class UserService {
       }
       if (status) {
         params.append('status', status);
+      }
+      if (accountType) {
+        params.append('accountType', accountType);
       }
 
       const response = await apiService.request<PaginatedResponse<User>>(`/api/Users?${params.toString()}`, {
@@ -256,6 +257,26 @@ class UserService {
       throw error;
     }
   }
+
+  /**
+   * Get user chart data for analytics dashboard
+   */
+  async getUserCharts(): Promise<UserChartsData> {
+    try {
+      const response = await apiService.request<UserChartsData>('/api/Users/charts');
+      return response;
+    } catch (error) {
+      console.error('Error fetching user charts:', error);
+      throw error;
+    }
+  }
+}
+
+export interface UserChartsData {
+  StatusDistribution: { status: string; count: number }[];
+  AccountTypeDistribution: { accountType: string; count: number }[];
+  MonthlyGrowth: { month: string; count: number }[];
+  XpDistribution: { range: string; count: number }[];
 }
 
 // Export singleton instance

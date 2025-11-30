@@ -69,29 +69,25 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
     return username.substring(0, 2).toUpperCase();
   };
 
-  const getRoleInfo = (role: string) => {
-    const roleMap: Record<string, { label: string; className: string; icon: typeof Shield; description: string }> = {
-      'admin': { 
-        label: 'Quản trị viên', 
-        className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-        icon: Shield,
-        description: 'Có toàn quyền quản lý hệ thống'
-      },
-      'teacher': { 
-        label: 'Giáo viên', 
-        className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-        icon: GraduationCap,
-        description: 'Có thể tạo và quản lý nội dung học tập'
-      },
-      'student': { 
-        label: 'Học viên', 
-        className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-        icon: Users,
-        description: 'Người dùng học tập trên hệ thống'
-      }
-    };
+  const getAccountTypeInfo = (accountType: string, premiumExpiresAt?: string) => {
+    const isPremium = accountType === 'premium';
+    const isLifetime = isPremium && !premiumExpiresAt;
     
-    return roleMap[role] || roleMap['student'];
+    if (isPremium) {
+      return {
+        label: isLifetime ? 'Premium Vĩnh viễn' : 'Premium',
+        className: 'bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 dark:from-yellow-900/30 dark:to-orange-900/30 dark:text-yellow-400',
+        icon: Shield,
+        description: isLifetime ? 'Truy cập vĩnh viễn tất cả tính năng' : `Hết hạn: ${premiumExpiresAt ? new Date(premiumExpiresAt).toLocaleDateString('vi-VN') : 'Không xác định'}`
+      };
+    }
+    
+    return {
+      label: 'Miễn phí',
+      className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+      icon: Users,
+      description: 'Tài khoản miễn phí với giới hạn tính năng'
+    };
   };
 
   const getStatusInfo = (status: string) => {
@@ -126,13 +122,13 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] p-0">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-0">
         <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-            <UserIcon className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-3 text-2xl text-blue-600 dark:text-blue-400">
+            <UserIcon className="h-7 w-7" />
             Thông tin người dùng
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-base">
             Chi tiết thông tin tài khoản và trạng thái
           </DialogDescription>
         </DialogHeader>
@@ -147,190 +143,184 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : user ? (
-          <ScrollArea className="max-h-[calc(85vh-120px)] px-6 pb-6">
-            <div className="space-y-4">
+          <ScrollArea className="max-h-[calc(90vh-120px)] px-6 pb-6">
+            <div className="space-y-5">
             {/* Avatar + Basic Info */}
-            <div className="flex items-center gap-3">
-              <Avatar className="h-16 w-16 flex-shrink-0">
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xl">
+            <div className="flex items-center gap-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-xl">
+              <Avatar className="h-20 w-20 flex-shrink-0 border-4 border-white dark:border-gray-700 shadow-lg">
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-2xl font-bold">
                   {getInitials(user.FullName || user.Username)}
                 </AvatarFallback>
               </Avatar>
               
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white truncate mb-1">
                   {user.FullName || user.Username}
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 truncate">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 truncate">
                   @{user.Username}
                 </p>
-                <Badge className={getRoleInfo(user.Role).className}>
-                  {getRoleInfo(user.Role).label}
+                <Badge className={`${getAccountTypeInfo(user.AccountType, user.PremiumExpiresAt).className} text-sm px-3 py-1`}>
+                  {getAccountTypeInfo(user.AccountType, user.PremiumExpiresAt).label}
                 </Badge>
               </div>
             </div>
 
             <Separator />
 
-            {/* Role Section */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                <Shield className="h-3.5 w-3.5" />
-                Vai trò
-              </h4>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                {(() => {
-                  const roleInfo = getRoleInfo(user.Role);
-                  const RoleIcon = roleInfo.icon;
-                  return (
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-white dark:bg-gray-900 rounded-md flex-shrink-0">
-                        <RoleIcon className="h-4 w-4 text-blue-500" />
+            {/* Account Type + Status - Two Columns */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Account Type */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Loại tài khoản
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 h-full">
+                  {(() => {
+                    const accountInfo = getAccountTypeInfo(user.AccountType, user.PremiumExpiresAt);
+                    const AccountIcon = accountInfo.icon;
+                    return (
+                      <div className="flex flex-col gap-3">
+                        <div className="p-2 bg-white dark:bg-gray-900 rounded-md flex-shrink-0 w-fit">
+                          <AccountIcon className="h-6 w-6 text-yellow-500" />
+                        </div>
+                        <div>
+                          <Badge variant="secondary" className={`${accountInfo.className} text-sm mb-2`}>
+                            {accountInfo.label}
+                          </Badge>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                            {accountInfo.description}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <Badge variant="secondary" className={`${roleInfo.className} text-xs`}>
-                          {roleInfo.label}
-                        </Badge>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-1">
-                          {roleInfo.description}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
+                </div>
               </div>
-            </div>
 
-            {/* Status Section */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5" />
-                Trạng thái tài khoản
-              </h4>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                {(() => {
-                  const statusInfo = getStatusInfo(user.Status);
-                  const StatusIcon = statusInfo.icon;
-                  return (
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-white dark:bg-gray-900 rounded-md flex-shrink-0">
-                        <StatusIcon className="h-4 w-4 text-green-500" />
+              {/* Status */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Trạng thái
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 h-full">
+                  {(() => {
+                    const statusInfo = getStatusInfo(user.Status);
+                    const StatusIcon = statusInfo.icon;
+                    return (
+                      <div className="flex flex-col gap-3">
+                        <div className="p-2 bg-white dark:bg-gray-900 rounded-md flex-shrink-0 w-fit">
+                          <StatusIcon className="h-6 w-6 text-green-500" />
+                        </div>
+                        <div>
+                          <Badge variant="secondary" className={`${statusInfo.className} text-sm mb-2`}>
+                            {statusInfo.label}
+                          </Badge>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                            {statusInfo.description}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <Badge variant="secondary" className={`${statusInfo.className} text-xs`}>
-                          {statusInfo.label}
-                        </Badge>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-1">
-                          {statusInfo.description}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
+                </div>
               </div>
             </div>
 
             <Separator />
 
-            {/* Personal Information */}
-            {(user.DOB || user.Address) && (
-              <>
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Thông tin cá nhân
-                  </h4>
-                  
-                  {user.DOB && (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-md flex-shrink-0">
-                        <Calendar className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Ngày sinh</p>
-                        <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                          {new Date(user.DOB).toLocaleDateString('vi-VN', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {user.Address && (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="p-1.5 bg-orange-100 dark:bg-orange-900/30 rounded-md flex-shrink-0">
-                        <Mail className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Địa chỉ</p>
-                        <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                          {user.Address}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+            {/* Learning Statistics */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <GraduationCap className="h-5 w-5" />
+                Thống kê học tập
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-3 p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                  <div className="p-2 bg-white dark:bg-gray-900 rounded-lg flex-shrink-0 w-fit">
+                    <Shield className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Tổng XP</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {user.TotalXP || 0}
+                    </p>
+                  </div>
                 </div>
-                <Separator className="my-3" />
+
+                <div className="flex flex-col gap-3 p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl border border-green-200 dark:border-green-800">
+                  <div className="p-2 bg-white dark:bg-gray-900 rounded-lg flex-shrink-0 w-fit">
+                    <Calendar className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Thời gian học</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {user.TotalStudyTime || 0}
+                      <span className="text-sm font-normal ml-1">phút</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bio */}
+            {user.Bio && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Tiểu sử
+                  </h4>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                      {user.Bio}
+                    </p>
+                  </div>
+                </div>
               </>
             )}
 
-            {/* Learning Information */}
-            {(user.PreferredLevel || user.LearningGoal) && (
+            {/* Address */}
+            {user.Address && (
               <>
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                    <GraduationCap className="h-3.5 w-3.5" />
-                    Thông tin học tập
+                <Separator />
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Địa chỉ
                   </h4>
-                  
-                  {user.PreferredLevel && user.PreferredLevel !== '-' && (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-md flex-shrink-0">
-                        <Shield className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Trình độ</p>
-                        <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                          {user.PreferredLevel}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-md flex-shrink-0">
+                      <Mail className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                     </div>
-                  )}
-
-                  {user.LearningGoal && (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded-md flex-shrink-0">
-                        <Users className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Mục tiêu học tập</p>
-                        <p className="text-xs font-medium text-gray-900 dark:text-white line-clamp-2">
-                          {user.LearningGoal}
-                        </p>
-                      </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {user.Address}
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </div>
-                <Separator className="my-3" />
               </>
             )}
+
+            <Separator />
 
             {/* Contact Information */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Thông tin liên hệ
               </h4>
               
               {/* Email */}
-              <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-md flex-shrink-0">
-                  <Mail className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-md flex-shrink-0">
+                  <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
-                  <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Email</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                     {user.Email}
                   </p>
                 </div>
@@ -338,25 +328,25 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
 
               {/* Phone */}
               {user.Phone ? (
-                <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded-md flex-shrink-0">
-                    <Phone className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-md flex-shrink-0">
+                    <Phone className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Số điện thoại</p>
-                    <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Số điện thoại</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                       {user.Phone}
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
-                  <div className="p-1.5 bg-gray-200 dark:bg-gray-700 rounded-md flex-shrink-0">
-                    <Phone className="h-3.5 w-3.5 text-gray-400" />
+                <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+                  <div className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md flex-shrink-0">
+                    <Phone className="h-5 w-5 text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Số điện thoại</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Số điện thoại</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 italic">
                       Chưa cập nhật
                     </p>
                   </div>
@@ -365,62 +355,49 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
             </div>
 
             {/* Account Information */}
-            {(user.CreatedAt || user.Timezone) && (
-              <>
-                <Separator className="my-3" />
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Thông tin tài khoản
-                  </h4>
-                  
-                  {user.CreatedAt && (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-md flex-shrink-0">
-                        <Calendar className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Ngày tạo tài khoản</p>
-                        <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                          {new Date(user.CreatedAt).toLocaleDateString('vi-VN', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {user.Timezone && (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Múi giờ</p>
-                        <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                          {user.Timezone}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center gap-1.5 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${user.EmailNotify ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                      <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                        {user.EmailNotify ? 'Nhận email' : 'Tắt email'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${user.DarkMode ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                      <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                        {user.DarkMode ? 'Dark mode' : 'Light mode'}
-                      </span>
-                    </div>
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Thông tin tài khoản
+              </h4>
+              
+              {user.CreatedAt && (
+                <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-md flex-shrink-0">
+                    <Calendar className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Ngày tạo tài khoản</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {new Date(user.CreatedAt).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
                   </div>
                 </div>
-              </>
-            )}
+              )}
+
+              {user.LastActiveAt && (
+                <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-md flex-shrink-0">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Hoạt động cuối</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {new Date(user.LastActiveAt).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
             </div>
           </ScrollArea>
         ) : null}
