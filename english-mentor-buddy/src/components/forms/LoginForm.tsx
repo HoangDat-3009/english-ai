@@ -47,8 +47,15 @@ export const LoginForm = () => {
       rememberMe: formData.rememberMe,
     });
 
-    if (result.success) {
-      navigate('/');
+    if (result.success && result.user) {
+      // Redirect based on role
+      if (result.user.role === 'admin') {
+        // TODO: Create admin page
+        alert('Admin dashboard is under construction. Redirecting to home...');
+        navigate('/');
+      } else {
+        navigate('/');
+      }
     }
   };
 
