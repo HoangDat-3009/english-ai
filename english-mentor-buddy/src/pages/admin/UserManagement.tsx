@@ -29,56 +29,103 @@ import { StatusReasonDialog } from '@/components/StatusReasonDialog';
 import { ConfirmStatusDialog } from '@/components/ConfirmStatusDialog';
 import { UserStatusHistoryDialog } from '@/components/UserStatusHistoryDialog';
 import { UserProfileDialog } from '@/components/UserProfileDialog';
+import { UserStatisticsCharts } from '@/components/UserStatisticsCharts';
 
 // Memoized Statistics Cards component to prevent re-render
-const StatisticsCards = React.memo(({ statistics, isLoading }: { statistics: UserStatistics | null, isLoading: boolean }) => (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-    {/* Tổng học viên */}
-    <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Tổng học viên</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {isLoading || !statistics ? '...' : statistics.TotalUsers}
-            </p>
+const StatisticsCards = React.memo(({ statistics, allUsers, isLoading }: { statistics: UserStatistics | null, allUsers: User[], isLoading: boolean }) => {
+  const premiumCount = allUsers.filter(u => u.AccountType === 'premium').length;
+  const activeCount = allUsers.filter(u => u.Status === 'active').length;
+  const premiumRate = allUsers.length > 0 ? Math.round((premiumCount / allUsers.length) * 100) : 0;
+  
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* Tổng học viên */}
+      <Card className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-md transition-shadow">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Tổng học viên</p>
+              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                {isLoading || !statistics ? '...' : statistics.TotalUsers}
+              </p>
+            </div>
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-xl">
+              <UsersIcon className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <UsersIcon className="h-8 w-8 text-blue-500" />
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
 
-    {/* Đang hoạt động */}
-    <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Đang hoạt động</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {isLoading || !statistics ? '...' : statistics.ActiveUsers}
-            </p>
+      {/* Đang hoạt động */}
+      <Card className="rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800 shadow-sm hover:shadow-md transition-shadow">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Đang hoạt động</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                {isLoading ? '...' : activeCount}
+              </p>
+            </div>
+            <div className="p-3 bg-green-100 dark:bg-green-900/40 rounded-xl">
+              <UserCheck className="h-7 w-7 text-green-600 dark:text-green-400" />
+            </div>
           </div>
-          <UserCheck className="h-8 w-8 text-green-500" />
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
 
-    {/* Mới tháng này */}
-    <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Mới tháng này</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {isLoading || !statistics ? '...' : statistics.NewThisMonth}
-            </p>
+      {/* Mới tháng này */}
+      <Card className="rounded-xl bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20 border-pink-200 dark:border-pink-800 shadow-sm hover:shadow-md transition-shadow">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Mới tháng này</p>
+              <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">
+                {isLoading || !statistics ? '...' : statistics.NewThisMonth}
+              </p>
+            </div>
+            <div className="p-3 bg-pink-100 dark:bg-pink-900/40 rounded-xl">
+              <TrendingUp className="h-7 w-7 text-pink-600 dark:text-pink-400" />
+            </div>
           </div>
-          <TrendingUp className="h-8 w-8 text-purple-500" />
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-));
+        </CardContent>
+      </Card>
+
+      {/* Premium */}
+      <Card className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800 shadow-sm hover:shadow-md transition-shadow">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Premium</p>
+              <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+                {isLoading ? '...' : premiumCount}
+              </p>
+            </div>
+            <div className="p-3 bg-amber-100 dark:bg-amber-900/40 rounded-xl">
+              <Shield className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tỷ lệ Premium */}
+      <Card className="rounded-xl bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 border-purple-200 dark:border-purple-800 shadow-sm hover:shadow-md transition-shadow">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Tỷ lệ Premium</p>
+              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                {isLoading ? '...' : `${premiumRate}%`}
+              </p>
+            </div>
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/40 rounded-xl">
+              <TrendingUp className="h-7 w-7 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+});
 
 StatisticsCards.displayName = 'StatisticsCards';
 
@@ -89,6 +136,7 @@ const UserManagement = () => {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]); // Filtered users for search
   const [searchQuery, setSearchQuery] = useState(''); // Search query
   const [statusFilter, setStatusFilter] = useState<string>('all'); // Status filter
+  const [accountTypeFilter, setAccountTypeFilter] = useState<string>('all'); // Account type filter
   const [statistics, setStatistics] = useState<UserStatistics | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo>({
     CurrentPage: 1,
@@ -169,13 +217,14 @@ const UserManagement = () => {
       
       console.log('[UserManagement] Fetching users, page:', page, 'filter:', filter, 'search:', searchQuery, 'status:', statusFilter);
       
-      // Fetch paginated users with search query and status filter
+      // Fetch paginated users with search query, status filter, and account type filter
       const response = await userService.getUsers(
         page, 
         8, 
         filter === 'all' ? undefined : filter,
         searchQuery || undefined,
-        statusFilter === 'all' ? undefined : statusFilter
+        statusFilter === 'all' ? undefined : statusFilter,
+        accountTypeFilter === 'all' ? undefined : accountTypeFilter
       );
       console.log('[UserManagement] Users fetched:', response);
       setUsers(response.Data);
@@ -190,7 +239,7 @@ const UserManagement = () => {
         setPaginationLoading(false);
       }
     }
-  }, [filter, searchQuery, statusFilter]);
+  }, [filter, searchQuery, statusFilter, accountTypeFilter]);
 
   // Initial load
   useEffect(() => {
@@ -435,7 +484,8 @@ const UserManagement = () => {
           pageSize,
           filter, 
           searchQuery || undefined, 
-          statusFilter !== 'all' ? statusFilter : undefined
+          statusFilter !== 'all' ? statusFilter : undefined,
+          accountTypeFilter !== 'all' ? accountTypeFilter : undefined
         );
 
         if (response.Data && response.Data.length > 0) {
@@ -469,7 +519,7 @@ const UserManagement = () => {
         'Username': user.Username,
         'Email': user.Email || '',
         'Số điện thoại': user.Phone || '',
-        'Vai trò': user.Role === 'admin' ? 'Quản trị viên' : 'Học viên',
+        'Loại tài khoản': user.AccountType === 'premium' ? 'Premium' : 'Miễn phí',
         'Trạng thái': user.Status === 'active' ? 'Hoạt động' : 
                       user.Status === 'inactive' ? 'Không hoạt động' : 'Bị cấm'
       }));
@@ -597,7 +647,7 @@ const UserManagement = () => {
       </div>
 
       {/* Statistics Cards - Memoized to prevent re-render during search/pagination */}
-      <StatisticsCards statistics={statistics} isLoading={loading} />
+      <StatisticsCards statistics={statistics} allUsers={allUsers} isLoading={loading} />
 
       {/* Tabs for User List and Statistics */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -637,8 +687,8 @@ const UserManagement = () => {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <Filter className="h-4 w-4 mr-2" />
+                <SelectTrigger className="w-[180px] border-blue-200 dark:border-blue-800 focus:ring-blue-500">
+                  <Filter className="h-4 w-4 mr-2 text-blue-600 dark:text-blue-400" />
                   <SelectValue placeholder="Lọc theo trạng thái" />
                 </SelectTrigger>
                 <SelectContent>
@@ -668,6 +718,32 @@ const UserManagement = () => {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={accountTypeFilter} onValueChange={setAccountTypeFilter}>
+                <SelectTrigger className="w-[180px] border-amber-200 dark:border-amber-800 focus:ring-amber-500 bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20">
+                  <Shield className="h-4 w-4 mr-2 text-amber-600 dark:text-amber-400" />
+                  <SelectValue placeholder="Lọc theo loại tài khoản" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    <div className="flex items-center gap-2">
+                      <UsersIcon className="h-4 w-4" />
+                      Tất cả
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="premium">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-yellow-600" />
+                      Premium
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="free">
+                    <div className="flex items-center gap-2">
+                      <UsersIcon className="h-4 w-4 text-gray-600" />
+                      Miễn phí
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button variant="default" onClick={handleExportToExcel} disabled={searchLoading}>
               <Download className="mr-2 h-4 w-4" />
@@ -678,15 +754,21 @@ const UserManagement = () => {
         <CardContent>
           {loading ? (
             // Loading skeleton
-            <div className="space-y-4">
+            <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl animate-pulse">
+                <div key={i} className="flex items-center justify-between p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl animate-pulse">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                    <div className="w-9 h-9 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-xl"></div>
+                    <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    <div className="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full"></div>
                     <div className="space-y-2">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
-                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-48"></div>
+                      <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-40"></div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
                     </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                    <div className="h-9 w-32 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
                   </div>
                 </div>
               ))}
@@ -713,55 +795,70 @@ const UserManagement = () => {
               {filteredUsers.map((user, index) => (
                 <div 
                   key={user.UserID} 
-                  className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  className="group relative flex items-center justify-between p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200 hover:-translate-y-0.5"
                 >
+                  {/* Subtle gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-50/30 to-purple-50/0 dark:from-blue-950/0 dark:via-blue-950/10 dark:to-purple-950/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                  
                   {/* Left side: STT + ID Badge + Avatar + Info */}
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-4 relative z-10">
                     {/* STT (Số thứ tự) */}
-                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-semibold text-sm">
+                    <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 text-blue-700 dark:text-blue-300 rounded-xl font-bold text-sm shadow-sm">
                       {((pagination?.CurrentPage || 1) - 1) * (pagination?.PageSize || 8) + index + 1}
                     </div>
                     
                     {/* ID Badge */}
                     <div className="flex-shrink-0">
-                      <Badge variant="outline" className="text-xs font-mono px-2 py-1">
+                      <Badge variant="outline" className="text-xs font-mono px-2.5 py-1 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50">
                         ID: {user.UserID}
                       </Badge>
                     </div>
                     
                     {/* Avatar */}
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                    <Avatar className="h-12 w-12 ring-2 ring-white dark:ring-gray-800 shadow-md">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white text-base font-semibold">
                         {getInitials(user.Username)}
                       </AvatarFallback>
                     </Avatar>
                     
                     {/* User Info */}
-                    <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {user.FullName || user.Username}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">@{user.Username}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-bold text-gray-900 dark:text-white truncate text-base">
+                          {user.FullName || user.Username}
+                        </p>
+                        {user.AccountType === 'premium' ? (
+                          <Badge className="bg-gradient-to-r from-yellow-100 via-amber-100 to-orange-100 text-amber-800 dark:from-yellow-900/40 dark:via-amber-900/40 dark:to-orange-900/40 dark:text-yellow-300 text-xs px-2 py-0.5 flex-shrink-0 border border-amber-200 dark:border-amber-800 shadow-sm">
+                            <Shield className="h-3 w-3 mr-0.5" />
+                            Premium
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs px-2 py-0.5 flex-shrink-0 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                            Miễn phí
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">@{user.Username}</p>
                     </div>
                   </div>
                   
                   {/* Right side: Status Badge + Action Buttons */}
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 relative z-10">
                     {/* Current Status Badge */}
                     <div className="mr-2">
                       {getStatusBadge(user.Status)}
                     </div>
                     
                     {/* Status Action Buttons */}
-                    <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center gap-1.5 p-1.5 bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
                       {/* Active Button */}
                       <Button 
                         variant={user.Status === 'active' ? 'default' : 'ghost'}
                         size="sm" 
-                        className={`h-8 px-3 rounded-md ${
+                        className={`h-9 px-3 rounded-lg transition-all duration-200 ${
                           user.Status === 'active' 
-                            ? 'bg-green-500 hover:bg-green-600 text-white' 
-                            : 'hover:bg-green-50 dark:hover:bg-green-900/20'
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-md shadow-green-500/30' 
+                            : 'hover:bg-green-50 dark:hover:bg-green-900/20 hover:scale-105'
                         } ${user.Status === 'banned' ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={user.Status === 'banned' ? 'Không thể kích hoạt tài khoản đã bị cấm vĩnh viễn' : 'Kích hoạt tài khoản'}
                         onClick={() => handleStatusChangeClick(user.UserID, user.Username, user.Status, 'active')}
@@ -778,10 +875,10 @@ const UserManagement = () => {
                       <Button 
                         variant={user.Status === 'inactive' ? 'default' : 'ghost'}
                         size="sm" 
-                        className={`h-8 px-3 rounded-md ${
+                        className={`h-9 px-3 rounded-lg transition-all duration-200 ${
                           user.Status === 'inactive' 
-                            ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
-                            : 'hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                            ? 'bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white shadow-md shadow-yellow-500/30' 
+                            : 'hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:scale-105'
                         } ${user.Status === 'banned' ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={user.Status === 'banned' ? 'Không thể tạm khóa tài khoản đã bị cấm vĩnh viễn' : 'Tạm khóa tài khoản'}
                         onClick={() => handleStatusChangeClick(user.UserID, user.Username, user.Status, 'inactive')}
@@ -798,10 +895,10 @@ const UserManagement = () => {
                       <Button 
                         variant={user.Status === 'banned' ? 'default' : 'ghost'}
                         size="sm" 
-                        className={`h-8 px-3 rounded-md ${
+                        className={`h-9 px-3 rounded-lg transition-all duration-200 ${
                           user.Status === 'banned' 
-                            ? 'bg-red-500 hover:bg-red-600 text-white' 
-                            : 'hover:bg-red-50 dark:hover:bg-red-900/20'
+                            ? 'bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-md shadow-red-500/30' 
+                            : 'hover:bg-red-50 dark:hover:bg-red-900/20 hover:scale-105'
                         }`}
                         title="Cấm vĩnh viễn"
                         onClick={() => handleStatusChangeClick(user.UserID, user.Username, user.Status, 'banned')}
@@ -821,7 +918,7 @@ const UserManagement = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="h-9 px-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-105 border-gray-300 dark:border-gray-600"
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
@@ -915,25 +1012,7 @@ const UserManagement = () => {
 
         {/* Tab 2: Statistics & Charts */}
         <TabsContent value="statistics" className="mt-6">
-          {/* Charts Placeholder */}
-          <Card className="rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-gray-900 dark:text-white">
-                Biểu đồ thống kê
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                <BarChart3 className="h-16 w-16 text-gray-400" />
-                <p className="text-gray-600 dark:text-gray-400 text-center">
-                  Biểu đồ thống kê đang được phát triển
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-500 text-center max-w-md">
-                  Sẽ hiển thị các biểu đồ về xu hướng tăng trưởng học viên, phân bố trạng thái, và hoạt động học tập
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <UserStatisticsCharts loading={loading} />
         </TabsContent>
       </Tabs>
 
