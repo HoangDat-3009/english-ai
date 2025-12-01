@@ -14,6 +14,12 @@ namespace EngAce.Tests.Controllers;
 
 public class ListeningControllerTests
 {
+    static ListeningControllerTests()
+    {
+        Environment.SetEnvironmentVariable("ACCESS_KEY", "test-access-key");
+        Environment.SetEnvironmentVariable("GEMINI_API_KEY", "test-gemini-key");
+    }
+
     [Fact]
     public async Task Generate_ShouldReturnBadRequest_WhenGenreIsInvalid()
     {
@@ -55,6 +61,7 @@ public class ListeningControllerTests
         result.Result.Should().BeOfType<BadRequestObjectResult>()
             .Which.Value.Should().Be($"Số lượng câu hỏi phải nằm trong khoảng {ListeningScope.MinTotalQuestions} đến {ListeningScope.MaxTotalQuestions}.");
     }
+
 
     [Fact]
     public async Task Generate_ShouldLimitCustomTopicWordCount()

@@ -8,11 +8,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { listeningService, ListeningAnswerPayload, ListeningExerciseParams, ListeningExerciseResult, ListeningGenre, ListeningGradeResult } from '@/services/listeningService';
+import { listeningService, ListeningAnswerPayload, ListeningExerciseParams, ListeningExerciseResult, ListeningGenre, ListeningGradeResult, AiModel } from '@/services/listeningService';
 import { useToast } from '@/hooks/use-toast';
-import { AudioLines, BookOpen, Ear, Loader2, Music, Trophy, Volume2, Play, Square } from 'lucide-react';
+import { AudioLines, BookOpen, Ear, Loader2, Music, Trophy, Volume2, Play, Square, Sparkles } from 'lucide-react';
 
 const DEFAULT_QUESTION_COUNT = 5;
+
+const AI_MODEL_OPTIONS = [
+  {
+    value: AiModel.GeminiFlashLite,
+    label: 'Gemini 2.0 Flash Lite',
+    description: 'Tốc độ phản hồi nhanh, chi phí tối ưu.'
+  },
+  {
+    value: AiModel.Gpt5Preview,
+    label: 'GPT 5.1 Preview',
+    description: 'Độ chính xác cao, script sáng tạo hơn (beta).'
+  }
+];
 
 const Listening = () => {
   const { toast } = useToast();
@@ -22,12 +35,17 @@ const Listening = () => {
   const [selectedLevel, setSelectedLevel] = useState<string>('3');
   const [questionCount, setQuestionCount] = useState<number>(DEFAULT_QUESTION_COUNT);
   const [customTopic, setCustomTopic] = useState<string>('');
+  const [selectedAiModel, setSelectedAiModel] = useState<AiModel>(AiModel.GeminiFlashLite);
   const [isLoading, setIsLoading] = useState(false);
   const [exercise, setExercise] = useState<ListeningExerciseResult | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [gradeResult, setGradeResult] = useState<ListeningGradeResult | null>(null);
   const [showTranscript, setShowTranscript] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const currentAiModelMeta = useMemo(
+    () => AI_MODEL_OPTIONS.find(option => option.value === selectedAiModel),
+    [selectedAiModel]
+  );
 
   useEffect(() => {
     const loadMetadata = async () => {
@@ -81,7 +99,8 @@ const Listening = () => {
       Genre: Number(selectedGenre) as ListeningGenre,
       EnglishLevel: Number(selectedLevel),
       TotalQuestions: questionCount,
-      CustomTopic: customTopic.trim() || undefined
+      CustomTopic: customTopic.trim() || undefined,
+      AiModel: selectedAiModel
     };
 
     try {
@@ -258,6 +277,25 @@ const Listening = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-200">Mô hình AI</Label>
+                <Select value={String(selectedAiModel)} onValueChange={(value) => setSelectedAiModel(Number(value) as AiModel)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn mô hình AI" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_MODEL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={String(option.value)}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {currentAiModelMeta?.description}
+                </p>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -296,6 +334,10 @@ const Listening = () => {
               <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200">
                 <BookOpen className="h-4 w-4" />
                 Giải thích tiếng Việt
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-amber-700 dark:bg-amber-900/30 dark:text-amber-100">
+                <Sparkles className="h-4 w-4" />
+                {currentAiModelMeta ? `AI: ${currentAiModelMeta.label}` : 'Chọn mô hình AI'}
               </span>
             </div>
             <Button onClick={handleGenerateExercise} disabled={isLoading} className="min-w-[220px]">

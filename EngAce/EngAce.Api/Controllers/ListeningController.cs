@@ -54,7 +54,13 @@ namespace EngAce.Api.Controllers
             try
             {
                 _logger.LogInformation("Starting listening exercise generation for genre {Genre}, level {Level}, questions {Questions}", request.Genre, request.EnglishLevel, request.TotalQuestions);
-                var exercise = await ListeningScope.GenerateExerciseAsync(_accessKey, request.Genre, request.EnglishLevel, request.TotalQuestions, request.CustomTopic);
+                var exercise = await ListeningScope.GenerateExerciseAsync(
+                    _accessKey,
+                    request.Genre,
+                    request.EnglishLevel,
+                    request.TotalQuestions,
+                    request.CustomTopic,
+                    request.AiModel);
                 _logger.LogInformation("Exercise generated successfully, generating audio...");
                 var rawAudioContent = await TextToSpeechHelper.SynthesizeAsync(_accessKey, exercise.Transcript);
                 var audioContent = string.IsNullOrWhiteSpace(rawAudioContent) || rawAudioContent.StartsWith("data:", StringComparison.OrdinalIgnoreCase)

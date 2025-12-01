@@ -14,14 +14,20 @@ namespace Events
         public const sbyte MaxTotalQuestions = 10;
 
         private const string Instruction = @"You are an award-winning ESL content creator who specializes in designing immersive listening comprehension lessons for Vietnamese learners. You always:
-- Produce authentic, engaging scripts that sound natural to native speakers.
-- Match the lexical and grammatical difficulty to the learner's CEFR level.
-- Provide concise yet helpful Vietnamese explanations for every question.
-- Return valid minified JSON with no trailing comments, Markdown, code fences, or additional text.
-- Avoid Markdown characters such as `**` in the output content.
-";
+                                            - Produce authentic, engaging scripts that sound natural to native speakers.
+                                            - Match the lexical and grammatical difficulty to the learner's CEFR level.
+                                            - Provide concise yet helpful Vietnamese explanations for every question.
+                                            - Return valid minified JSON with no trailing comments, Markdown, code fences, or additional text.
+                                            - Avoid Markdown characters such as `**` in the output content.
+                                            ";
 
-        public static async Task<ListeningExercise> GenerateExerciseAsync(string apiKey, ListeningGenre genre, EnglishLevel level, sbyte questionsCount, string? customTopic)
+        public static async Task<ListeningExercise> GenerateExerciseAsync(
+            string apiKey,
+            ListeningGenre genre,
+            EnglishLevel level,
+            sbyte questionsCount,
+            string? customTopic,
+            AiModel aiModel = AiModel.GeminiFlashLite)
         {
             var promptBuilder = new StringBuilder();
 
@@ -45,48 +51,65 @@ namespace Events
             promptBuilder.AppendLine("- RightOptionIndex is accurate.");
             promptBuilder.AppendLine("- ExplanationInVietnamese gives a short reason (max 45 words).");
 
+            var responseSchema = new
+            {
+                type = "object",
+                properties = new
+                {
+                    Title = new { type = "string" },
+                    Transcript = new { type = "string" },
+                    Questions = new
+                    {
+                        type = "array",
+                        items = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                Question = new { type = "string" },
+                                Options = new
+                                {
+                                    type = "array",
+                                    items = new { type = "string" },
+                                    minItems = 4,
+                                    maxItems = 4
+                                },
+                                RightOptionIndex = new { type = "integer" },
+                                ExplanationInVietnamese = new { type = "string" }
+                            },
+                            required = new[] { "Question", "Options", "RightOptionIndex", "ExplanationInVietnamese" }
+                        }
+                    }
+                },
+                required = new[] { "Title", "Transcript", "Questions" }
+            };
+
             var apiRequest = new ApiRequestBuilder()
                 .WithSystemInstruction(Instruction)
                 .WithPrompt(promptBuilder.ToString())
                 .WithDefaultGenerationConfig(0.4F)
-                .WithResponseSchema(new
-                {
-                    type = "object",
-                    properties = new
-                    {
-                        Title = new { type = "string" },
-                        Transcript = new { type = "string" },
-                        Questions = new
-                        {
-                            type = "array",
-                            items = new
-                            {
-                                type = "object",
-                                properties = new
-                                {
-                                    Question = new { type = "string" },
-                                    Options = new
-                                    {
-                                        type = "array",
-                                        items = new { type = "string" },
-                                        minItems = 4,
-                                        maxItems = 4
-                                    },
-                                    RightOptionIndex = new { type = "integer" },
-                                    ExplanationInVietnamese = new { type = "string" }
-                                },
-                                required = new[] { "Question", "Options", "RightOptionIndex", "ExplanationInVietnamese" }
-                            }
-                        }
-                    },
-                    required = new[] { "Title", "Transcript", "Questions" }
-                })
+                .WithResponseSchema(responseSchema)
                 .DisableAllSafetySettings()
                 .Build();
 
-            var generator = new Generator(apiKey);
-            var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash_Lite);
-            var sanitizedPayload = SanitizeModelPayload(response.Result);
+            string sanitizedPayload;
+
+            if (aiModel == AiModel.Gpt5Preview)
+            {
+                var rawPayload = await Gpt5Client.GenerateJsonResponseAsync(
+                    Instruction,
+                    promptBuilder.ToString(),
+                    responseSchema,
+                    schemaName: "listening_generation");
+
+                sanitizedPayload = SanitizeModelPayload(rawPayload);
+            }
+            else
+            {
+                var generator = new Generator(apiKey);
+                var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash_Lite);
+                sanitizedPayload = SanitizeModelPayload(response.Result);
+            }
 
             ListeningGenerationResult? result;
 

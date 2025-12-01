@@ -1,5 +1,10 @@
 import { apiService } from './api';
 
+export enum AiModel {
+  GeminiFlashLite = 0,
+  Gpt5Preview = 1,
+}
+
 export enum ListeningGenre {
   DailyConversation = 1,
   NewsReport = 2,
@@ -13,6 +18,7 @@ export interface ListeningExerciseParams {
   EnglishLevel: number;
   TotalQuestions: number;
   CustomTopic?: string;
+  AiModel: AiModel;
 }
 
 export interface ListeningQuestion {
