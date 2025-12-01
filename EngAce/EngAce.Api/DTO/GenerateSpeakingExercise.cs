@@ -21,4 +21,9 @@ public class GenerateSpeakingExercise
     /// Chủ đề tùy chỉnh (không bắt buộc)
     /// </summary>
     public string? CustomTopic { get; set; }
+
+        /// <summary>
+        /// Lựa chọn mô hình AI dùng để tạo bài tập.
+        /// </summary>
+        public AiModel AiModel { get; set; } = AiModel.GeminiFlashLite;
 }

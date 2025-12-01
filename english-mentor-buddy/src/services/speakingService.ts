@@ -1,5 +1,10 @@
 import { apiService } from './api';
 
+export enum AiModel {
+  GeminiFlashLite = 0,
+  Gpt5Preview = 1,
+}
+
 export enum SpeakingTopic {
   SelfIntroduction = 0,
   DailyLife = 1,
@@ -14,6 +19,7 @@ export interface SpeakingExerciseParams {
   Topic: SpeakingTopic;
   EnglishLevel: number;
   CustomTopic?: string;
+  AiModel: AiModel;
 }
 
 export interface SpeakingExerciseResult {
@@ -51,6 +57,7 @@ export interface SpeakingAnalysisResult {
 export interface AnalyzeSpeechPayload {
   ExerciseId: string;
   AudioData: string; // base64
+  AiModel: AiModel;
 }
 
 class SpeakingService {

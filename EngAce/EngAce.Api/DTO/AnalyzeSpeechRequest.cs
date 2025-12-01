@@ -1,3 +1,5 @@
+using Entities.Enums;
+
 namespace EngAce.Api.DTO;
 
 /// <summary>
@@ -14,4 +16,9 @@ public class AnalyzeSpeechRequest
     /// Văn bản đã được nhận dạng từ giọng nói (transcribed text từ Web Speech API)
     /// </summary>
     public string AudioData { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Mô hình AI dùng để phân tích.
+    /// </summary>
+    public AiModel AiModel { get; set; } = AiModel.GeminiFlashLite;
 }

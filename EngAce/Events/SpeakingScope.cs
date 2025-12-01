@@ -14,6 +14,9 @@ namespace Events;
 /// </summary>
 public class SpeakingScope
 {
+    private const string SpeakingCoachInstruction = "You are an award-winning ESL speaking coach who creates engaging speaking prompts for Vietnamese learners.";
+    private const string SpeakingAnalysisInstruction = "You are an experienced IELTS speaking examiner who provides structured Vietnamese feedback.";
+
     private readonly string _apiKey;
 
     public SpeakingScope()
@@ -24,7 +27,11 @@ public class SpeakingScope
     /// <summary>
     /// Tạo bài tập nói với AI
     /// </summary>
-    public async Task<SpeakingExercise> GenerateExerciseAsync(SpeakingTopic topic, EnglishLevel level, string? customTopic)
+    public async Task<SpeakingExercise> GenerateExerciseAsync(
+        SpeakingTopic topic,
+        EnglishLevel level,
+        string? customTopic,
+        AiModel aiModel = AiModel.GeminiFlashLite)
     {
         var topicDescription = GetTopicDescription(topic);
         var levelDescription = GeneralHelper.GetLevelDescription(level);
@@ -50,25 +57,43 @@ Return ONLY a valid JSON object (without markdown formatting) with this structur
 Make the content natural, engaging, and appropriate for the specified level.
 The prompt should encourage the learner to speak for 30-60 seconds.";
 
-        var apiRequest = new ApiRequestBuilder()
-            .WithPrompt(prompt)
-            .WithResponseSchema(new
+        var responseSchema = new
+        {
+            type = "object",
+            properties = new
             {
-                type = "object",
-                properties = new
-                {
-                    title = new { type = "string" },
-                    prompt = new { type = "string" },
-                    hint = new { type = "string" }
-                },
-                required = new[] { "title", "prompt", "hint" }
-            })
-            .DisableAllSafetySettings()
-            .Build();
+                title = new { type = "string" },
+                prompt = new { type = "string" },
+                hint = new { type = "string" }
+            },
+            required = new[] { "title", "prompt", "hint" }
+        };
 
-        var generator = new Generator(_apiKey);
-        var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash_Lite);
-        var sanitized = SanitizeModelPayload(response.Result);
+        string sanitized;
+
+        if (aiModel == AiModel.Gpt5Preview)
+        {
+            var raw = await Gpt5Client.GenerateJsonResponseAsync(
+                SpeakingCoachInstruction,
+                prompt,
+                responseSchema,
+                temperature: 0.5f,
+                schemaName: "speaking_exercise");
+
+            sanitized = SanitizeModelPayload(raw);
+        }
+        else
+        {
+            var apiRequest = new ApiRequestBuilder()
+                .WithPrompt(prompt)
+                .WithResponseSchema(responseSchema)
+                .DisableAllSafetySettings()
+                .Build();
+
+            var generator = new Generator(_apiKey);
+            var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash_Lite);
+            sanitized = SanitizeModelPayload(response.Result);
+        }
 
         SpeakingExerciseData? exerciseData;
         try
@@ -100,7 +125,10 @@ The prompt should encourage the learner to speak for 30-60 seconds.";
     /// <summary>
     /// Phân tích giọng nói và ngữ pháp với AI
     /// </summary>
-    public async Task<SpeakingAnalysis> AnalyzeSpeechAsync(string transcribedText, string originalPrompt)
+    public async Task<SpeakingAnalysis> AnalyzeSpeechAsync(
+        string transcribedText,
+        string originalPrompt,
+        AiModel aiModel = AiModel.GeminiFlashLite)
     {
         var prompt = $@"Analyze the following English speech transcription and provide detailed feedback.
 
@@ -142,51 +170,69 @@ Important guidelines:
 - If the speech is completely off-topic, note that in the feedback
 - Pronunciation score should reflect clarity and naturalness based on the text quality";
 
-        var apiRequest = new ApiRequestBuilder()
-            .WithPrompt(prompt)
-            .WithResponseSchema(new
+        var responseSchema = new
+        {
+            type = "object",
+            properties = new
             {
-                type = "object",
-                properties = new
+                overallScore = new { type = "number" },
+                pronunciationScore = new { type = "number" },
+                grammarScore = new { type = "number" },
+                vocabularyScore = new { type = "number" },
+                fluencyScore = new { type = "number" },
+                grammarErrors = new
                 {
-                    overallScore = new { type = "number" },
-                    pronunciationScore = new { type = "number" },
-                    grammarScore = new { type = "number" },
-                    vocabularyScore = new { type = "number" },
-                    fluencyScore = new { type = "number" },
-                    grammarErrors = new
+                    type = "array",
+                    items = new
                     {
-                        type = "array",
-                        items = new
+                        type = "object",
+                        properties = new
                         {
-                            type = "object",
-                            properties = new
-                            {
-                                startIndex = new { type = "integer" },
-                                endIndex = new { type = "integer" },
-                                errorText = new { type = "string" },
-                                errorType = new { type = "string" },
-                                description = new { type = "string" },
-                                correction = new { type = "string" },
-                                explanationInVietnamese = new { type = "string" }
-                            }
+                            startIndex = new { type = "integer" },
+                            endIndex = new { type = "integer" },
+                            errorText = new { type = "string" },
+                            errorType = new { type = "string" },
+                            description = new { type = "string" },
+                            correction = new { type = "string" },
+                            explanationInVietnamese = new { type = "string" }
                         }
-                    },
-                    overallFeedback = new { type = "string" },
-                    suggestions = new
-                    {
-                        type = "array",
-                        items = new { type = "string" }
                     }
                 },
-                required = new[] { "overallScore", "pronunciationScore", "grammarScore", "vocabularyScore", "fluencyScore", "grammarErrors", "overallFeedback", "suggestions" }
-            })
-            .DisableAllSafetySettings()
-            .Build();
+                overallFeedback = new { type = "string" },
+                suggestions = new
+                {
+                    type = "array",
+                    items = new { type = "string" }
+                }
+            },
+            required = new[] { "overallScore", "pronunciationScore", "grammarScore", "vocabularyScore", "fluencyScore", "grammarErrors", "overallFeedback", "suggestions" }
+        };
 
-        var generator = new Generator(_apiKey);
-        var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash_Lite);
-        var sanitized = SanitizeModelPayload(response.Result);
+        string sanitized;
+
+        if (aiModel == AiModel.Gpt5Preview)
+        {
+            var raw = await Gpt5Client.GenerateJsonResponseAsync(
+                SpeakingAnalysisInstruction,
+                prompt,
+                responseSchema,
+                temperature: 0.3f,
+                schemaName: "speaking_analysis");
+
+            sanitized = SanitizeModelPayload(raw);
+        }
+        else
+        {
+            var apiRequest = new ApiRequestBuilder()
+                .WithPrompt(prompt)
+                .WithResponseSchema(responseSchema)
+                .DisableAllSafetySettings()
+                .Build();
+
+            var generator = new Generator(_apiKey);
+            var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash_Lite);
+            sanitized = SanitizeModelPayload(response.Result);
+        }
 
         SpeakingAnalysisData? analysisData;
         try
