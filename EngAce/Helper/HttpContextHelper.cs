@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System;
+using Microsoft.AspNetCore.Http;
 
 namespace Helper
 {
@@ -11,18 +12,13 @@ namespace Helper
             _accessor = accessor;
         }
 
-        public static string? GetAccessKey()
-        {
-            string key = "AIzaSyDGU_I8J6y29SZrW-7Fcx3PJ5cGEZoh808";
+        public static string? GetAccessKey() => Environment.GetEnvironmentVariable("ACCESS_KEY");
 
-            return key;
-        }
+        public static string GetGeminiApiKey() => Environment.GetEnvironmentVariable("GEMINI_API_KEY") ?? string.Empty;
 
-        public static string GetGeminiApiKey()
+        public static string GetGpt5ApiKey()
         {
-            // Trả về API key cho Gemini (có thể cùng key hoặc key riêng)
-            string key = "AIzaSyDGU_I8J6y29SZrW-7Fcx3PJ5cGEZoh808";
-            return key;
+            return Environment.GetEnvironmentVariable("GPT5_API_KEY") ?? string.Empty;
         }
     }
 }

@@ -26,5 +26,10 @@ namespace EngAce.Api.DTO
         /// An optional custom topic that the generated listening passage should focus on.
         /// </summary>
         public string? CustomTopic { get; set; }
+
+        /// <summary>
+        /// The AI model that will be used to craft the exercise content.
+        /// </summary>
+        public AiModel AiModel { get; set; } = AiModel.Gpt5Preview;
     }
 }
