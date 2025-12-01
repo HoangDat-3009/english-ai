@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import Header from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,10 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { speakingService, SpeakingExerciseParams, SpeakingExerciseResult, SpeakingAnalysisResult, SpeakingTopic } from '@/services/speakingService';
+import { speakingService, SpeakingExerciseParams, SpeakingExerciseResult, SpeakingAnalysisResult, SpeakingTopic, AiModel } from '@/services/speakingService';
 import { useToast } from '@/hooks/use-toast';
 import { Mic, MicOff, Loader2, MessageSquare, Trophy, Volume2, Sparkles, FileText, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+
+const AI_MODEL_OPTIONS = [
+  {
+    value: AiModel.GeminiFlashLite,
+    label: 'Gemini 2.0 Flash Lite',
+    description: 'Cân bằng tốc độ/chi phí cho việc tạo đề bài và phân tích.'
+  },
+  {
+    value: AiModel.Gpt5Preview,
+    label: 'GPT 5.1 Preview',
+    description: 'Độ sáng tạo và đánh giá sâu hơn (beta).'
+  }
+];
 
 const Speaking = () => {
   const { toast } = useToast();
@@ -20,13 +33,23 @@ const Speaking = () => {
   const [selectedTopic, setSelectedTopic] = useState<string>('');
   const [selectedLevel, setSelectedLevel] = useState<string>('3');
   const [customTopic, setCustomTopic] = useState<string>('');
+  const [selectedAiModel, setSelectedAiModel] = useState<AiModel>(AiModel.GeminiFlashLite);
   const [isLoading, setIsLoading] = useState(false);
   const [exercise, setExercise] = useState<SpeakingExerciseResult | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [analysisResult, setAnalysisResult] = useState<SpeakingAnalysisResult | null>(null);
+  const [exerciseAiModel, setExerciseAiModel] = useState<AiModel | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const currentAiModelMeta = useMemo(
+    () => AI_MODEL_OPTIONS.find(option => option.value === selectedAiModel),
+    [selectedAiModel]
+  );
+  const exerciseAiModelMeta = useMemo(
+    () => (exerciseAiModel !== null ? AI_MODEL_OPTIONS.find(option => option.value === exerciseAiModel) : null),
+    [exerciseAiModel]
+  );
 
   useEffect(() => {
     const loadMetadata = async () => {
@@ -68,13 +91,15 @@ const Speaking = () => {
     const params: SpeakingExerciseParams = {
       Topic: Number(selectedTopic) as SpeakingTopic,
       EnglishLevel: Number(selectedLevel),
-      CustomTopic: customTopic.trim() || undefined
+      CustomTopic: customTopic.trim() || undefined,
+      AiModel: selectedAiModel
     };
 
     try {
       setIsLoading(true);
       const result = await speakingService.generateExercise(params);
       setExercise(result);
+      setExerciseAiModel(selectedAiModel);
       setAudioBlob(null);
       setAnalysisResult(null);
       toast({
@@ -165,9 +190,11 @@ const Speaking = () => {
         const base64Audio = reader.result as string;
         
         try {
+          const aiModelForAnalysis = exerciseAiModel ?? selectedAiModel;
           const result = await speakingService.analyzeSpeech({
             ExerciseId: exercise.ExerciseId,
-            AudioData: base64Audio
+            AudioData: base64Audio,
+            AiModel: aiModelForAnalysis
           });
           
           setAnalysisResult(result);
@@ -267,6 +294,23 @@ const Speaking = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-200">Mô hình AI</Label>
+                <Select value={String(selectedAiModel)} onValueChange={(value) => setSelectedAiModel(Number(value) as AiModel)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn mô hình" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_MODEL_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={String(option.value)}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{currentAiModelMeta?.description}</p>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -282,7 +326,12 @@ const Speaking = () => {
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <span>Mô hình AI: {currentAiModelMeta?.label}</span>
+            </div>
+
             <Button onClick={handleGenerateExercise} disabled={isLoading} className="min-w-[220px]">
               {isLoading ? (
                 <>
@@ -303,11 +352,18 @@ const Speaking = () => {
           <section className="space-y-6">
             <Card className="p-6 dark:bg-gray-900/50">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{exercise.Title}</h2>
-                  <Badge variant="outline" className="border-blue-400 text-blue-600 dark:border-blue-300 dark:text-blue-200">
-                    {topics[Number(selectedTopic)]}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="border-blue-400 text-blue-600 dark:border-blue-300 dark:text-blue-200">
+                      {topics[Number(selectedTopic)]}
+                    </Badge>
+                    {exerciseAiModelMeta && (
+                      <Badge variant="outline" className="border-amber-400 text-amber-600 dark:border-amber-300 dark:text-amber-200">
+                        AI: {exerciseAiModelMeta.label}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 border border-blue-200 dark:border-blue-800">

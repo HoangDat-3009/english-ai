@@ -59,7 +59,8 @@ public class SpeakingController : ControllerBase
             var exercise = await scope.GenerateExerciseAsync(
                 request.Topic, 
                 request.EnglishLevel, 
-                request.CustomTopic
+                request.CustomTopic,
+                request.AiModel
             );
 
             // Cache exercise for 45 minutes
@@ -131,7 +132,7 @@ public class SpeakingController : ControllerBase
 
             // Analyze speech with AI
             var scope = new SpeakingScope();
-            var analysis = await scope.AnalyzeSpeechAsync(transcribedText, exercise.Prompt);
+            var analysis = await scope.AnalyzeSpeechAsync(transcribedText, exercise.Prompt, request.AiModel);
 
             var response = SpeakingAnalysisResponse.FromEntity(analysis);
             _logger.LogInformation("Successfully analyzed speech - Overall score: {Score}", analysis.OverallScore);
