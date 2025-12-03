@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookText, Search, Star } from 'lucide-react';
+import { BookText, Search, Star, ArrowLeft } from 'lucide-react';
 import Header from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +66,15 @@ const Dictionary: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-gradient-soft">
       <Header />
       <main className="flex-1 container max-w-screen-xl mx-auto py-8 px-4 animate-fade-in">
+        <Button
+          variant="ghost"
+          onClick={() => navigate("/")}
+          className="mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Quay lại
+        </Button>
+
         <div className="flex justify-center mb-8">
           <div className="w-24 h-24 bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-200/50">
             <BookText size={48} color="white" />

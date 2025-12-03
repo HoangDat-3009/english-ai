@@ -80,3 +80,89 @@ export const reviewApi = {
     }
   },
 };
+
+// Map level for sentence writing (same as review)
+const sentenceLevelMapping: Record<string, number> = {
+  "Basic": 2,        // A1-A2 -> Elementary
+  "Intermediate": 3, // B1-B2 -> Intermediate
+  "Advanced": 5      // C1-C2 -> Advanced
+};
+
+export interface GenerateSentencesRequest {
+  topic: string;
+  level: string;
+  sentenceCount: number;
+}
+
+export interface GenerateSentencesResponse {
+  Sentences: Array<{
+    Id: number;
+    Vietnamese: string;
+    Suggestion?: {
+      Vocabulary: Array<{ Word: string; Meaning: string }>;
+      Structure: string;
+    };
+  }>;
+}
+
+export const sentenceWritingApi = {
+  generateSentences: async (data: GenerateSentencesRequest): Promise<GenerateSentencesResponse> => {
+    try {
+      console.log("🚀 Calling SentenceWriting API with data:", {
+        topic: data.topic,
+        level: data.level,
+        mappedLevel: sentenceLevelMapping[data.level],
+        sentenceCount: data.sentenceCount,
+      });
+
+      const requestBody = {
+        Topic: data.topic,
+        Level: sentenceLevelMapping[data.level] || 3,
+        SentenceCount: data.sentenceCount,
+      };
+
+      console.log("📤 Request body:", requestBody);
+
+      const response = await fetch(`${apiService.getBaseUrl()}/api/SentenceWriting/Generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...apiService.getHeaders()
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log("📥 Response status:", response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Response error:", errorText);
+        throw new Error(errorText || `Server responded with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      console.log("✅ Response received:", result);
+
+      // Kiểm tra nếu backend busy
+      if (typeof result === 'string' && (result.includes("CẢNH BÁO") || result.includes("EngBuddy đang bận"))) {
+        console.log("⚠️ Backend is busy");
+        const busyError = new Error(result) as Error & { isBusyError: boolean };
+        busyError.isBusyError = true;
+        throw busyError;
+      }
+
+      return result;
+    } catch (error: unknown) {
+      console.error("❌ API Error:", error);
+      
+      // Re-throw busy error
+      if (error instanceof Error && 'isBusyError' in error && (error as { isBusyError: boolean }).isBusyError) {
+        throw error;
+      }
+      
+      throw new Error("Không thể kết nối đến server. Vui lòng kiểm tra backend.");
+    }
+  },
+};
+

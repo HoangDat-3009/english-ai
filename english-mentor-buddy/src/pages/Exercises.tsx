@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GraduationCap, ArrowLeft, Clock, ArrowRight, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -232,6 +233,7 @@ const QuestionTypesSelector: React.FC<{
 };
 
 const Exercises: React.FC = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [showExercise, setShowExercise] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(1);
@@ -262,6 +264,7 @@ const Exercises: React.FC = () => {
       handleSubmitExercise();
     }
     return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showExercise, timeLeft]);
 
   // Format time display
@@ -463,6 +466,15 @@ const Exercises: React.FC = () => {
         {!showExercise ? (
           // Exercise creation form
           <>
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/")}
+              className="mb-6"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Quay lại
+            </Button>
+
             <div className="flex justify-center mb-8">
               <div className="w-24 h-24 bg-engace-pink rounded-2xl flex items-center justify-center">
                 <GraduationCap size={48} color="white" />

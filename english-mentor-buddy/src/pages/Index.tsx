@@ -26,7 +26,7 @@ const features = [
     title: 'Viết',
     description: 'Nâng cao kỹ năng viết tiếng Anh của bạn với các bài tập và hướng dẫn chi tiết.',
     icon: Pencil,
-    path: '/writing',
+    path: '/writing-mode',
     color: 'text-emerald-600',
     bgColor: 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50',
   },

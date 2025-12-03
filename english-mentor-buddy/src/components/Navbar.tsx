@@ -56,7 +56,7 @@ const Navbar = () => {
   const navItems = [
     { name: 'Dictionary', path: '/dictionary', icon: Book, color: 'text-pink-600' },
     { name: 'Exercises', path: '/exercises', icon: GraduationCap, color: 'text-fuchsia-600' },
-    { name: 'Writing', path: '/writing', icon: Pencil, color: 'text-emerald-600' },
+    { name: 'Writing', path: '/writing-mode', icon: Pencil, color: 'text-emerald-600' },
     { name: 'AI Chat', path: '/chat', icon: MessageCircle, color: 'text-rose-600' },
     { name: 'Topics', path: '/topics', icon: Globe, color: 'text-pink-500' },
   ];

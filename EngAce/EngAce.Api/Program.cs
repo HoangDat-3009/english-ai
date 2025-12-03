@@ -20,7 +20,11 @@ builder.Services.AddControllers()
 
 builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddHttpContextAccessor();
-HttpContextHelper.Configure(builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>());
+var serviceProvider = builder.Services.BuildServiceProvider();
+HttpContextHelper.Configure(
+    serviceProvider.GetRequiredService<IHttpContextAccessor>(),
+    serviceProvider.GetRequiredService<IConfiguration>()
+);
 builder.Services.AddMemoryCache();
 
 builder.Services.AddEndpointsApiExplorer();

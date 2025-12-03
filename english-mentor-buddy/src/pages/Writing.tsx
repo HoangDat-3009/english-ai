@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from '@/components/Navbar';
 import { ReviewForm } from "@/components/ReviewForm";
 import { ReviewResult } from "@/components/ReviewResult";
 import { reviewApi, GenerateReviewRequest } from "@/lib/api";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { Sparkles, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [review, setReview] = useState<string | null>(null);
 
@@ -55,6 +58,15 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         {!review ? (
           <div className="space-y-8">
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/writing-mode")}
+              className="mb-4"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Quay lại
+            </Button>
+
             <div className="text-center space-y-4 py-8">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-primary shadow-soft mb-4">
                 <Sparkles className="w-8 h-8 text-primary-foreground" />

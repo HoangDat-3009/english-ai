@@ -10,6 +10,9 @@ import Dictionary from "./pages/Dictionary";
 import DictionaryResult from "./pages/DictionaryResult";
 import Exercises from "./pages/Exercises";
 import Writing from "./pages/Writing";
+import WritingMode from "./pages/WritingMode";
+import SentenceWriting from "./pages/SentenceWriting";
+import SentencePractice from "./pages/SentencePractice";
 import Chat from "./pages/Chat";
 import EnglishTopicCards from "./pages/EnglishTopicCards";
 import NotFound from "./pages/NotFound";
@@ -44,7 +47,13 @@ const App = () => (
               <Route path="/dictionary" element={<Dictionary />} />
               <Route path="/dictionary-result" element={<DictionaryResult />} />
               <Route path="/exercises" element={<Exercises />} />
+              
+              {/* Writing routes */}
+              <Route path="/writing-mode" element={<WritingMode />} />
               <Route path="/writing" element={<Writing />} />
+              <Route path="/sentence-writing" element={<SentenceWriting />} />
+              <Route path="/sentence-practice" element={<SentencePractice />} />
+              
               <Route path="/chat" element={<Chat />} />
               <Route path="/topics" element={<EnglishTopicCards />} />
 
