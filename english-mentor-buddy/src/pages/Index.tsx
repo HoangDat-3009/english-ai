@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import FeatureCard from '@/components/FeatureCard';
-import { Book, GraduationCap, MessageCircle, Globe, Pencil } from 'lucide-react';
+import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
 
 const features = [
@@ -107,6 +107,16 @@ const Index = () => {
                 Khám phá tính năng
                 <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
               </Link>
+              <a
+                href="https://sotatek-congvu.github.io/LuyenTap/#/test-list"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex h-12 items-center justify-center rounded-xl border-2 border-fuchsia-300 dark:border-fuchsia-600 bg-fuchsia-50/90 dark:bg-fuchsia-950/50 backdrop-blur-sm px-8 text-sm font-medium text-fuchsia-700 dark:text-fuchsia-300 shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500"
+              >
+                <span className="mr-2">📚</span>
+                Luyện Tập Nâng Cao
+                <ExternalLink className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </a>
             </motion.div>
           </div>
         </div>
