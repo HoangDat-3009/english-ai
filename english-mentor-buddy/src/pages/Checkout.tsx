@@ -3,27 +3,74 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, Building2, Wallet, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Building2, CheckCircle2, ArrowLeft, QrCode, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const [paymentMethod, setPaymentMethod] = useState("momo");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showQRDialog, setShowQRDialog] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [customerInfo, setCustomerInfo] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+  });
+
+  // Bank information
+  const bankInfo = {
+    bankId: "970407", // Techcombank bank code
+    accountNo: "999914052004",
+    accountName: "LE TRUNG KIEN",
+    amount: 218900,
+  };
+
+  // Generate VietQR code URL
+  const generateQRCode = (transferContent: string) => {
+    const { bankId, accountNo, accountName, amount } = bankInfo;
+    
+    // VietQR format: https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-{TEMPLATE}.png?amount={AMOUNT}&addInfo={CONTENT}&accountName={ACCOUNT_NAME}
+    const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`;
+    
+    return qrUrl;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true);
+    
+    const formData = new FormData(e.target as HTMLFormElement);
+    const fullName = (formData.get("fullName") as string || "").trim();
+    const email = (formData.get("email") as string || "").trim();
+    const phone = (formData.get("phone") as string || "").trim();
 
-    // Simulate payment processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      toast.success("Thanh toán thành công! Tài khoản Premium đã được kích hoạt.");
-      navigate("/");
-    }, 2000);
+    // Validate form
+    if (!fullName || !email || !phone) {
+      toast.error("Vui lòng điền đầy đủ thông tin!");
+      return;
+    }
+
+    // Update customer info
+    setCustomerInfo({ fullName, email, phone });
+
+    // Generate transfer content: Name + Email (shorter format)
+    const transferContent = `${fullName} ${email}`;
+    const qrUrl = generateQRCode(transferContent);
+    setQrCodeUrl(qrUrl);
+    setShowQRDialog(true);
+  };
+
+  const handleCopyAccountInfo = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Đã sao chép!");
   };
 
   return (
@@ -59,6 +106,7 @@ const Checkout = () => {
                           <Label htmlFor="fullName">Họ và tên *</Label>
                           <Input
                             id="fullName"
+                            name="fullName"
                             placeholder="Nguyễn Văn A"
                             required
                           />
@@ -67,6 +115,7 @@ const Checkout = () => {
                           <Label htmlFor="email">Email *</Label>
                           <Input
                             id="email"
+                            name="email"
                             type="email"
                             placeholder="example@email.com"
                             required
@@ -77,6 +126,7 @@ const Checkout = () => {
                         <Label htmlFor="phone">Số điện thoại *</Label>
                         <Input
                           id="phone"
+                          name="phone"
                           type="tel"
                           placeholder="0912345678"
                           required
@@ -89,81 +139,15 @@ const Checkout = () => {
                     {/* Payment Method */}
                     <div className="space-y-4">
                       <h3 className="font-semibold text-lg">Phương thức thanh toán</h3>
-                      <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                        <div className="space-y-3">
-                          <label
-                            htmlFor="momo"
-                            className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                              paymentMethod === "momo"
-                                ? "border-primary bg-accent"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <RadioGroupItem value="momo" id="momo" />
-                            <Wallet className="w-6 h-6 text-primary" />
-                            <div className="flex-1">
-                              <div className="font-semibold">Ví MoMo</div>
-                              <div className="text-sm text-muted-foreground">
-                                Thanh toán qua ví điện tử MoMo
-                              </div>
-                            </div>
-                          </label>
-
-                          <label
-                            htmlFor="zalopay"
-                            className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                              paymentMethod === "zalopay"
-                                ? "border-primary bg-accent"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <RadioGroupItem value="zalopay" id="zalopay" />
-                            <Wallet className="w-6 h-6 text-primary" />
-                            <div className="flex-1">
-                              <div className="font-semibold">ZaloPay</div>
-                              <div className="text-sm text-muted-foreground">
-                                Thanh toán qua ví điện tử ZaloPay
-                              </div>
-                            </div>
-                          </label>
-
-                          <label
-                            htmlFor="bank"
-                            className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                              paymentMethod === "bank"
-                                ? "border-primary bg-accent"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <RadioGroupItem value="bank" id="bank" />
-                            <Building2 className="w-6 h-6 text-primary" />
-                            <div className="flex-1">
-                              <div className="font-semibold">Chuyển khoản ngân hàng</div>
-                              <div className="text-sm text-muted-foreground">
-                                Chuyển khoản qua ATM/Internet Banking
-                              </div>
-                            </div>
-                          </label>
-
-                          <label
-                            htmlFor="card"
-                            className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                              paymentMethod === "card"
-                                ? "border-primary bg-accent"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <RadioGroupItem value="card" id="card" />
-                            <CreditCard className="w-6 h-6 text-primary" />
-                            <div className="flex-1">
-                              <div className="font-semibold">Thẻ ATM/Visa/MasterCard</div>
-                              <div className="text-sm text-muted-foreground">
-                                Thanh toán bằng thẻ ngân hàng
-                              </div>
-                            </div>
-                          </label>
+                      <div className="flex items-center gap-4 p-4 rounded-lg border-2 border-primary bg-accent">
+                        <Building2 className="w-6 h-6 text-primary" />
+                        <div className="flex-1">
+                          <div className="font-semibold">Chuyển khoản ngân hàng</div>
+                          <div className="text-sm text-muted-foreground">
+                            Chuyển khoản qua ATM/Internet Banking hoặc quét mã QR
+                          </div>
                         </div>
-                      </RadioGroup>
+                      </div>
                     </div>
 
                     <Button
@@ -172,7 +156,7 @@ const Checkout = () => {
                       className="w-full"
                       disabled={isProcessing}
                     >
-                      {isProcessing ? "Đang xử lý..." : "Thanh toán ngay"}
+                      {isProcessing ? "Đang xử lý..." : "Tạo mã QR thanh toán"}
                     </Button>
                   </form>
                 </CardContent>
@@ -242,6 +226,135 @@ const Checkout = () => {
           </div>
         </div>
       </main>
+
+      {/* QR Code Dialog */}
+      <Dialog open={showQRDialog} onOpenChange={setShowQRDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5" />
+              Quét mã QR để thanh toán
+            </DialogTitle>
+            <DialogDescription>
+              Quét mã QR bằng ứng dụng ngân hàng để thanh toán tự động
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Left: QR Code */}
+            <div className="flex flex-col items-center justify-center">
+              <div className="p-4 bg-white rounded-lg">
+                {qrCodeUrl && (
+                  <img 
+                    src={qrCodeUrl} 
+                    alt="QR Code Payment" 
+                    className="w-64 h-64 object-contain"
+                    onError={(e) => {
+                      console.error("QR Code load error");
+                      toast.error("Không thể tải mã QR. Vui lòng thử lại!");
+                    }}
+                  />
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-3 text-center">
+                Quét mã QR để tự động điền thông tin
+              </p>
+            </div>
+
+            {/* Right: Bank Information */}
+            <div className="space-y-4">
+              <h4 className="font-semibold">Thông tin chuyển khoản:</h4>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center p-3 bg-accent rounded-lg">
+                  <div className="flex-1">
+                    <div className="text-muted-foreground text-xs">Ngân hàng</div>
+                    <div className="font-medium">Techcombank</div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-accent rounded-lg">
+                  <div className="flex-1">
+                    <div className="text-muted-foreground text-xs">Số tài khoản</div>
+                    <div className="font-medium">{bankInfo.accountNo}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyAccountInfo(bankInfo.accountNo)}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-accent rounded-lg">
+                  <div className="flex-1">
+                    <div className="text-muted-foreground text-xs">Chủ tài khoản</div>
+                    <div className="font-medium">{bankInfo.accountName}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyAccountInfo(bankInfo.accountName)}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-accent rounded-lg">
+                  <div className="flex-1">
+                    <div className="text-muted-foreground text-xs">Số tiền</div>
+                    <div className="font-bold text-primary text-lg">{bankInfo.amount.toLocaleString('vi-VN')}đ</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyAccountInfo(bankInfo.amount.toString())}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="flex justify-between items-start p-3 bg-accent rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-muted-foreground text-xs mb-1">Nội dung chuyển khoản</div>
+                    <div className="font-medium break-words">
+                      {customerInfo.fullName} {customerInfo.email}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-2 flex-shrink-0"
+                    onClick={() => handleCopyAccountInfo(`${customerInfo.fullName} ${customerInfo.email}`)}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  <strong>Lưu ý:</strong> Vui lòng chuyển khoản đúng nội dung để hệ thống tự động xác nhận. Tài khoản sẽ được kích hoạt sau khi được xác minh.
+                </p>
+              </div>
+
+              <Button 
+                className="w-full" 
+                onClick={() => {
+                  setShowQRDialog(false);
+                  toast.info("Tài khoản sẽ được kích hoạt sau khi xác minh thành công", {
+                    description: "Vui lòng kiểm tra email để nhận thông báo khi tài khoản được kích hoạt.",
+                    duration: 5000
+                  });
+                }}
+              >
+                Đã chuyển khoản
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
