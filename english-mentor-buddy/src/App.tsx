@@ -30,6 +30,7 @@ import UploadPage from "./pages/admin/UploadPage";
 import AccountPage from "./pages/admin/AccountPage";
 import ProfilePage from "./pages/admin/ProfilePage";
 import RevenuePage from "./pages/admin/Revenue";
+import AIReviewPage from "./pages/admin/AIReview";
 import TestStatistics from "./pages/TestStatistics";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
                 <Route path="upload" element={<UploadPage />} />
                 <Route path="users" element={<UserManagement />} />
                 <Route path="revenue" element={<RevenuePage />} />
+                <Route path="ai-review" element={<AIReviewPage />} />
                 <Route path="account" element={<AccountPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="content" element={<ContentManagement />} />
