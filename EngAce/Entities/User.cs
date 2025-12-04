@@ -48,7 +48,7 @@ namespace Entities
 
         [Column("role")]
         [MaxLength(50)]
-        public string UserRole { get; set; } = "user"; // admin, user
+        public string UserRole { get; set; } = "customer"; // admin, customer
 
         // OAuth fields
         [Column("google_id")]
@@ -87,7 +87,7 @@ namespace Entities
 
         // For backward compatibility with existing code
         [NotMapped]
-        public string Role => UserRole ?? "user";
+        public string Role => UserRole ?? "customer";
 
         [NotMapped]
         public bool EmailVerified => true;

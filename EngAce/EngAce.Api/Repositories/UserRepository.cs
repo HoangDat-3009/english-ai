@@ -119,6 +119,12 @@ namespace EngAce.Api.Repositories
                 user.PasswordHash = string.Empty;
             }
             
+            // Ensure role is always set to 'customer' if not provided
+            if (string.IsNullOrWhiteSpace(user.UserRole))
+            {
+                user.UserRole = "customer";
+            }
+            
             var sql = @"
                 INSERT INTO users (email, username, full_name, password_hash, phone, avatar_url, 
                                    status, account_type, role, google_id, facebook_id, 
