@@ -3,8 +3,20 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
+using EngAce.Api.Services;
+using EngAce.Api.Repositories;
+using EngAce.Api.Middleware;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Logging to Console
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 if (builder.Environment.IsDevelopment())
 {
@@ -26,6 +38,35 @@ HttpContextHelper.Configure(
     serviceProvider.GetRequiredService<IConfiguration>()
 );
 builder.Services.AddMemoryCache();
+
+// Register Authentication Services
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Configure JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -107,15 +148,50 @@ builder.Services.AddCors(options =>
                   .AllowAnyMethod()
                   .AllowAnyHeader();
         });
+    
+    // Add CORS policy for Frontend
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("https://localhost:5173", "http://localhost:5173")
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
 });
 
 builder.Services.AddResponseCaching();
 
 var app = builder.Build();
 
+// Log all requests
+app.Use(async (context, next) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    
+    logger.LogInformation("==================== NEW REQUEST ====================");
+    logger.LogInformation($"📥 {context.Request.Method} {context.Request.Path}{context.Request.QueryString}");
+    logger.LogInformation($"🌐 From: {context.Connection.RemoteIpAddress}");
+    logger.LogInformation($"📋 Headers: {string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}={h.Value}"))}");
+    
+    await next();
+    
+    logger.LogInformation($"📤 Response: {context.Response.StatusCode}");
+    logger.LogInformation("====================================================");
+});
+
 app.UseDeveloperExceptionPage();
-app.UseHttpsRedirection();
+
+// Only use HTTPS redirection in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseRouting();
+
+// Add JWT Middleware
+app.UseMiddleware<JwtMiddleware>();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -145,7 +221,8 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "swagger";
     });
 
-    app.UseCors("AllowAll");
+    // Allow Frontend in Development
+    app.UseCors("AllowFrontend");
 }
 
 app.UseResponseCompression();

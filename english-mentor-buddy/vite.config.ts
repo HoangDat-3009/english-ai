@@ -1,20 +1,23 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  
+  return {
   base: mode === 'production' ? '/english-mentor-buddy/' : '/',
   server: {
-    host: "::",
-    port: 8080,
+    // bind to localhost and use a different port to avoid conflicts with other local services
+    host: 'localhost',
+    port: 5173,
+    // HTTPS is enabled via basicSsl plugin
     proxy: {
       "/api": {
-        target: "https://EngBuddy-d39f.onrender.com", // Địa chỉ server backend
-        changeOrigin: true, // Thay đổi origin trong header thành target
-        secure: false, // Tắt kiểm tra SSL nếu cần (dùng trong dev)
-        // rewrite: (path) => path.replace(/^\/api/, '') // Tùy chọn: bỏ prefix /api nếu server không cần
+        target: "http://localhost:5000", // Local API endpoint
+        changeOrigin: true,
+        secure: false,
       },
     },
   },
@@ -27,4 +30,4 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+}});

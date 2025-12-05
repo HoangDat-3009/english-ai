@@ -35,13 +35,14 @@ import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { supabase } from '@/services/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth0Integration } from '@/hooks/useAuth0Integration';
 
 const Navbar = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user, login, logout } = useAuth();
+  const { handleLogout: auth0Logout } = useAuth0Integration();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -61,8 +62,8 @@ const Navbar = () => {
     { name: 'Topics', path: '/topics', icon: Globe, color: 'text-pink-500' },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await auth0Logout();
     navigate('/');
   };
 
@@ -358,6 +359,20 @@ const Navbar = () => {
                       </SheetFooter>
                     </SheetContent>
                   </Sheet>
+
+                  {/* Admin access - chỉ hiển thị cho admin */}
+                  {(user.email === 'admin@example.com' || 
+                    user.tendangnhap === 'Admin' ||
+                    user.email?.includes('admin') ||
+                    user.id === 1) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate('/admin')}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Quản trị hệ thống</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
 
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>

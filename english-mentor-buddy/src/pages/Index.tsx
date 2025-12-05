@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import FeatureCard from '@/components/FeatureCard';
 import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
+import { useAuth0Integration } from '@/hooks/useAuth0Integration';
 
 const features = [
   {
@@ -50,6 +51,9 @@ const features = [
 ];
 
 const Index = () => {
+  // Tích hợp Auth0 để tự động đồng bộ user khi đăng nhập
+  useAuth0Integration();
+
   return (
     <MainLayout>
       {/* Hero Section */}
