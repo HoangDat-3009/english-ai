@@ -54,6 +54,7 @@ Return valid JSON with this structure (use PascalCase for property names):
     {
       ""Id"": 1,
       ""Vietnamese"": ""Câu tiếng Việt tự nhiên và thực tế"",
+      ""CorrectAnswer"": ""The correct English translation of the Vietnamese sentence"",
       ""Suggestion"": {
         ""Vocabulary"": [
           {
@@ -72,18 +73,18 @@ Return valid JSON with this structure (use PascalCase for property names):
 }
 ```
 
-**Important:** Use PascalCase for all property names. Ensure all JSON is properly formatted and valid.";
+**CRITICAL:**
+- **CorrectAnswer** is REQUIRED for each sentence - this is the ideal English translation
+- Provide natural, accurate translations appropriate for the CEFR level
+- Use PascalCase for all property names
+- Ensure all JSON is properly formatted and valid";
 
         public const string ReviewInstruction = @"
 ## **YOUR ROLE:**
 You are an **Expert English Writing Tutor** specializing in helping Vietnamese learners improve their sentence translation and writing skills.
 
 ## **YOUR TASK:**
-Evaluate a Vietnamese-to-English translation provided by a learner. Provide constructive feedback focused on:
-1. Accuracy of translation
-2. Grammar correctness
-3. Natural English expression
-4. Appropriate vocabulary usage for the CEFR level
+Evaluate a Vietnamese-to-English translation. Provide detailed, educational feedback.
 
 ## **EVALUATION CRITERIA:**
 
@@ -94,11 +95,30 @@ Evaluate a Vietnamese-to-English translation provided by a learner. Provide cons
 - **3-4:** Needs improvement - Significant errors
 - **0-2:** Poor - Major errors, meaning unclear
 
-### **Feedback Areas:**
-1. **Comment:** Overall assessment and encouragement
-2. **Grammar:** Specific grammar issues (if any)
-3. **StructureTip:** How to improve sentence structure
-4. **Suggestion:** A model translation for reference
+### **REQUIRED FEEDBACK:**
+
+1. **correctAnswer**: The correct/ideal English translation
+   - **CRITICAL:** ALWAYS provide a complete, correct English translation
+   - Even if the student's answer is perfect (score 9-10), still provide the correct answer
+   - This helps students verify their understanding
+   - Should be natural and appropriate for learner's level
+   - Never leave this empty
+   
+2. **vocabulary**: Key vocabulary in the sentence (3-5 words)
+   - Format: ""word: nghĩa tiếng Việt""
+   - Example: ""travel: du lịch; enjoy: thích thú; beautiful: đẹp""
+   - Separate words by semicolon (;)
+   
+3. **grammarPoints**: Grammar structures used in this sentence
+   - Explain what grammar is needed
+   - Be educational and concise
+   - Example: ""Present simple tense (I go...), Adjective + noun (beautiful place)""
+   
+4. **errorExplanation**: What was wrong (ONLY if score < 7)
+   - Be specific: point out the exact errors
+   - Explain why it's wrong
+   - Suggest how to fix it
+   - Use empty string """" if score >= 7
 
 ## **OUTPUT FORMAT:**
 
@@ -107,20 +127,20 @@ Return valid JSON:
 ```json
 {
   ""score"": 8,
-  ""comment"": ""Nhận xét chung về bản dịch"",
-  ""grammar"": ""Phân tích lỗi ngữ pháp (nếu có)"",
-  ""structureTip"": ""Gợi ý cải thiện cấu trúc câu"",
-  ""suggestion"": ""Câu gợi ý hoàn chỉnh""
+  ""correctAnswer"": ""The correct English translation"",
+  ""vocabulary"": ""word1: nghĩa1; word2: nghĩa2; word3: nghĩa3"",
+  ""grammarPoints"": ""Grammar structures explanation"",
+  ""errorExplanation"": ""Detailed error explanation (empty if score >= 7)""
 }
 ```
 
 **Important:**
-- Be encouraging and constructive
-- Explain errors clearly in Vietnamese
-- Provide specific examples
-- Suggest improvements, not just corrections";
+- correctAnswer: ALWAYS provide
+- vocabulary: ALWAYS provide 3-5 words with Vietnamese meanings
+- grammarPoints: ALWAYS explain the grammar
+- errorExplanation: Only provide if score < 7";
 
-        public static async Task<SentenceResponse> GenerateSentences(string apiKey, EnglishLevel level, string topic, int sentenceCount)
+        public static async Task<SentenceResponse> GenerateSentences(string apiKey, EnglishLevel level, string topic, int sentenceCount, string writingStyle = "Communicative")
         {
             try
             {
@@ -131,9 +151,12 @@ Return valid JSON:
                 promptBuilder.AppendLine($"- **Topic:** {topic}");
                 promptBuilder.AppendLine($"- **CEFR Level:** {userLevel}");
                 promptBuilder.AppendLine($"- **Number of sentences:** {sentenceCount}");
+                promptBuilder.AppendLine($"- **Writing Style:** {writingStyle}");
                 promptBuilder.AppendLine();
                 promptBuilder.AppendLine("## Level Description:");
                 promptBuilder.AppendLine(GetLevelDescription(level));
+                promptBuilder.AppendLine();
+                promptBuilder.AppendLine(GetWritingStyleDescription(writingStyle));
                 promptBuilder.AppendLine();
                 promptBuilder.AppendLine("Generate the sentences now.");
 
@@ -158,6 +181,7 @@ Return valid JSON:
                                     {
                                         Id = new { type = "integer" },
                                         Vietnamese = new { type = "string" },
+                                        CorrectAnswer = new { type = "string" },
                                         Suggestion = new
                                         {
                                             type = "object",
@@ -182,7 +206,7 @@ Return valid JSON:
                                             required = new[] { "Vocabulary", "Structure" }
                                         }
                                     },
-                                    required = new[] { "Id", "Vietnamese" }
+                                    required = new[] { "Id", "Vietnamese", "CorrectAnswer" }
                                 }
                             }
                         },
@@ -192,12 +216,40 @@ Return valid JSON:
                     .Build();
 
                 var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash_Lite);
+                
+                Console.WriteLine($"[DEBUG] Raw response from Gemini:");
+                Console.WriteLine(response.Result);
+                Console.WriteLine($"[DEBUG] Response length: {response.Result?.Length ?? 0}");
+                
                 var result = JsonConvert.DeserializeObject<SentenceResponse>(response.Result);
+                
+                Console.WriteLine($"[DEBUG] Deserialized result: {(result != null ? "Success" : "Null")}");
+                Console.WriteLine($"[DEBUG] Sentences in result: {result?.Sentences?.Count ?? 0}");
+                
+                if (result != null && result.Sentences != null)
+                {
+                    foreach (var sentence in result.Sentences)
+                    {
+                        Console.WriteLine($"  - Sentence {sentence.Id}: {sentence.Vietnamese}");
+                    }
+                }
+                
                 return result ?? new SentenceResponse();
             }
-            catch
+            catch (Exception ex)
             {
-                return new SentenceResponse { Sentences = new List<SentenceData>() };
+                Console.WriteLine($"[ERROR] Exception in GenerateSentences:");
+                Console.WriteLine($"  - Message: {ex.Message}");
+                Console.WriteLine($"  - StackTrace: {ex.StackTrace}");
+                Console.WriteLine($"  - InnerException: {ex.InnerException?.Message}");
+                
+                // Check if it's a rate limit error
+                if (ex.Message.Contains("429") || ex.Message.Contains("RATE_LIMIT_EXCEEDED") || ex.Message.Contains("Quota exceeded"))
+                {
+                    throw new Exception("RATE_LIMIT: API đã vượt quá giới hạn request. Vui lòng đợi 1 phút rồi thử lại.");
+                }
+                
+                throw new Exception($"Lỗi khi tạo câu: {ex.Message}");
             }
         }
 
@@ -227,12 +279,12 @@ Return valid JSON:
                     properties = new
                     {
                         score = new { type = "integer" },
-                        comment = new { type = "string" },
-                        grammar = new { type = "string" },
-                        structureTip = new { type = "string" },
-                        suggestion = new { type = "string" }
+                        correctAnswer = new { type = "string" },
+                        vocabulary = new { type = "string" },
+                        grammarPoints = new { type = "string" },
+                        errorExplanation = new { type = "string" }
                     },
-                    required = new[] { "score", "comment", "grammar", "structureTip", "suggestion" }
+                    required = new[] { "score", "correctAnswer", "vocabulary", "grammarPoints", "errorExplanation" }
                 })
                 .DisableAllSafetySettings()
                 .Build();
@@ -252,6 +304,25 @@ Return valid JSON:
                 EnglishLevel.Advanced => "C1: Subtle expressions, idioms, advanced grammar. Professional and academic contexts.",
                 EnglishLevel.Proficient => "C2: Native-like fluency, literary expressions, perfect accuracy. All contexts.",
                 _ => string.Empty,
+            };
+        }
+
+        private static string GetWritingStyleDescription(string writingStyle)
+        {
+            return writingStyle.ToLower() switch
+            {
+                "academic" => @"## Writing Style: Academic
+- Focus on **formal language** and **academic vocabulary**
+- Use **complex sentence structures** and **formal expressions**
+- Include **analytical** and **descriptive** language
+- Sentences suitable for essays, reports, and academic discussions
+- Example contexts: research, analysis, formal opinions, academic arguments",
+                _ => @"## Writing Style: Communicative (Conversational)
+- Focus on **everyday language** and **practical communication**
+- Use **natural expressions** and **common phrases**
+- Include **casual** and **conversational** language
+- Sentences suitable for daily conversations, chats, and informal interactions
+- Example contexts: daily life, shopping, socializing, personal experiences"
             };
         }
     }

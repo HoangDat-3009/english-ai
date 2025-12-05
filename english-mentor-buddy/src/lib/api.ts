@@ -92,12 +92,14 @@ export interface GenerateSentencesRequest {
   topic: string;
   level: string;
   sentenceCount: number;
+  writingStyle?: string;
 }
 
 export interface GenerateSentencesResponse {
   Sentences: Array<{
     Id: number;
     Vietnamese: string;
+    CorrectAnswer: string;
     Suggestion?: {
       Vocabulary: Array<{ Word: string; Meaning: string }>;
       Structure: string;
@@ -119,11 +121,16 @@ export const sentenceWritingApi = {
         Topic: data.topic,
         Level: sentenceLevelMapping[data.level] || 3,
         SentenceCount: data.sentenceCount,
+        WritingStyle: data.writingStyle || "Communicative",
       };
 
       console.log("📤 Request body:", requestBody);
+      
+      const url = `${apiService.getBaseUrl()}/api/SentenceWriting/Generate`;
+      console.log("🌐 Full URL:", url);
+      console.log("🔑 Headers:", apiService.getHeaders());
 
-      const response = await fetch(`${apiService.getBaseUrl()}/api/SentenceWriting/Generate`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,10 +140,17 @@ export const sentenceWritingApi = {
       });
 
       console.log("📥 Response status:", response.status);
+      console.log("📥 Response ok:", response.ok);
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error("❌ Response error:", errorText);
+        
+        // Handle rate limit (429)
+        if (response.status === 429) {
+          throw new Error("🕐 API đang bận hoặc hết quota. Vui lòng đợi 1-2 phút và thử lại. Nếu vẫn lỗi, hãy kiểm tra Gemini API key.");
+        }
+        
         throw new Error(errorText || `Server responded with status: ${response.status}`);
       }
 
@@ -155,9 +169,26 @@ export const sentenceWritingApi = {
       return result;
     } catch (error: unknown) {
       console.error("❌ API Error:", error);
+      console.error("❌ Error type:", error instanceof Error ? 'Error' : typeof error);
+      
+      if (error instanceof Error) {
+        console.error("❌ Error message:", error.message);
+        console.error("❌ Error stack:", error.stack);
+      }
       
       // Re-throw busy error
       if (error instanceof Error && 'isBusyError' in error && (error as { isBusyError: boolean }).isBusyError) {
+        throw error;
+      }
+      
+      // Check if it's a network error
+      if (error instanceof TypeError) {
+        console.error("❌ Network error detected");
+        throw new Error("Không thể kết nối đến server. Vui lòng kiểm tra:\n1. Backend đã chạy chưa?\n2. URL có đúng không? (https://localhost:5000)\n3. CORS có được config chưa?");
+      }
+      
+      // Re-throw other errors with their original message
+      if (error instanceof Error) {
         throw error;
       }
       

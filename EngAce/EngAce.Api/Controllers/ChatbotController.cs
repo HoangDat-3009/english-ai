@@ -38,6 +38,17 @@ namespace EngAce.Api.Controllers
             {
                 _logger.LogError(ex, "Cannot generate answer");
 
+                // Check if it's a rate limit error (429)
+                if (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED") || ex.Message.Contains("rate limit"))
+                {
+                    _logger.LogWarning("Rate limit hit for user: {Username}", username);
+                    
+                    return StatusCode(429, new ChatResponse
+                    {
+                        MessageInMarkdown = "🕐 **API đang quá tải**\n\nMình đang bị giới hạn số lượng yêu cầu rồi cục cưng. Vui lòng:\n\n1. ⏰ Đợi **1-2 phút** rồi thử lại\n2. 🔄 Hoặc **làm mới cuộc trò chuyện** (nút Làm mới)\n3. ⏳ Gửi tin nhắn **chậm hơn** một chút\n\nXin lỗi vì sự bất tiện này nha! 😊"
+                    });
+                }
+
                 return Ok(new ChatResponse
                 {
                     MessageInMarkdown = "Nhắn từ từ thôi cục cưng, vội vàng vậy 💢\nNgồi đợi 1 phút cho mình đi uống ly cà phê đã. Sau 1 phút mà vẫn lỗi thì xóa lịch sử trò chuyện rồi thử lại nha! ^_^"

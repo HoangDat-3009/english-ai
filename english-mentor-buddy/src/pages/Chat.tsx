@@ -20,6 +20,7 @@ const Consultation: React.FC = () => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Cài đặt người dùng cố định
@@ -31,6 +32,17 @@ const Consultation: React.FC = () => {
     enableReasoning: false,
     enableSearching: false
   };
+
+  // Global error handler
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global error caught:', event.error);
+      setHasError(true);
+    };
+    
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
   // Load initial messages
   useEffect(() => {
@@ -89,6 +101,9 @@ const Consultation: React.FC = () => {
   const handleSendMessage = async () => {
     if (!message.trim()) return;
 
+    console.log('📤 Sending message:', message);
+    console.log('📊 Current messages count:', messages.length);
+
     // Create new user message
     const newUserMessage: Message = {
       id: Date.now(),
@@ -105,6 +120,19 @@ const Consultation: React.FC = () => {
 
     // Prepare for API request
     setIsLoading(true);
+    
+    // Add a temporary "waiting" message if rate limited
+    const waitingMessageId = Date.now() + 0.5;
+    setTimeout(() => {
+      if (isLoading) {
+        setMessages(prev => [...prev, {
+          id: waitingMessageId,
+          content: '⏳ Đang xử lý yêu cầu... (có thể mất vài giây do giới hạn tốc độ)',
+          isUser: false,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
+    }, 3000); // Show after 3 seconds
 
     try {
       // Convert current message history to format expected by API
@@ -137,16 +165,32 @@ const Consultation: React.FC = () => {
         userSettings.enableSearching
       );
 
+      // Validate response
+      if (!response || typeof response !== 'string') {
+        console.error('❌ Invalid response from API:', response);
+        throw new Error('Phản hồi không hợp lệ từ server');
+      }
+
       // Create bot response message
       const botResponse: Message = {
         id: Date.now() + 1,
-        content: response,
+        content: response.trim(),
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
-      // Add bot response to UI
-      setMessages(prev => [...prev, botResponse]);
+      // Add bot response to UI - use functional update to ensure we have latest state
+      setMessages(prev => {
+        // Remove waiting message if exists
+        const filtered = prev.filter(m => m.id !== waitingMessageId);
+        
+        // Safety check
+        if (!Array.isArray(filtered)) {
+          console.error('❌ Messages state is not an array!');
+          return [newUserMessage, botResponse];
+        }
+        return [...filtered, botResponse];
+      });
 
       // Save updated conversation to localStorage
       const updatedChatHistory = [
@@ -157,7 +201,23 @@ const Consultation: React.FC = () => {
 
     } catch (err) {
       console.error('Error sending message:', err);
-      error('Không thể gửi tin nhắn', 'Vui lòng thử lại sau');
+      
+      // Create error message for user
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        content: '❌ Lỗi: Không thể gửi tin nhắn. Vui lòng thử lại sau. Nếu vấn đề tiếp diễn, hãy làm mới cuộc trò chuyện.',
+        isUser: false,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      // Remove waiting message if exists
+      setMessages(prev => {
+        const filtered = prev.filter(m => m.id !== waitingMessageId);
+        if (!Array.isArray(filtered)) return [errorMessage];
+        return [...filtered, errorMessage];
+      });
+      
+      error('Không thể gửi tin nhắn', err instanceof Error ? err.message : 'Vui lòng thử lại sau');
     } finally {
       setIsLoading(false);
     }
@@ -201,36 +261,77 @@ const Consultation: React.FC = () => {
     }
   };
 
+  // Error fallback UI
+  if (hasError) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-soft">
+        <Header />
+        <main className="flex-1 container max-w-screen-xl mx-auto py-4 px-4 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="text-6xl">😞</div>
+            <h2 className="text-2xl font-bold text-foreground">Có lỗi xảy ra</h2>
+            <p className="text-muted-foreground">Trang chat gặp sự cố. Vui lòng tải lại trang.</p>
+            <Button onClick={() => window.location.reload()}>
+              <RefreshCw size={16} className="mr-2" />
+              Tải lại trang
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-soft">
       <Header />
       <main className="flex-1 container max-w-screen-xl mx-auto py-4 px-4 flex flex-col">
         <div className="flex-1 bg-card dark:bg-card rounded-lg shadow-sm overflow-hidden flex flex-col border border-border">
-          <div className="border-b border-border p-4 flex items-center justify-between bg-card dark:bg-card">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
-                <MessageSquare size={20} color="white" />
+          <div className="border-b border-border bg-card dark:bg-card">
+            <div className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
+                  <MessageSquare size={20} color="white" />
+                </div>
+                <h2 className="font-semibold text-lg text-foreground">Tư vấn với AI</h2>
               </div>
-              <h2 className="font-semibold text-lg text-foreground">Tư vấn với AI</h2>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                onClick={handleClearConversation}
+                disabled={isLoading}
+              >
+                <RefreshCw size={16} className="mr-2" />
+                Làm mới
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-              onClick={handleClearConversation}
-              disabled={isLoading}
-            >
-              <RefreshCw size={16} className="mr-2" />
-              Làm mới
-            </Button>
+            
+            {/* Rate limit warning */}
+            {isLoading && (
+              <div className="px-4 pb-3">
+                <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    ⏳ <strong>Lưu ý:</strong> Để tránh lỗi quá tải, hãy đợi ít nhất 2-3 giây giữa các tin nhắn.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background dark:bg-background">
-            {messages.map(msg => (
-              <div
-                key={msg.id}
-                className={`max-w-3xl ${msg.isUser ? 'ml-auto' : ''}`}
-              >
+            {Array.isArray(messages) && messages.length > 0 ? (
+              messages.map(msg => {
+                // Safety check for each message
+                if (!msg || !msg.content) {
+                  console.warn('Invalid message detected:', msg);
+                  return null;
+                }
+                
+                return (
+                  <div
+                    key={msg.id}
+                    className={`max-w-3xl ${msg.isUser ? 'ml-auto' : ''}`}
+                  >
                 <div
                   className={`rounded-2xl p-4 ${msg.isUser
                     ? 'bg-gradient-to-r from-pink-100 to-rose-100 dark:from-pink-900/30 dark:to-rose-900/30 text-right text-foreground'
@@ -238,7 +339,7 @@ const Consultation: React.FC = () => {
                     }`}
                 >
                   {msg.isUser ? (
-                    <p className="whitespace-pre-line">{msg.content}</p>
+                    <p className="whitespace-pre-line">{msg.content || ''}</p>
                   ) : (
                     <div className="prose prose-sm prose-pink max-w-none dark:prose-invert text-left">
                       <ReactMarkdown
@@ -309,7 +410,13 @@ const Consultation: React.FC = () => {
                   {msg.timestamp}
                 </div>
               </div>
-            ))}
+                );
+              })
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                Chưa có tin nhắn nào
+              </div>
+            )}
             {isLoading && (
               <div className="max-w-3xl">
                 <div className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-4">

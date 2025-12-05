@@ -25,7 +25,8 @@ const SentenceWriting = () => {
     topic: "travel", // Mặc định chọn Du lịch
     customTopic: "",
     level: "Intermediate",
-    sentenceCount: "5"
+    sentenceCount: "5",
+    writingStyle: "Communicative" // Mặc định là Giao tiếp
   });
 
   const suggestedTopics = [
@@ -61,7 +62,8 @@ const SentenceWriting = () => {
       const data = await sentenceWritingApi.generateSentences({
         topic: finalTopic,
         level: formData.level,
-        sentenceCount: parseInt(formData.sentenceCount)
+        sentenceCount: parseInt(formData.sentenceCount),
+        writingStyle: formData.writingStyle
       });
       
       console.log("✅ Received data from API:", data);
@@ -76,20 +78,30 @@ const SentenceWriting = () => {
       
       // Normalize to lowercase for frontend consistency
       const normalizedData = {
-        sentences: data.Sentences.map(s => ({
-          id: s.Id,
-          vietnamese: s.Vietnamese,
-          suggestion: s.Suggestion ? {
-            vocabulary: s.Suggestion.Vocabulary.map(v => ({
-              word: v.Word,
-              meaning: v.Meaning
-            })),
-            structure: s.Suggestion.Structure
-          } : undefined
-        }))
+        sentences: data.Sentences.map(s => {
+          console.log(`📝 Sentence ${s.Id}:`, {
+            vietnamese: s.Vietnamese,
+            correctAnswer: s.CorrectAnswer,
+            hasCorrectAnswer: !!s.CorrectAnswer
+          });
+          
+          return {
+            id: s.Id,
+            vietnamese: s.Vietnamese,
+            correctAnswer: s.CorrectAnswer || "",
+            suggestion: s.Suggestion ? {
+              vocabulary: s.Suggestion.Vocabulary.map(v => ({
+                word: v.Word,
+                meaning: v.Meaning
+              })),
+              structure: s.Suggestion.Structure
+            } : undefined
+          };
+        })
       };
       
       console.log("✅ Normalized data:", normalizedData);
+      console.log("✅ All sentences have correctAnswer?", normalizedData.sentences.every(s => s.correctAnswer));
       
       toast.success("Đã tạo bài luyện viết thành công!");
       
@@ -145,7 +157,7 @@ const SentenceWriting = () => {
             LUYỆN VIẾT CÂU
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            AI sẽ tạo các câu tiếng Việt theo chủ đề, bạn dịch sang tiếng Anh và nhận feedback
+            Các câu tiếng Việt theo chủ đề, bạn dịch sang tiếng Anh và nhận feedback
           </p>
         </div>
 
@@ -197,8 +209,31 @@ const SentenceWriting = () => {
                 />
               )}
               <p className="text-sm text-muted-foreground">
-                AI sẽ tạo các câu liên quan đến chủ đề này
+                Các câu liên quan đến chủ đề này
               </p>
+            </div>
+
+            {/* Writing Style Selection */}
+            <div className="space-y-4">
+              <Label>Dạng bài viết *</Label>
+              <RadioGroup 
+                value={formData.writingStyle} 
+                onValueChange={(value) => setFormData({ ...formData, writingStyle: value })} 
+                disabled={isGenerating}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Communicative" id="communicative" />
+                  <Label htmlFor="communicative" className="font-normal cursor-pointer">
+                    <span className="font-semibold">🗣️ Giao tiếp</span>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Academic" id="academic" />
+                  <Label htmlFor="academic" className="font-normal cursor-pointer">
+                    <span className="font-semibold">📚 Học thuật</span>
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
 
             {/* Level Selection */}
@@ -268,7 +303,7 @@ const SentenceWriting = () => {
                 💡 Cách thức hoạt động:
               </h4>
               <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                <li>• AI tạo các câu tiếng Việt theo chủ đề và độ khó</li>
+                <li>• Các câu tiếng Việt theo chủ đề và độ khó</li>
                 <li>• Bạn dịch từng câu sang tiếng Anh</li>
                 <li>• Nhận đánh giá và gợi ý cải thiện ngay lập tức</li>
                 <li>• Có gợi ý từ vựng và cấu trúc nếu gặp khó khăn</li>

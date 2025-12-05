@@ -41,7 +41,19 @@ namespace EngAce.Api.Controllers
 
             try
             {
-                var result = await SentenceWritingScope.GenerateSentences(_accessKey, request.Level, topic, request.SentenceCount);
+                var writingStyle = string.IsNullOrEmpty(request.WritingStyle) ? "Communicative" : request.WritingStyle;
+                
+                Console.WriteLine($"[DEBUG] Calling GenerateSentences with:");
+                Console.WriteLine($"  - Access Key: {(!string.IsNullOrEmpty(_accessKey) ? "Present" : "Missing")}");
+                Console.WriteLine($"  - Level: {request.Level}");
+                Console.WriteLine($"  - Topic: {topic}");
+                Console.WriteLine($"  - SentenceCount: {request.SentenceCount}");
+                Console.WriteLine($"  - WritingStyle: {writingStyle}");
+                
+                var result = await SentenceWritingScope.GenerateSentences(_accessKey, request.Level, topic, request.SentenceCount, writingStyle);
+                
+                Console.WriteLine($"[DEBUG] GenerateSentences returned: {(result != null ? "Success" : "Null")}");
+                Console.WriteLine($"[DEBUG] Sentences count: {result?.Sentences?.Count ?? 0}");
                 
                 if (result == null || result.Sentences == null || result.Sentences.Count == 0)
                 {
@@ -52,6 +64,16 @@ namespace EngAce.Api.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[ERROR] Exception in Generate: {ex.Message}");
+                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+                Console.WriteLine($"[ERROR] Inner exception: {ex.InnerException?.Message}");
+                
+                // Check if it's a rate limit error
+                if (ex.Message.Contains("RATE_LIMIT") || ex.Message.Contains("429") || ex.Message.Contains("Quota exceeded"))
+                {
+                    return StatusCode(429, "🕐 API đang bận. Vui lòng đợi 1-2 phút và thử lại. Nếu vẫn lỗi, hãy kiểm tra Gemini API key quota.");
+                }
+                
                 return BadRequest($"Lỗi: {ex.Message}");
             }
         }
