@@ -110,25 +110,14 @@ export interface GenerateSentencesResponse {
 export const sentenceWritingApi = {
   generateSentences: async (data: GenerateSentencesRequest): Promise<GenerateSentencesResponse> => {
     try {
-      console.log("🚀 Calling SentenceWriting API with data:", {
-        topic: data.topic,
-        level: data.level,
-        mappedLevel: sentenceLevelMapping[data.level],
-        sentenceCount: data.sentenceCount,
-      });
-
       const requestBody = {
         Topic: data.topic,
         Level: sentenceLevelMapping[data.level] || 3,
         SentenceCount: data.sentenceCount,
         WritingStyle: data.writingStyle || "Communicative",
       };
-
-      console.log("📤 Request body:", requestBody);
       
       const url = `${apiService.getBaseUrl()}/api/SentenceWriting/Generate`;
-      console.log("🌐 Full URL:", url);
-      console.log("🔑 Headers:", apiService.getHeaders());
 
       const response = await fetch(url, {
         method: 'POST',
@@ -139,12 +128,8 @@ export const sentenceWritingApi = {
         body: JSON.stringify(requestBody)
       });
 
-      console.log("📥 Response status:", response.status);
-      console.log("📥 Response ok:", response.ok);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("❌ Response error:", errorText);
         
         // Handle rate limit (429)
         if (response.status === 429) {
@@ -155,12 +140,9 @@ export const sentenceWritingApi = {
       }
 
       const result = await response.json();
-      
-      console.log("✅ Response received:", result);
 
       // Kiểm tra nếu backend busy
       if (typeof result === 'string' && (result.includes("CẢNH BÁO") || result.includes("EngBuddy đang bận"))) {
-        console.log("⚠️ Backend is busy");
         const busyError = new Error(result) as Error & { isBusyError: boolean };
         busyError.isBusyError = true;
         throw busyError;

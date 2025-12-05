@@ -48,32 +48,6 @@ interface SentenceReview {
   isCorrect: boolean;
 }
 
-// Thêm các interface này ở trên cùng file (phía trên SentencePractice)
-interface BackendVocabulary {
-  word?: string;
-  Word?: string;
-  meaning?: string;
-  Meaning?: string;
-}
-
-interface BackendSuggestion {
-  vocabulary?: BackendVocabulary[];
-  Vocabulary?: BackendVocabulary[];
-  structure?: string;
-  Structure?: string;
-}
-
-interface BackendSentence {
-  id?: number;
-  Id?: number;
-  vietnamese?: string;
-  Vietnamese?: string;
-  correctAnswer?: string;
-  CorrectAnswer?: string;
-  suggestion?: BackendSuggestion;
-  Suggestion?: BackendSuggestion;
-}
-
 
 const SentencePractice = () => {
   const location = useLocation();
@@ -93,50 +67,8 @@ const SentencePractice = () => {
     window.scrollTo(0, 0);
   }, []);
   
-  // Debug log
-  console.log("🔍 SentencePractice received state:", location.state);
-  console.log("🔍 Raw generated data:", generatedData);
-  console.log("🔍 Generated sentences raw:", generatedData?.sentences);
-
-// Chuẩn hoá dữ liệu nhận từ backend về dạng SentenceData
-const rawSentences = (generatedData?.sentences || []) as BackendSentence[];
-console.log("🔍 Raw sentences before mapping:", rawSentences.map(s => ({
-  id: s.id ?? s.Id,
-  correctAnswer: s.correctAnswer,
-  CorrectAnswer: s.CorrectAnswer,
-  hasCorrectAnswer: !!(s.correctAnswer ?? s.CorrectAnswer)
-})));const sentences: SentenceData[] = rawSentences.map((s, index) => {
-  const suggestionSource = s.suggestion ?? s.Suggestion;
-
-  let suggestion: SentenceData["suggestion"] | undefined = undefined;
-
-  if (suggestionSource) {
-    const vocabSource = suggestionSource.vocabulary ?? suggestionSource.Vocabulary ?? [];
-
-    suggestion = {
-      vocabulary: vocabSource.map((v) => ({
-        word: v.word ?? v.Word ?? "",
-        meaning: v.meaning ?? v.Meaning ?? "",
-      })),
-      structure: suggestionSource.structure ?? suggestionSource.Structure ?? "",
-    };
-  }
-
-  return {
-    id: s.id ?? s.Id ?? index + 1,
-    vietnamese: s.vietnamese ?? s.Vietnamese ?? "",
-    correctAnswer: s.correctAnswer ?? s.CorrectAnswer ?? "",
-    suggestion,
-  };
-});
-
-
-  console.log("🔍 Sentences mapped:", sentences.map(s => ({ 
-    id: s.id, 
-    vietnamese: s.vietnamese?.substring(0, 30), 
-    correctAnswer: s.correctAnswer,
-    hasCorrectAnswer: !!s.correctAnswer 
-  })));
+  // Data đã được normalize ở SentenceWriting.tsx, dùng trực tiếp
+  const sentences: SentenceData[] = generatedData?.sentences || [];
   
   const currentSentence = sentences[currentIndex];
   const totalSentences = sentences.length;
@@ -329,12 +261,10 @@ console.log("🔍 Raw sentences before mapping:", rawSentences.map(s => ({
       setIsCompleted(true);
       
       const finalCorrectCount = reviewResults.filter(r => r.isCorrect).length;
-      const totalScore = reviewResults.reduce((sum, r) => sum + r.score, 0);
-      const avgScore = (totalScore / reviewResults.length).toFixed(1);
       
-      console.log("📊 Final stats:", { avgScore, correctCount: finalCorrectCount, total: reviewResults.length });
+      console.log("📊 Final stats:", { correctCount: finalCorrectCount, total: reviewResults.length });
       
-      toast.success(`Hoàn thành! Điểm trung bình: ${avgScore}/10 (${finalCorrectCount}/${reviewResults.length} câu đúng)`);
+      toast.success(`Hoàn thành! ${finalCorrectCount}/${reviewResults.length} câu đúng`);
       
       // Scroll to top to see results
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -373,11 +303,14 @@ console.log("🔍 Raw sentences before mapping:", rawSentences.map(s => ({
   
   if (isCompleted && reviews.length > 0) {
     console.log("✅ Rendering results page");
-    const totalScore = reviews.reduce((sum, r) => sum + r.score, 0);
-    const avgScore = (totalScore / reviews.length).toFixed(1);
+    console.log("✅ Reviews with correctAnswer:", reviews.map(r => ({ 
+      id: r.sentenceId, 
+      correctAnswer: r.correctAnswer,
+      hasCorrectAnswer: !!r.correctAnswer 
+    })));
     const correctCount = reviews.filter(r => r.isCorrect).length;
     
-    console.log("📊 Results page stats:", { avgScore, correctCount, totalReviews: reviews.length });
+    console.log("📊 Results page stats:", { correctCount, totalReviews: reviews.length });
     
     return (
       <div className="min-h-screen bg-gradient-soft">
@@ -405,23 +338,16 @@ console.log("🔍 Raw sentences before mapping:", rawSentences.map(s => ({
             </CardHeader>
             <CardContent className="pt-6">
               <div className="text-center pb-6 border-b">
-                <div className="flex items-center justify-center gap-4 mb-4">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-1">Điểm trung bình</p>
-                    <p className="text-5xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                      {avgScore}/10
-                    </p>
-                  </div>
-                  <Separator orientation="vertical" className="h-16" />
+                <div className="flex items-center justify-center mb-4">
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground mb-1">Số câu đúng</p>
-                    <p className="text-4xl font-bold text-green-600">
+                    <p className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                       {correctCount}/{totalSentences}
                     </p>
                   </div>
                 </div>
-                <Badge variant={Number(avgScore) >= 7 ? "default" : "secondary"} className="text-base px-4 py-1">
-                  {Number(avgScore) >= 7 ? "✓ Xuất sắc!" : "Cần cải thiện"}
+                <Badge variant={correctCount === totalSentences ? "default" : "secondary"} className="text-base px-4 py-1">
+                  {correctCount === totalSentences ? "✓ Hoàn hảo!" : correctCount >= totalSentences * 0.7 ? "Tốt lắm!" : "Cần cải thiện"}
                 </Badge>
               </div>
 
@@ -449,8 +375,9 @@ console.log("🔍 Raw sentences before mapping:", rawSentences.map(s => ({
                     ✨ Kết quả chấm nhanh bởi AI
                   </h4>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Đây là kết quả đánh giá tự động, mang tính chất <strong>tham khảo</strong> và có thể chưa hoàn toàn chính xác. 
-                    Kết quả chấm chi tiết và chính thức sẽ được <strong>cô giáo trực tiếp đánh giá</strong> và gửi đến bạn sau đó. 📝✨
+                    Đây là kết quả đánh giá tự động do AI thực hiện, mang tính chất <strong>tham khảo</strong> và có thể chưa hoàn toàn chính xác. 
+                    Kết quả chấm chi tiết và chính thức sẽ được <strong>cô giáo trực tiếp đánh giá</strong> và gửi đến bạn trong <strong>vài giờ tới</strong>. 
+                    Cảm ơn bạn đã kiên nhẫn chờ đợi! 📝✨
                   </p>
                 </div>
               </div>
@@ -476,8 +403,8 @@ console.log("🔍 Raw sentences before mapping:", rawSentences.map(s => ({
                         )}
                         Câu {index + 1}
                       </span>
-                      <Badge variant={review.isCorrect ? "default" : "secondary"}>
-                        {review.score}/10
+                      <Badge variant={review.isCorrect ? "default" : "destructive"}>
+                        {review.isCorrect ? "Đúng" : "Sai"}
                       </Badge>
                     </CardTitle>
                   </CardHeader>
@@ -537,11 +464,6 @@ console.log("🔍 Raw sentences before mapping:", rawSentences.map(s => ({
         </main>
       </div>
     );
-  }
-
-  // Debug: Force render results if data exists but UI not showing
-  if (reviews.length > 0 && !isCompleted) {
-    console.warn("⚠️ WARNING: Have reviews but isCompleted is false!", { reviewsCount: reviews.length, isCompleted });
   }
 
   return (

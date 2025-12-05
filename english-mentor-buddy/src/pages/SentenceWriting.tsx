@@ -66,42 +66,27 @@ const SentenceWriting = () => {
         writingStyle: formData.writingStyle
       });
       
-      console.log("✅ Received data from API:", data);
-      console.log("📊 Has Sentences?", !!data.Sentences);
-      console.log("📊 Sentences length:", data.Sentences?.length);
-      
       // Validate data before navigate
       if (!data || !data.Sentences || data.Sentences.length === 0) {
-        console.error("❌ Invalid data structure. Received:", data);
+        console.error("❌ Invalid data structure");
         throw new Error("Dữ liệu trả về không hợp lệ. Vui lòng kiểm tra backend.");
       }
       
       // Normalize to lowercase for frontend consistency
       const normalizedData = {
-        sentences: data.Sentences.map(s => {
-          console.log(`📝 Sentence ${s.Id}:`, {
-            vietnamese: s.Vietnamese,
-            correctAnswer: s.CorrectAnswer,
-            hasCorrectAnswer: !!s.CorrectAnswer
-          });
-          
-          return {
-            id: s.Id,
-            vietnamese: s.Vietnamese,
-            correctAnswer: s.CorrectAnswer || "",
-            suggestion: s.Suggestion ? {
-              vocabulary: s.Suggestion.Vocabulary.map(v => ({
-                word: v.Word,
-                meaning: v.Meaning
-              })),
-              structure: s.Suggestion.Structure
-            } : undefined
-          };
-        })
+        sentences: data.Sentences.map(s => ({
+          id: s.Id,
+          vietnamese: s.Vietnamese,
+          correctAnswer: s.CorrectAnswer || "",
+          suggestion: s.Suggestion ? {
+            vocabulary: s.Suggestion.Vocabulary.map(v => ({
+              word: v.Word,
+              meaning: v.Meaning
+            })),
+            structure: s.Suggestion.Structure
+          } : undefined
+        }))
       };
-      
-      console.log("✅ Normalized data:", normalizedData);
-      console.log("✅ All sentences have correctAnswer?", normalizedData.sentences.every(s => s.correctAnswer));
       
       toast.success("Đã tạo bài luyện viết thành công!");
       

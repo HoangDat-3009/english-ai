@@ -4,6 +4,7 @@ namespace Entities
     {
         public int Id { get; set; }
         public string Vietnamese { get; set; } = string.Empty;
+        public string CorrectAnswer { get; set; } = string.Empty;
         public SentenceSuggestion? Suggestion { get; set; }
     }
 
