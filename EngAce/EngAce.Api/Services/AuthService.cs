@@ -55,7 +55,7 @@ namespace EngAce.Api.Services
                     Username = request.Username?.Trim(),
                     FullName = request.FullName?.Trim(),
                     PasswordHash = passwordHash,
-                    UserRole = "user", // Default role
+                    Role = "user", // Default role
                     Status = "active",
                     AccountType = "free",
                     CreatedAt = DateTime.UtcNow,
@@ -227,11 +227,11 @@ namespace EngAce.Api.Services
                         // Link OAuth account to existing user
                         if (request.Provider.ToLower() == "google")
                         {
-                            user.GoogleID = request.ProviderId;
+                            user.GoogleId = request.ProviderId;
                         }
                         else if (request.Provider.ToLower() == "facebook")
                         {
-                            user.FacebookID = request.ProviderId;
+                            user.FacebookId = request.ProviderId;
                         }
                         
                         user.Avatar = user.Avatar ?? request.Avatar;
@@ -250,7 +250,7 @@ namespace EngAce.Api.Services
                         Email = request.Email.ToLower().Trim(),
                         FullName = request.FullName?.Trim(),
                         Avatar = request.Avatar,
-                        UserRole = "user", // Default role
+                        Role = "user", // Default role
                         Status = "active",
                         AccountType = "free",
                         PasswordHash = null, // No password for OAuth users
@@ -261,11 +261,11 @@ namespace EngAce.Api.Services
 
                     if (request.Provider.ToLower() == "google")
                     {
-                        user.GoogleID = request.ProviderId;
+                        user.GoogleId = request.ProviderId;
                     }
                     else if (request.Provider.ToLower() == "facebook")
                     {
-                        user.FacebookID = request.ProviderId;
+                        user.FacebookId = request.ProviderId;
                     }
 
                     user = await _userRepository.CreateAsync(user);

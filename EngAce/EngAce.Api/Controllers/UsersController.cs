@@ -128,7 +128,7 @@ namespace EngAce.Api.Controllers
                                     FullName = reader.IsDBNull(reader.GetOrdinal("full_name"))
                                         ? null
                                         : reader.GetString("full_name"),
-                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                    Avatar = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
                                         ? null
                                         : reader.GetString("avatar_url"),
                                     TotalXP = reader.GetInt32("total_xp"),
@@ -227,7 +227,7 @@ namespace EngAce.Api.Controllers
                                     Address = reader.IsDBNull(reader.GetOrdinal("address"))
                                         ? null
                                         : reader.GetString("address"),
-                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                    Avatar = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
                                         ? null
                                         : reader.GetString("avatar_url"),
                                     TotalStudyTime = reader.GetInt32("total_study_time"),
@@ -320,7 +320,7 @@ namespace EngAce.Api.Controllers
                                     FullName = reader.IsDBNull(reader.GetOrdinal("full_name")) 
                                         ? null 
                                         : reader.GetString("full_name"),
-                                    AvatarURL = reader.IsDBNull(reader.GetOrdinal("avatar_url")) 
+                                    Avatar = reader.IsDBNull(reader.GetOrdinal("avatar_url")) 
                                         ? null 
                                         : reader.GetString("avatar_url"),
                                     Address = reader.IsDBNull(reader.GetOrdinal("address")) 
@@ -420,7 +420,7 @@ namespace EngAce.Api.Controllers
                                     FullName = reader.IsDBNull(reader.GetOrdinal("full_name"))
                                         ? null
                                         : reader.GetString("full_name"),
-                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                    Avatar = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
                                         ? null
                                         : reader.GetString("avatar_url"),
                                     TotalXP = reader.GetInt32("total_xp")

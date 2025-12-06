@@ -25,7 +25,8 @@ import {
   ChevronDown,
   Moon,
   Sun,
-  DollarSign
+  DollarSign,
+  FileText
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -65,6 +66,12 @@ const AdminLayout = () => {
       href: '/admin/revenue',
       icon: DollarSign,
       current: location.pathname === '/admin/revenue'
+    },
+    {
+      name: 'AI Review',
+      href: '/admin/ai-review',
+      icon: FileText,
+      current: location.pathname === '/admin/ai-review'
     },
     {
       name: 'Tài khoản',

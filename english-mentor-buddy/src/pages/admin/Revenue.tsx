@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { 
   DollarSign, 
@@ -14,11 +15,14 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
+  Plus,
+  RefreshCw,
 } from 'lucide-react';
 import statisticsService, { SystemStatistics, RevenuePaymentData } from '@/services/statisticsService';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RevenueStatisticsCharts } from '@/components/RevenueStatisticsCharts';
 import TransactionListSection from '@/components/admin/TransactionListSection';
+import { AddPaymentDialog } from '@/components/admin/AddPaymentDialog';
 
 const RevenuePage = () => {
   // State for statistics from API
@@ -26,6 +30,8 @@ const RevenuePage = () => {
   const [revenueData, setRevenueData] = useState<RevenuePaymentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addPaymentOpen, setAddPaymentOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch statistics from API
   useEffect(() => {
@@ -51,7 +57,15 @@ const RevenuePage = () => {
     };
 
     fetchData();
-  }, []);
+  }, [refreshKey]);
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  const handlePaymentSuccess = () => {
+    handleRefresh();
+  };
 
   // Format currency to millions VND
   const formatCurrency = (amount: number): string => {
@@ -221,13 +235,34 @@ const RevenuePage = () => {
   return (
     <div className="space-y-4">
       {/* Page Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-          Báo cáo Doanh thu
-        </h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Quản lý và theo dõi doanh thu, thanh toán với các biểu đồ trực quan
-        </p>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+            Báo cáo Doanh thu
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Quản lý và theo dõi doanh thu, thanh toán với các biểu đồ trực quan
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            size="sm"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Làm mới
+          </Button>
+          <Button
+            onClick={() => setAddPaymentOpen(true)}
+            size="sm"
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Thêm thanh toán
+          </Button>
+        </div>
       </div>
 
       {/* Error Alert */}
@@ -354,8 +389,15 @@ const RevenuePage = () => {
 
       {/* Transaction List Section */}
       <div>
-        <TransactionListSection />
+        <TransactionListSection key={refreshKey} />
       </div>
+
+      {/* Add Payment Dialog */}
+      <AddPaymentDialog
+        open={addPaymentOpen}
+        onOpenChange={setAddPaymentOpen}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   );
 };

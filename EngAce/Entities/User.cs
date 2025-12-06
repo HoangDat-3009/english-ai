@@ -83,12 +83,22 @@ namespace Entities
         /// <summary>
         /// Avatar URL
         /// </summary>
-        public string? AvatarUrl { get; set; }
+        public string? Avatar { get; set; }
+
+        /// <summary>
+        /// User role (user, admin, super_admin)
+        /// </summary>
+        public string Role { get; set; } = "user";
 
         /// <summary>
         /// Last active timestamp
         /// </summary>
         public DateTime? LastActiveAt { get; set; }
+
+        /// <summary>
+        /// Last login timestamp
+        /// </summary>
+        public DateTime? LastLoginAt { get; set; }
 
         /// <summary>
         /// Created timestamp

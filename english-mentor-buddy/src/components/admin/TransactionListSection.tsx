@@ -7,6 +7,7 @@ import TransactionTable from './TransactionTable';
 import TransactionPagination from './TransactionPagination';
 import TransactionDetailModal from './TransactionDetailModal';
 import ExportButton from './ExportButton';
+import paymentService, { Payment } from '@/services/paymentService';
 import transactionService, {
   Transaction,
   TransactionFilters as ITransactionFilters,
@@ -60,22 +61,46 @@ const TransactionListSection: React.FC = () => {
     setError(null);
 
     try {
-      const response = await transactionService.fetchTransactions(
+      // Try to fetch from new payment API first
+      const statusFilter = filters.status !== 'all' ? filters.status as 'pending' | 'completed' | 'failed' : undefined;
+      const paymentResponse = await paymentService.getAllPayments(
         pagination.page,
         pagination.pageSize,
-        filters,
-        sortConfig,
-        useCache
+        statusFilter
       );
 
-      setTransactions(response.Transactions);
+      // Convert Payment[] to Transaction[] format
+      const convertedTransactions: Transaction[] = paymentResponse.payments.map((payment: Payment) => ({
+        TransactionID: payment.id.toString(),
+        UserID: payment.userId,
+        UserEmail: payment.email,
+        UserFullName: payment.fullName || 'N/A',
+        Amount: payment.amount,
+        Method: payment.method || 'Manual',
+        Status: payment.status,
+        IsLifetime: payment.isLifetime,
+        CreatedAt: payment.createdAt,
+      }));
+
+      setTransactions(convertedTransactions);
       setPagination({
-        page: response.Page,
-        pageSize: response.PageSize,
-        totalCount: response.TotalCount,
-        totalPages: response.TotalPages,
+        page: paymentResponse.pagination.currentPage,
+        pageSize: paymentResponse.pagination.pageSize,
+        totalCount: paymentResponse.pagination.totalCount,
+        totalPages: paymentResponse.pagination.totalPages,
       });
-      setSummary(response.Summary);
+
+      // Calculate summary from payments
+      const completedPayments = convertedTransactions.filter(t => t.Status === 'completed');
+      const totalRevenue = completedPayments.reduce((sum, t) => sum + t.Amount, 0);
+      setSummary({
+        TotalRevenue: totalRevenue,
+        TransactionCount: convertedTransactions.length,
+        AverageTransaction: convertedTransactions.length > 0 ? totalRevenue / convertedTransactions.length : 0,
+        CompletedCount: completedPayments.length,
+        PendingCount: convertedTransactions.filter(t => t.Status === 'pending').length,
+        FailedCount: convertedTransactions.filter(t => t.Status === 'failed').length,
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Không thể tải danh sách giao dịch';
       setError(errorMessage);

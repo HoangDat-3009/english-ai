@@ -44,9 +44,9 @@ namespace EngAce.Api.Controllers
                     passwordHashPreview = user.PasswordHash?.Length > 10 
                         ? user.PasswordHash.Substring(0, 10) + "..." 
                         : user.PasswordHash,
-                    isOAuthUser = !string.IsNullOrEmpty(user.GoogleID) || !string.IsNullOrEmpty(user.FacebookID),
-                    googleId = user.GoogleID,
-                    facebookId = user.FacebookID,
+                    isOAuthUser = !string.IsNullOrEmpty(user.GoogleId) || !string.IsNullOrEmpty(user.FacebookId),
+                    googleId = user.GoogleId,
+                    facebookId = user.FacebookId,
                     status = user.Status,
                     createdAt = user.CreatedAt
                 });

@@ -30,6 +30,7 @@ import { ConfirmStatusDialog } from '@/components/ConfirmStatusDialog';
 import { UserStatusHistoryDialog } from '@/components/UserStatusHistoryDialog';
 import { UserProfileDialog } from '@/components/UserProfileDialog';
 import { UserStatisticsCharts } from '@/components/UserStatisticsCharts';
+import { PremiumExpirationPanel } from '@/components/admin/PremiumExpirationPanel';
 
 // Memoized Statistics Cards component to prevent re-render
 const StatisticsCards = React.memo(({ statistics, allUsers, isLoading }: { statistics: UserStatistics | null, allUsers: User[], isLoading: boolean }) => {
@@ -123,15 +124,6 @@ const StatisticsCards = React.memo(({ statistics, allUsers, isLoading }: { stati
           </div>
         </CardContent>
       </Card>
-
-      {/* Status Reason Dialog - For all status changes */}
-      <StatusReasonDialog
-        open={reasonDialogOpen}
-        onOpenChange={setReasonDialogOpen}
-        onConfirm={handleStatusChangeWithReason}
-        username={pendingStatusWithReason?.username || ''}
-        newStatus={pendingStatusWithReason?.newStatus || 'active'}
-      />
     </div>
   );
 });
@@ -627,8 +619,8 @@ const UserManagement = () => {
   // Calculate stats from ALL users, not filtered users
   const userStats = {
     total: allUsers.length,
-    admin: allUsers.filter(u => u.Role === 'admin').length,
-    student: allUsers.filter(u => u.Role === 'student').length,
+    premium: allUsers.filter(u => u.AccountType === 'premium').length,
+    free: allUsers.filter(u => u.AccountType === 'free').length,
     active: allUsers.filter(u => u.Status === 'active').length,
   };
 
@@ -660,7 +652,7 @@ const UserManagement = () => {
 
       {/* Tabs for User List and Statistics */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 bg-gray-100 dark:bg-gray-800 p-1">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3 bg-gray-100 dark:bg-gray-800 p-1">
           <TabsTrigger 
             value="users" 
             className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:dark:bg-gray-700 data-[state=active]:shadow-md data-[state=active]:font-semibold"
@@ -674,6 +666,13 @@ const UserManagement = () => {
           >
             <BarChart3 className="h-4 w-4" />
             Biểu đồ thống kê
+          </TabsTrigger>
+          <TabsTrigger 
+            value="premium" 
+            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:dark:bg-gray-700 data-[state=active]:shadow-md data-[state=active]:font-semibold"
+          >
+            <Shield className="h-4 w-4" />
+            Quản lý Premium
           </TabsTrigger>
         </TabsList>
 
@@ -1022,6 +1021,11 @@ const UserManagement = () => {
         {/* Tab 2: Statistics & Charts */}
         <TabsContent value="statistics" className="mt-6">
           <UserStatisticsCharts loading={loading} />
+        </TabsContent>
+
+        {/* Tab 3: Premium Management */}
+        <TabsContent value="premium" className="mt-6">
+          <PremiumExpirationPanel />
         </TabsContent>
       </Tabs>
 
