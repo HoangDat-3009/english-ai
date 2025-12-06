@@ -7,7 +7,6 @@ export interface User {
   Phone?: string;
   AccountType: string; // 'free', 'premium'
   Status: string; // 'active', 'inactive', 'banned'
-  Role: string; // 'customer', 'admin', 'superadmin'
   FullName?: string;
   AvatarUrl?: string;
   TotalXP?: number;

@@ -55,7 +55,7 @@ namespace EngAce.Api.Services
                     Username = request.Username?.Trim(),
                     FullName = request.FullName?.Trim(),
                     PasswordHash = passwordHash,
-                    UserRole = "customer", // Default role
+                    UserRole = "user", // Default role
                     Status = "active",
                     AccountType = "free",
                     CreatedAt = DateTime.UtcNow,
@@ -79,7 +79,7 @@ namespace EngAce.Api.Services
                         Username = createdUser.Username,
                         FullName = createdUser.FullName,
                         Avatar = createdUser.Avatar,
-                        Role = "customer",
+                        Role = "user",
                         Status = createdUser.Status,
                         EmailVerified = true
                     }
@@ -184,7 +184,7 @@ namespace EngAce.Api.Services
                         Username = user.Username,
                         FullName = user.FullName,
                         Avatar = user.Avatar,
-                        Role = user.Role,
+                        Role = "user",
                         Status = user.Status,
                         EmailVerified = true
                     }
@@ -250,7 +250,7 @@ namespace EngAce.Api.Services
                         Email = request.Email.ToLower().Trim(),
                         FullName = request.FullName?.Trim(),
                         Avatar = request.Avatar,
-                        UserRole = "customer", // Default role
+                        UserRole = "user", // Default role
                         Status = "active",
                         AccountType = "free",
                         PasswordHash = null, // No password for OAuth users
@@ -292,7 +292,7 @@ namespace EngAce.Api.Services
                         Username = user.Username,
                         FullName = user.FullName,
                         Avatar = user.Avatar,
-                        Role = user.Role,
+                        Role = "user",
                         Status = user.Status,
                         EmailVerified = true
                     }

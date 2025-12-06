@@ -123,6 +123,15 @@ const StatisticsCards = React.memo(({ statistics, allUsers, isLoading }: { stati
           </div>
         </CardContent>
       </Card>
+
+      {/* Status Reason Dialog - For all status changes */}
+      <StatusReasonDialog
+        open={reasonDialogOpen}
+        onOpenChange={setReasonDialogOpen}
+        onConfirm={handleStatusChangeWithReason}
+        username={pendingStatusWithReason?.username || ''}
+        newStatus={pendingStatusWithReason?.newStatus || 'active'}
+      />
     </div>
   );
 });
@@ -150,6 +159,7 @@ const UserManagement = () => {
   const [paginationLoading, setPaginationLoading] = useState(false); // Loading when changing pages
   const [searchLoading, setSearchLoading] = useState(false); // Loading when searching
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>('student'); // Default to show students only
   const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
   
   // Status reason dialog state
@@ -189,13 +199,13 @@ const UserManagement = () => {
     try {
       console.log('[UserManagement] Fetching initial data...');
       
-      // Fetch statistics (already filtered by role='customer' in backend)
+      // Fetch statistics
       const stats = await userService.getUserStatistics();
       setStatistics(stats);
       console.log('[UserManagement] Statistics fetched:', stats);
       
-      // Fetch all users for stats calculation (only customers)
-      const allData = await userService.getUsersByRole('customer');
+      // Fetch all users for stats calculation
+      const allData = await userService.getAllUsers();
       setAllUsers(allData);
       console.log('[UserManagement] All users fetched:', allData.length);
     } catch (err) {
@@ -203,7 +213,7 @@ const UserManagement = () => {
     }
   }, []);
 
-  // Fetch users from API (paginated) - always filter by role='customer'
+  // Fetch users from API (paginated)
   const fetchUsers = useCallback(async (page: number = 1, isInitialLoad: boolean = false) => {
     try {
       // Use different loading state based on whether it's initial load or pagination
@@ -214,14 +224,13 @@ const UserManagement = () => {
       }
       setError(null);
       
-      console.log('[UserManagement] Fetching users, page:', page, 'search:', searchQuery, 'status:', statusFilter);
+      console.log('[UserManagement] Fetching users, page:', page, 'filter:', filter, 'search:', searchQuery, 'status:', statusFilter);
       
       // Fetch paginated users with search query, status filter, and account type filter
-      // Always filter by role='customer' to only show students
       const response = await userService.getUsers(
         page, 
         8, 
-        'customer', // Always filter by role='customer'
+        filter === 'all' ? undefined : filter,
         searchQuery || undefined,
         statusFilter === 'all' ? undefined : statusFilter,
         accountTypeFilter === 'all' ? undefined : accountTypeFilter
@@ -239,7 +248,7 @@ const UserManagement = () => {
         setPaginationLoading(false);
       }
     }
-  }, [searchQuery, statusFilter, accountTypeFilter]);
+  }, [filter, searchQuery, statusFilter, accountTypeFilter]);
 
   // Initial load
   useEffect(() => {
@@ -482,7 +491,7 @@ const UserManagement = () => {
         const response = await userService.getUsers(
           currentPage, 
           pageSize,
-          'customer', // Always filter by role='customer'
+          filter, 
           searchQuery || undefined, 
           statusFilter !== 'all' ? statusFilter : undefined,
           accountTypeFilter !== 'all' ? accountTypeFilter : undefined
@@ -613,6 +622,14 @@ const UserManagement = () => {
     }
 
     return pages;
+  };
+
+  // Calculate stats from ALL users, not filtered users
+  const userStats = {
+    total: allUsers.length,
+    admin: allUsers.filter(u => u.Role === 'admin').length,
+    student: allUsers.filter(u => u.Role === 'student').length,
+    active: allUsers.filter(u => u.Status === 'active').length,
   };
 
   return (

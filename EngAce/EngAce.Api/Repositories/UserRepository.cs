@@ -43,14 +43,7 @@ namespace EngAce.Api.Repositories
         public async Task<User?> GetByIdAsync(int userId)
         {
             using var connection = GetConnection();
-            var sql = @"SELECT id as UserID, email as Email, username as Username, full_name as FullName, 
-                        password_hash as PasswordHash, phone as Phone, avatar_url as Avatar, 
-                        status as Status, account_type as AccountType, role as UserRole,
-                        google_id as GoogleID, facebook_id as FacebookID,
-                        created_at as CreatedAt, updated_at as UpdatedAt, last_active_at as LastLoginAt,
-                        bio as Bio, address as Address, premium_expires_at as PremiumExpiresAt,
-                        total_study_time as TotalStudyTime, total_xp as TotalXP
-                        FROM users WHERE id = @UserID";
+            var sql = "SELECT * FROM users WHERE id = @UserID";
             return await connection.QueryFirstOrDefaultAsync<User>(sql, new { UserID = userId });
         }
 
@@ -58,14 +51,7 @@ namespace EngAce.Api.Repositories
         {
             _logger.LogInformation($"📧 Searching user by email: {email}");
             using var connection = GetConnection();
-            var sql = @"SELECT id as UserID, email as Email, username as Username, full_name as FullName, 
-                        password_hash as PasswordHash, phone as Phone, avatar_url as Avatar, 
-                        status as Status, account_type as AccountType, role as UserRole,
-                        google_id as GoogleID, facebook_id as FacebookID,
-                        created_at as CreatedAt, updated_at as UpdatedAt, last_active_at as LastLoginAt,
-                        bio as Bio, address as Address, premium_expires_at as PremiumExpiresAt,
-                        total_study_time as TotalStudyTime, total_xp as TotalXP
-                        FROM users WHERE email = @Email";
+            var sql = "SELECT * FROM users WHERE email = @Email";
             var user = await connection.QueryFirstOrDefaultAsync<User>(sql, new { Email = email });
             _logger.LogInformation($"✅ User found: {user != null}");
             return user;
@@ -75,14 +61,7 @@ namespace EngAce.Api.Repositories
         {
             _logger.LogInformation($"👤 Searching user by username: {username}");
             using var connection = GetConnection();
-            var sql = @"SELECT id as UserID, email as Email, username as Username, full_name as FullName, 
-                        password_hash as PasswordHash, phone as Phone, avatar_url as Avatar, 
-                        status as Status, account_type as AccountType, role as UserRole,
-                        google_id as GoogleID, facebook_id as FacebookID,
-                        created_at as CreatedAt, updated_at as UpdatedAt, last_active_at as LastLoginAt,
-                        bio as Bio, address as Address, premium_expires_at as PremiumExpiresAt,
-                        total_study_time as TotalStudyTime, total_xp as TotalXP
-                        FROM users WHERE username = @Username";
+            var sql = "SELECT * FROM users WHERE username = @Username";
             var user = await connection.QueryFirstOrDefaultAsync<User>(sql, new { Username = username });
             _logger.LogInformation($"✅ User found: {user != null}");
             return user;
@@ -117,12 +96,6 @@ namespace EngAce.Api.Repositories
             if (string.IsNullOrWhiteSpace(user.PasswordHash))
             {
                 user.PasswordHash = string.Empty;
-            }
-            
-            // Ensure role is always set to 'customer' if not provided
-            if (string.IsNullOrWhiteSpace(user.UserRole))
-            {
-                user.UserRole = "customer";
             }
             
             var sql = @"

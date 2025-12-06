@@ -25,8 +25,7 @@ import {
   ChevronDown,
   Moon,
   Sun,
-  DollarSign,
-  BrainCircuit
+  DollarSign
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -36,9 +35,6 @@ const AdminLayout = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Debug: Log user info
-  console.log('AdminLayout - Current user:', user);
 
   const handleLogout = () => {
     logout();
@@ -69,12 +65,6 @@ const AdminLayout = () => {
       href: '/admin/revenue',
       icon: DollarSign,
       current: location.pathname === '/admin/revenue'
-    },
-    {
-      name: 'Review AI',
-      href: '/admin/ai-review',
-      icon: BrainCircuit,
-      current: location.pathname === '/admin/ai-review'
     },
     {
       name: 'Tài khoản',
@@ -178,11 +168,11 @@ const AdminLayout = () => {
                   <Button variant="ghost" className="flex items-center gap-2 px-3 py-2 h-auto">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-blue-600 text-white text-xs">
-                        {(user?.username || user?.fullName || user?.email)?.substring(0, 2).toUpperCase() || 'AD'}
+                        Ad
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {user?.fullName || user?.username || 'Admin'}
+                      Admin
                     </span>
                     <ChevronDown className="h-4 w-4 text-gray-500" />
                   </Button>
@@ -191,12 +181,12 @@ const AdminLayout = () => {
                   <DropdownMenuLabel className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="bg-blue-600 text-white text-xs">
-                        {(user?.username || user?.fullName || user?.email)?.substring(0, 2).toUpperCase() || 'AD'}
+                        Ad
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium">{user?.fullName || user?.username || 'Admin'}</p>
-                      <p className="text-xs text-gray-500">{user?.email || 'admin@example.com'}</p>
+                      <p className="font-medium">Admin</p>
+                      <p className="text-xs text-gray-500">admin@example.com</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

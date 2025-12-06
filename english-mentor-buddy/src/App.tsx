@@ -85,7 +85,6 @@ const App = () => (
                 <Route path="upload" element={<UploadPage />} />
                 <Route path="users" element={<UserManagement />} />
                 <Route path="revenue" element={<RevenuePage />} />
-                <Route path="ai-review" element={<AIReviewPage />} />
                 <Route path="account" element={<AccountPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="content" element={<ContentManagement />} />
@@ -93,9 +92,21 @@ const App = () => (
                 {/* Có thể thêm các admin routes khác ở đây */}
               </Route>
 
-              {/*Thanh toán*/}
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/checkout" element={<Checkout />} />
+              {/* Admin routes */}
+              <Route path="/admin" element={
+                <AdminProtectedRoute>
+                  <AdminLayout />
+                </AdminProtectedRoute>
+              }>
+                <Route index element={<AdminDashboard />} />
+                <Route path="upload" element={<UploadPage />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="account" element={<AccountPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="content" element={<ContentManagement />} />
+                <Route path="settings" element={<AdminSettings />} />
+                {/* Có thể thêm các admin routes khác ở đây */}
+              </Route>
 
               {/* Route cho trang không tìm thấy */}
               <Route path="*" element={<NotFound />} />
