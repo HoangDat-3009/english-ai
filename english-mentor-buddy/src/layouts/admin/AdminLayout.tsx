@@ -26,7 +26,8 @@ import {
   Moon,
   Sun,
   DollarSign,
-  FileText
+  FileText,
+  ArrowLeft
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -162,6 +163,16 @@ const AdminLayout = () => {
             
             {/* User Profile */}
             <div className="flex items-center gap-3 ml-auto">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Về trang Client</span>
+              </Button>
+              
               <Button variant="ghost" size="sm" onClick={toggleTheme}>
                 {theme === 'dark' ? (
                   <Sun className="h-4 w-4" />

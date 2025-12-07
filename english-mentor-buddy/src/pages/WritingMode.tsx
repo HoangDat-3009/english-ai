@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import Header from '@/components/Navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, MessageSquare, ArrowLeft, Sparkles } from "lucide-react";
+import { FileText, MessageSquare, ArrowLeft, Sparkles, BookOpen, Library } from "lucide-react";
 
 const WritingMode = () => {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ const WritingMode = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Essay Writing Mode */}
+          {/* Essay Writing Mode - AI Generated */}
           <Card className="cursor-pointer hover:shadow-lg transition-all hover:border-primary group">
             <CardHeader>
               <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -70,7 +70,7 @@ const WritingMode = () => {
             </CardContent>
           </Card>
 
-          {/* Sentence Writing Mode */}
+          {/* Sentence Writing Mode - AI Generated */}
           <Card className="cursor-pointer hover:shadow-lg transition-all hover:border-primary group">
             <CardHeader>
               <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -102,6 +102,78 @@ const WritingMode = () => {
                 onClick={() => navigate("/sentence-writing")}
               >
                 Bắt đầu viết câu
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Essay Writing Library - Pre-made exercises */}
+          <Card className="cursor-pointer hover:shadow-lg transition-all hover:border-green-500 group">
+            <CardHeader>
+              <div className="w-12 h-12 rounded-lg bg-green-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Library className="w-6 h-6 text-white" />
+              </div>
+              <CardTitle className="text-2xl">Bài viết đoạn văn có sẵn</CardTitle>
+              <CardDescription className="text-base">
+                Luyện viết với bài tập được thiết kế sẵn bởi giáo viên
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-600 mt-1.5" />
+                  <span>Bài tập được tạo sẵn, không cần AI</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-600 mt-1.5" />
+                  <span>Chủ đề đa dạng, phù hợp mọi trình độ</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-600 mt-1.5" />
+                  <span>Luôn sẵn sàng khi không kết nối được AI</span>
+                </div>
+              </div>
+              
+              <Button 
+                className="w-full bg-green-600 hover:bg-green-700"
+                onClick={() => navigate("/writing-essay-library")}
+              >
+                Xem bài tập có sẵn
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Sentence Writing Library - Pre-made exercises */}
+          <Card className="cursor-pointer hover:shadow-lg transition-all hover:border-orange-500 group">
+            <CardHeader>
+              <div className="w-12 h-12 rounded-lg bg-orange-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <BookOpen className="w-6 h-6 text-white" />
+              </div>
+              <CardTitle className="text-2xl">Bài viết câu có sẵn</CardTitle>
+              <CardDescription className="text-base">
+                Luyện dịch câu với bài tập được thiết kế chi tiết
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5" />
+                  <span>Câu hỏi có sẵn với đáp án chuẩn</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5" />
+                  <span>Có gợi ý từ vựng và ngữ pháp cho mỗi câu</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5" />
+                  <span>Phù hợp luyện tập offline hoặc khi AI không hoạt động</span>
+                </div>
+              </div>
+              
+              <Button 
+                className="w-full bg-orange-600 hover:bg-orange-700"
+                onClick={() => navigate("/writing-sentence-library")}
+              >
+                Xem bài tập có sẵn
               </Button>
             </CardContent>
           </Card>

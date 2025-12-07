@@ -7,9 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileText, Plus, Minus, Save, Eye, Download, Clock, Users, Folder, Settings, X, CheckCircle, LucideIcon } from 'lucide-react';
+import { Upload, FileText, Plus, Minus, Save, Eye, Download, Clock, Users, Folder, Settings, X, CheckCircle, LucideIcon, MessageSquare } from 'lucide-react';
 import { SectionBox } from '@/components/admin/SectionBox';
 import { FileRow } from '@/components/admin/FileRow';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from 'sonner';
+import writingExerciseService, { CreateWritingExerciseRequest, SentenceQuestion, WritingExercise } from '@/services/writingExerciseService';
 
 const UploadPage = () => {
   const [testType, setTestType] = useState('');
@@ -19,6 +22,19 @@ const UploadPage = () => {
     { name: 'TOEIC_Part1_Audio.mp3', size: '2.4MB', date: '2024-03-10' },
     { name: 'Reading_Questions.pdf', size: '1.8MB', date: '2024-03-09' }
   ]);
+
+  // Writing exercise states
+  const [writingDialogOpen, setWritingDialogOpen] = useState(false);
+  const [writingType, setWritingType] = useState<'writing_essay' | 'writing_sentence'>('writing_essay');
+  const [writingTitle, setWritingTitle] = useState('');
+  const [writingTopic, setWritingTopic] = useState('');
+  const [writingTimeLimit, setWritingTimeLimit] = useState(30);
+  const [writingDescription, setWritingDescription] = useState('');
+  const [writingLevel, setWritingLevel] = useState('A1');
+  const [writingQuestions, setWritingQuestions] = useState<SentenceQuestion[]>([]);
+  const [exercises, setExercises] = useState<WritingExercise[]>([]);
+  const [loadingExercises, setLoadingExercises] = useState(false);
+  const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
 
   // File upload states
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
@@ -73,6 +89,145 @@ const UploadPage = () => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Load writing exercises
+  React.useEffect(() => {
+    if (selectedTestType === 'writing') {
+      loadWritingExercises();
+    }
+  }, [selectedTestType]);
+
+  const loadWritingExercises = async () => {
+    try {
+      setLoadingExercises(true);
+      const data = await writingExerciseService.getWritingExercises();
+      setExercises(data);
+    } catch (error) {
+      console.error('Error loading exercises:', error);
+      toast.error('Không thể tải danh sách bài tập');
+    } finally {
+      setLoadingExercises(false);
+    }
+  };
+
+  // Writing exercise functions
+  const openWritingDialog = (type: 'writing_essay' | 'writing_sentence', exercise?: WritingExercise) => {
+    if (exercise) {
+      // Edit mode
+      setEditingExerciseId(exercise.id);
+      setWritingType(exercise.type);
+      setWritingTitle(exercise.title);
+      setWritingTopic(exercise.category || '');
+      setWritingTimeLimit(exercise.timeLimit || 30);
+      setWritingDescription(exercise.description || '');
+      setWritingLevel(exercise.level || 'A1');
+      
+      if (exercise.type === 'writing_sentence') {
+        const parsedQuestions = JSON.parse(exercise.questionsJson || '[]');
+        setWritingQuestions(parsedQuestions);
+      } else {
+        setWritingQuestions([]);
+      }
+    } else {
+      // Create mode
+      setEditingExerciseId(null);
+      setWritingType(type);
+      setWritingTitle('');
+      setWritingTopic('');
+      setWritingTimeLimit(30);
+      setWritingDescription('');
+      setWritingLevel('A1');
+      
+      if (type === 'writing_sentence') {
+        const emptyQuestions: SentenceQuestion[] = Array.from({ length: 5 }, (_, i) => ({
+          questionOrder: i + 1,
+          vietnamesePrompt: '',
+          correctAnswer: '',
+          vocabularyHint: '',
+          grammarHint: ''
+        }));
+        setWritingQuestions(emptyQuestions);
+      } else {
+        setWritingQuestions([]);
+      }
+    }
+    
+    setWritingDialogOpen(true);
+  };
+
+  const updateWritingQuestion = (index: number, field: keyof SentenceQuestion, value: string) => {
+    const newQuestions = [...writingQuestions];
+    newQuestions[index] = { ...newQuestions[index], [field]: value };
+    setWritingQuestions(newQuestions);
+  };
+
+  const handleDeleteExercise = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa bài tập này?')) return;
+    
+    try {
+      await writingExerciseService.deleteWritingExercise(id);
+      toast.success('Xóa bài tập thành công!');
+      loadWritingExercises();
+    } catch (error) {
+      console.error('Error deleting exercise:', error);
+      toast.error('Có lỗi xảy ra khi xóa bài tập');
+    }
+  };
+
+  const handleWritingSubmit = async () => {
+    if (!writingTitle.trim()) {
+      toast.error('Vui lòng nhập tên bài test');
+      return;
+    }
+
+    if (!writingTopic.trim()) {
+      toast.error('Vui lòng nhập chủ đề');
+      return;
+    }
+
+    if (writingType === 'writing_sentence') {
+      const invalidQuestion = writingQuestions.find(q => 
+        !q.vietnamesePrompt.trim() || !q.correctAnswer.trim()
+      );
+      if (invalidQuestion) {
+        toast.error('Vui lòng nhập đầy đủ đề bài và đáp án cho tất cả câu hỏi');
+        return;
+      }
+    }
+
+    try {
+      const requestData: CreateWritingExerciseRequest = {
+        title: writingTitle,
+        content: writingDescription,
+        type: writingType,
+        category: writingTopic,
+        timeLimit: writingTimeLimit,
+        estimatedMinutes: writingTimeLimit,
+        description: writingDescription,
+        level: writingLevel,
+        questionsJson: writingType === 'writing_sentence' 
+          ? JSON.stringify(writingQuestions)
+          : '[]',
+        correctAnswersJson: writingType === 'writing_sentence'
+          ? JSON.stringify(writingQuestions.map(q => q.correctAnswer))
+          : '[]'
+      };
+
+      if (editingExerciseId) {
+        await writingExerciseService.updateWritingExercise(editingExerciseId, requestData);
+        toast.success('Cập nhật bài tập thành công!');
+      } else {
+        await writingExerciseService.createWritingExercise(requestData);
+        toast.success('Tạo bài tập thành công!');
+      }
+      
+      setWritingDialogOpen(false);
+      loadWritingExercises();
+    } catch (error) {
+      console.error('Error saving exercise:', error);
+      toast.error('Có lỗi xảy ra khi lưu bài tập');
+    }
   };
 
   // Create file upload component
@@ -321,7 +476,7 @@ const UploadPage = () => {
             </CardContent>
           </Card>
 
-          {selectedTestType && (
+          {selectedTestType && selectedTestType !== 'writing' && (
             <Card className="rounded-2xl">
               <CardHeader>
                 <CardTitle>Thông tin bài test</CardTitle>
@@ -568,36 +723,77 @@ const UploadPage = () => {
           {selectedTestType === 'writing' && (
             <Card className="rounded-2xl">
               <CardHeader>
-                <CardTitle>Writing Test - Upload Files</CardTitle>
-                <CardDescription>Upload đề bài và rubric cho bài test viết</CardDescription>
+                <CardTitle>Writing Test - Quản lý bài tập viết</CardTitle>
+                <CardDescription>Tạo và quản lý bài tập viết đoạn văn và viết theo câu cho học viên</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadArea
-                      uploadType="writing-prompts"
-                      title="✍️ Writing Prompts"
-                      description="Kéo thả file đề bài hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx,.json"
-                      maxSize="10MB"
-                      icon={FileText}
-                      borderColor="border-red-300"
-                      iconColor="text-red-400"
-                      required={true}
-                    />
+              <CardContent className="space-y-6">
+                {/* Create buttons */}
+                <div className="flex gap-3">
+                  <Button onClick={() => openWritingDialog('writing_essay')} className="flex-1 h-24 flex-col gap-2">
+                    <FileText className="w-8 h-8" />
+                    <span className="text-base font-medium">Tạo bài viết đoạn văn</span>
+                    <span className="text-xs opacity-80">Essay writing</span>
+                  </Button>
+                  <Button onClick={() => openWritingDialog('writing_sentence')} variant="outline" className="flex-1 h-24 flex-col gap-2">
+                    <MessageSquare className="w-8 h-8" />
+                    <span className="text-base font-medium">Tạo bài viết câu</span>
+                    <span className="text-xs opacity-80">Sentence translation</span>
+                  </Button>
+                </div>
 
-                    <FileUploadArea
-                      uploadType="writing-rubric"
-                      title="📊 Scoring Rubric"
-                      description="Kéa thả file rubric hoặc click để chọn"
-                      acceptedTypes=".pdf,.docx"
-                      maxSize="5MB"
-                      icon={FileText}
-                      borderColor="border-purple-300"
-                      iconColor="text-purple-400"
-                      required={false}
-                    />
-                  </div>
+                {/* Exercise list */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">Danh sách bài tập đã tạo</h3>
+                  {loadingExercises ? (
+                    <div className="text-center py-8 text-muted-foreground">Đang tải...</div>
+                  ) : exercises.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">Chưa có bài tập nào</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {exercises.map((exercise) => (
+                        <div key={exercise.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <div className="flex items-center gap-3 flex-1">
+                            {exercise.type === 'writing_essay' ? (
+                              <FileText className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <MessageSquare className="w-5 h-5 text-orange-600" />
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{exercise.title}</h4>
+                                {exercise.level && (
+                                  <Badge variant="outline" className="text-xs">{exercise.level}</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {exercise.category} • {exercise.timeLimit} phút
+                                {exercise.type === 'writing_sentence' && (
+                                  <> • {JSON.parse(exercise.questionsJson || '[]').length} câu</>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openWritingDialog(exercise.type, exercise)}
+                            >
+                              Sửa
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteExercise(exercise.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Xóa
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -799,17 +995,135 @@ const UploadPage = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-4">
-        <Button variant="outline" className="rounded-xl">
-          <Eye className="mr-2 h-4 w-4" />
-          Xem trước
-        </Button>
-        <Button className="rounded-xl">
-          <Save className="mr-2 h-4 w-4" />
-          Lưu bài test
-        </Button>
-      </div>
+      {/* Writing Exercise Dialog */}
+      <Dialog open={writingDialogOpen} onOpenChange={setWritingDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingExerciseId ? 'Chỉnh sửa' : 'Tạo'} {writingType === 'writing_essay' ? 'bài viết đoạn văn' : 'bài viết câu'}
+            </DialogTitle>
+            <DialogDescription>
+              {writingType === 'writing_essay' 
+                ? 'Học viên sẽ viết văn theo chủ đề bạn đưa ra'
+                : 'Học viên sẽ dịch câu tiếng Việt sang tiếng Anh'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Tên bài test *</Label>
+                <Input
+                  value={writingTitle}
+                  onChange={(e) => setWritingTitle(e.target.value)}
+                  placeholder="VD: Bài viết về gia đình"
+                />
+              </div>
+              <div>
+                <Label>Chủ đề *</Label>
+                <Input
+                  value={writingTopic}
+                  onChange={(e) => setWritingTopic(e.target.value)}
+                  placeholder="VD: Family"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Thời gian (phút) *</Label>
+                <Input
+                  type="number"
+                  min={5}
+                  value={writingTimeLimit}
+                  onChange={(e) => setWritingTimeLimit(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label>Level</Label>
+                <Select value={writingLevel} onValueChange={setWritingLevel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A1">A1</SelectItem>
+                    <SelectItem value="A2">A2</SelectItem>
+                    <SelectItem value="B1">B1</SelectItem>
+                    <SelectItem value="B2">B2</SelectItem>
+                    <SelectItem value="C1">C1</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Mô tả</Label>
+              <Textarea
+                value={writingDescription}
+                onChange={(e) => setWritingDescription(e.target.value)}
+                placeholder="Mô tả bài tập..."
+                rows={3}
+              />
+            </div>
+
+            {writingType === 'writing_sentence' && (
+              <div className="space-y-3 border-t pt-4">
+                <h4 className="font-medium">Danh sách câu hỏi (5 câu):</h4>
+                {writingQuestions.map((q, index) => (
+                  <Card key={index} className="p-3">
+                    <div className="space-y-2">
+                      <Label className="font-semibold">Câu {index + 1}</Label>
+                      <div>
+                        <Label className="text-xs">Đề bài (tiếng Việt) *</Label>
+                        <Input
+                          value={q.vietnamesePrompt}
+                          onChange={(e) => updateWritingQuestion(index, 'vietnamesePrompt', e.target.value)}
+                          placeholder="VD: Tôi yêu gia đình"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Đáp án (tiếng Anh) *</Label>
+                        <Input
+                          value={q.correctAnswer}
+                          onChange={(e) => updateWritingQuestion(index, 'correctAnswer', e.target.value)}
+                          placeholder="VD: I love my family"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Gợi ý từ vựng</Label>
+                          <Input
+                            value={q.vocabularyHint || ''}
+                            onChange={(e) => updateWritingQuestion(index, 'vocabularyHint', e.target.value)}
+                            placeholder="love, family"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Gợi ý ngữ pháp</Label>
+                          <Input
+                            value={q.grammarHint || ''}
+                            onChange={(e) => updateWritingQuestion(index, 'grammarHint', e.target.value)}
+                            placeholder="Present simple"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWritingDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleWritingSubmit}>
+              {editingExerciseId ? 'Cập nhật' : 'Tạo bài tập'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

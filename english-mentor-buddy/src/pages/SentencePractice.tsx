@@ -140,13 +140,13 @@ const SentencePractice = () => {
     }
   };
 
-  // Text normalization helper - compare ignoring case and punctuation
+  // Text normalization helper - compare ignoring case and trailing period
   const normalizeText = (text: string | undefined): string => {
     if (!text) return '';
     return text
       .toLowerCase()
       .trim()
-      .replace(/[.,!?;:'"]+$/g, '') // Remove trailing punctuation
+      .replace(/\.+$/g, '') // Remove trailing periods only
       .replace(/\s+/g, ' '); // Normalize whitespace
   };
 
