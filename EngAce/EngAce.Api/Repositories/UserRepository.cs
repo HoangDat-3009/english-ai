@@ -103,7 +103,7 @@ namespace EngAce.Api.Repositories
                                    status, account_type, role, google_id, facebook_id, 
                                    created_at, updated_at)
                 VALUES (@Email, @Username, @FullName, @PasswordHash, @Phone, @Avatar,
-                        @Status, @AccountType, @UserRole, @GoogleID, @FacebookID,
+                        @Status, @AccountType, @Role, @GoogleID, @FacebookID,
                         @CreatedAt, @UpdatedAt);
                 SELECT LAST_INSERT_ID();";
             
@@ -128,7 +128,7 @@ namespace EngAce.Api.Repositories
                     avatar_url = @Avatar, 
                     status = @Status,
                     account_type = @AccountType,
-                    role = @UserRole,
+                    role = @Role,
                     google_id = @GoogleID, 
                     facebook_id = @FacebookID,
                     last_active_at = @LastLoginAt, 

@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import FeatureCard from '@/components/FeatureCard';
-import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink } from 'lucide-react';
+import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink, FileText } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
 import { useAuth0Integration } from '@/hooks/useAuth0Integration';
 
@@ -24,6 +24,14 @@ const features = [
     bgColor: 'bg-gradient-to-br from-fuchsia-50 to-purple-50 dark:from-fuchsia-950/50 dark:to-purple-950/50',
   },
   {
+    title: 'Luyện Đề TOEIC',
+    description: 'Hệ thống đề thi TOEIC đầy đủ với giải thích chi tiết, giúp bạn ôn luyện hiệu quả cho kỳ thi.',
+    icon: FileText,
+    path: '/test-list',
+    color: 'text-blue-600',
+    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/50 dark:to-cyan-950/50',
+  },
+  {
     title: 'Viết',
     description: 'Nâng cao kỹ năng viết tiếng Anh của bạn với các bài tập và hướng dẫn chi tiết.',
     icon: Pencil,
@@ -38,14 +46,6 @@ const features = [
     path: '/chat',
     color: 'text-rose-600',
     bgColor: 'bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/50 dark:to-pink-950/50',
-  },
-  {
-    title: 'Chủ đề hội thoại',
-    description: 'Luyện tập tiếng Anh theo các chủ đề cụ thể với AI, hỗ trợ ghi âm và phát âm để cải thiện kỹ năng giao tiếp.',
-    icon: Globe,
-    path: '/topics',
-    color: 'text-slate-600',
-    bgColor: 'bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950/50 dark:to-gray-950/50',
   }
 
 ];

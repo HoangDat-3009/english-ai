@@ -17,9 +17,11 @@ import WritingEssayLibrary from "./pages/WritingEssayLibrary";
 import WritingSentenceLibrary from "./pages/WritingSentenceLibrary";
 import WritingPractice from "./pages/WritingPractice";
 import Chat from "./pages/Chat";
-import EnglishTopicCards from "./pages/EnglishTopicCards";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import TestList from "./pages/TestList";
+import TestConfiguration from "./pages/TestConfiguration";
+import TestExam from "./pages/TestExam";
 
 import LoginAlt from "./pages/LoginAlt";
 import Register from "./pages/Register";
@@ -78,8 +80,12 @@ const App = () => (
               <Route path="/writing-practice/:id" element={<WritingPractice />} />
               
               <Route path="/chat" element={<Chat />} />
-              <Route path="/topics" element={<EnglishTopicCards />} />
               <Route path="/test-stats" element={<TestStatistics />} />
+              
+              {/* TOEIC Test routes */}
+              <Route path="/test-list" element={<TestList />} />
+              <Route path="/test-config/:testId" element={<TestConfiguration />} />
+              <Route path="/test-exam/:testId" element={<TestExam />} />
 
               {/* Admin routes */}
               <Route path="/admin" element={

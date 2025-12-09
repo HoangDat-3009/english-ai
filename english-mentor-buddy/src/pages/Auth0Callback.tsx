@@ -59,12 +59,14 @@ const Auth0Callback: React.FC = () => {
             throw new Error(response.message || 'OAuth login failed');
           }
 
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Auth0 callback error:', err);
+          
+          const errorMessage = err instanceof Error ? err.message : 'Không thể hoàn tất đăng nhập';
           
           toast({
             title: 'Lỗi đăng nhập',
-            description: err.message || 'Không thể hoàn tất đăng nhập',
+            description: errorMessage,
             variant: 'destructive',
           });
 

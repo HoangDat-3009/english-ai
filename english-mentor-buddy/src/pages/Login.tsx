@@ -85,11 +85,12 @@ const Login: React.FC = () => {
                 navigate('/index');
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Login error:', error);
+            const errorMessage = error instanceof Error ? error.message : "Tên đăng nhập hoặc mật khẩu không đúng";
             toast({
                 title: "Đăng nhập thất bại",
-                description: error.message || "Tên đăng nhập hoặc mật khẩu không đúng",
+                description: errorMessage,
                 variant: "destructive",
             });
         } finally {

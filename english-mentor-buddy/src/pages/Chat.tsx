@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, RefreshCw } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, ArrowLeft } from 'lucide-react';
 import Header from '@/components/Navbar';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +18,7 @@ interface Message {
 
 const Consultation: React.FC = () => {
   const { success, error } = useToast();
+  const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -288,11 +290,19 @@ const Consultation: React.FC = () => {
         <div className="flex-1 bg-card dark:bg-card rounded-lg shadow-sm overflow-hidden flex flex-col border border-border">
           <div className="border-b border-border bg-card dark:bg-card">
             <div className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate(-1)}
+                  className="hover:bg-muted"
+                >
+                  <ArrowLeft size={20} />
+                </Button>
                 <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
                   <MessageSquare size={20} color="white" />
                 </div>
-                <h2 className="font-semibold text-lg text-foreground">Tư vấn với AI</h2>
+                <h2 className="font-semibold text-lg text-foreground">Chat AI</h2>
               </div>
               <Button
                 variant="outline"
