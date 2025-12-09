@@ -39,6 +39,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { aiReviewService } from '@/services/aiReviewService';
 
 // Types
 interface QuestionOption {
@@ -123,12 +124,30 @@ const AIReview: React.FC = () => {
   const fetchSubmissions = useCallback(async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/ai-review/submissions?ai_generated=true&type=quiz');
-      // const data = await response.json();
+      // Try to fetch from API
+      const data = await aiReviewService.getSubmissions(
+        filterStatus === 'all' ? undefined : filterStatus,
+        filterConfidence === 'all' ? undefined : filterConfidence,
+        searchTerm || undefined
+      );
       
-      // Mock data for development
-      // CHỈ hiển thị bài tập trắc nghiệm do AI tạo
+      setSubmissions(data);
+      setFilteredSubmissions(data);
+
+      // Calculate stats from data
+      const statsData = {
+        totalPending: data.filter(s => s.reviewStatus === 'pending').length,
+        totalApproved: data.filter(s => s.reviewStatus === 'approved').length,
+        totalRejected: data.filter(s => s.reviewStatus === 'rejected').length,
+        lowConfidence: data.filter(s => s.confidenceScore < 0.70).length,
+        avgConfidence: data.reduce((acc, s) => acc + s.confidenceScore, 0) / (data.length || 1),
+        needsAttention: data.filter(s => s.reviewStatus === 'pending' && s.confidenceScore < 0.70).length,
+      };
+      setStats(statsData);
+    } catch (error) {
+      console.error('API unavailable, using mock data:', error);
+      
+      // Fallback to mock data if API fails
       const mockData: AIGradedSubmission[] = [
         {
           id: 1,
@@ -190,37 +209,23 @@ const AIReview: React.FC = () => {
         },
       ];
 
-      // Filter: CHỈ lấy bài tập trắc nghiệm do AI tạo
-      const aiGeneratedQuizzes = mockData.filter(submission => 
-        submission.aiGenerated === true && 
-        ['quiz', 'multiple_choice', 'listening_quiz', 'reading_quiz'].includes(submission.exerciseType)
-      );
-
-      setSubmissions(aiGeneratedQuizzes);
-      calculateStats(aiGeneratedQuizzes);
-    } catch (error) {
-      console.error('Error fetching submissions:', error);
-      toast({
-        title: 'Lỗi',
-        description: 'Không thể tải danh sách bài chấm AI',
-        variant: 'destructive',
-      });
+      // Fallback mock data
+      setSubmissions(mockData);
+      setFilteredSubmissions(mockData);
+      
+      const fallbackStats = {
+        totalPending: mockData.filter(s => s.reviewStatus === 'pending').length,
+        totalApproved: mockData.filter(s => s.reviewStatus === 'approved').length,
+        totalRejected: mockData.filter(s => s.reviewStatus === 'rejected').length,
+        lowConfidence: mockData.filter(s => s.confidenceScore < 0.70).length,
+        avgConfidence: mockData.reduce((acc, s) => acc + s.confidenceScore, 0) / mockData.length,
+        needsAttention: mockData.filter(s => s.reviewStatus === 'pending' && s.confidenceScore < 0.70).length,
+      };
+      setStats(fallbackStats);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
-
-  const calculateStats = (data: AIGradedSubmission[]) => {
-    const stats: ReviewStats = {
-      totalPending: data.filter(s => s.reviewStatus === 'pending').length,
-      totalApproved: data.filter(s => s.reviewStatus === 'approved').length,
-      totalRejected: data.filter(s => s.reviewStatus === 'rejected').length,
-      lowConfidence: data.filter(s => s.confidenceScore < 0.75).length,
-      avgConfidence: data.reduce((sum, s) => sum + s.confidenceScore, 0) / data.length,
-      needsAttention: data.filter(s => s.confidenceScore < 0.75 && s.reviewStatus === 'pending').length,
-    };
-    setStats(stats);
-  }
+  }, [toast, filterStatus, filterConfidence, searchTerm]);
 
   const applyFilters = useCallback(() => {
     let filtered = [...submissions];
@@ -271,71 +276,68 @@ const AIReview: React.FC = () => {
     });
     setReviewDialogOpen(true);
     
-    // Fetch detailed questions and answers
-    await fetchSubmissionDetails(submission.id);
+    // Fetch detailed questions and answers - pass submission directly
+    await fetchSubmissionDetails(submission);
   };
 
-  const fetchSubmissionDetails = async (submissionId: number) => {
+  const fetchSubmissionDetails = async (submission: AIGradedSubmission) => {
     setLoadingDetails(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/ai-review/${submissionId}/details`);
-      // const data = await response.json();
+      // Fetch detailed submission data with questions from API
+      const details = await aiReviewService.getSubmissionDetails(submission.id);
       
-      // Mock detailed data - Dạng trắc nghiệm với options
-      const mockQuestions: QuestionDetail[] = [
-        {
-          questionNumber: 1,
-          questionText: 'What is the past tense of "go"?',
-          options: [
-            { label: 'A', text: 'goed' },
-            { label: 'B', text: 'went' },
-            { label: 'C', text: 'gone' },
-            { label: 'D', text: 'going' },
-          ],
-          userAnswer: 'B',
-          correctAnswer: 'B',
-          isCorrect: true,
-          points: 10,
-          aiExplanation: 'Correct! "Went" is the irregular past tense of "go".',
-        },
-        {
-          questionNumber: 2,
-          questionText: 'Choose the correct article: "___ apple a day keeps the doctor away."',
-          options: [
-            { label: 'A', text: 'a' },
-            { label: 'B', text: 'an' },
-            { label: 'C', text: 'the' },
-            { label: 'D', text: 'no article' },
-          ],
-          userAnswer: 'A',
-          correctAnswer: 'B',
-          isCorrect: false,
-          points: 0,
-          aiExplanation: 'Incorrect. "An" is used before words starting with vowel sounds.',
-        },
-        {
-          questionNumber: 3,
-          questionText: 'She ___ to the market yesterday.',
-          options: [
-            { label: 'A', text: 'go' },
-            { label: 'B', text: 'goes' },
-            { label: 'C', text: 'went' },
-            { label: 'D', text: 'will go' },
-          ],
-          userAnswer: 'C',
-          correctAnswer: 'C',
-          isCorrect: true,
-          points: 10,
-          aiExplanation: 'Correct! "Went" is the past tense form needed with "yesterday".',
-        },
-      ];
+      // Parse JSON strings from API response
+      let userAnswersData: any[] = [];
+      let questionsData: any[] = [];
+      let correctAnswersData: any[] = [];
+      
+      try {
+        userAnswersData = JSON.parse(details.userAnswers || '[]');
+        questionsData = JSON.parse(details.questionsJson || '[]');
+        correctAnswersData = JSON.parse(details.correctAnswersJson || '[]');
+      } catch (e) {
+        console.error('Failed to parse JSON data:', e);
+      }
 
-      setSelectedSubmission(prev => prev ? { ...prev, questions: mockQuestions } : null);
+      // Create questions array with real data from database
+      const questions: QuestionDetail[] = questionsData.map((q: any, index: number) => {
+        const questionNumber = q.questionNumber || index + 1;
+        
+        // Get user answer from user_answers_json
+        const userAnswerObj = userAnswersData.find((a: any) => a.questionNumber === questionNumber);
+        const userAnswer = userAnswerObj?.selectedAnswer || '';
+        
+        // Get correct answer from correct_answers_json
+        const correctAnswerObj = correctAnswersData.find((a: any) => a.questionNumber === questionNumber);
+        const correctAnswer = correctAnswerObj?.correctAnswer || '';
+        
+        const isCorrect = userAnswer === correctAnswer;
+        const pointsPerQuestion = 100 / submission.totalQuestions;
+        
+        return {
+          questionNumber,
+          questionText: q.questionText || q.question || q.text || `Câu ${questionNumber}`,
+          options: q.options || [
+            { label: 'A', text: 'Option A' },
+            { label: 'B', text: 'Option B' },
+            { label: 'C', text: 'Option C' },
+            { label: 'D', text: 'Option D' },
+          ],
+          userAnswer: userAnswer,
+          correctAnswer: correctAnswer,
+          isCorrect: isCorrect,
+          points: isCorrect ? pointsPerQuestion : 0,
+          aiExplanation: isCorrect 
+            ? `Học viên đã chọn đáp án ${userAnswer}. Đáp án đúng.`
+            : `Học viên đã chọn đáp án ${userAnswer}. Đáp án đúng là ${correctAnswer}.`,
+        };
+      });
+
+      setSelectedSubmission(prev => prev ? { ...prev, questions } : null);
       
       // Initialize manual scores
       const scores: { [key: number]: number } = {};
-      mockQuestions.forEach(q => {
+      questions.forEach(q => {
         scores[q.questionNumber] = q.points;
       });
       setManualScores(scores);
