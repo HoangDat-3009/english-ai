@@ -254,19 +254,21 @@ class DatabaseStatsService {
     }
   }
 
-  // 🤖 TẠO BÀI BẰNG AI: Gọi .NET API để tạo bài tập với Gemini AI
+  // 🤖 TẠO BÀI BẰNG AI: Gọi .NET API để tạo bài tập với AI (Gemini hoặc OpenAI)
   // Endpoint: POST /api/ReadingExercise/generate-ai
-  // Input: {topic, level, type} -> Backend xử lý -> Gemini API -> Database -> Return exercise
+  // Input: {topic, level, type, provider} -> Backend xử lý -> AI API -> Database -> Return exercise
   async generateReadingExercise(
     topic: string, 
     level: 'Beginner' | 'Intermediate' | 'Advanced',
-    type: 'Part 5' | 'Part 6' | 'Part 7'
+    type: 'Part 5' | 'Part 6' | 'Part 7',
+    provider: 'gemini' | 'openai' = 'gemini'
   ): Promise<ReadingExercise> {
     try {
       interface AIGenerateRequest {
         topic: string;
         level: 'Beginner' | 'Intermediate' | 'Advanced';
         type: 'Part 5' | 'Part 6' | 'Part 7';
+        provider?: 'gemini' | 'openai';
         userId?: string; // Track who generated
       }
 
@@ -291,11 +293,12 @@ class DatabaseStatsService {
         }
       }
       
-      // .NET Controller sẽ call Gemini API và return exercise
+      // .NET Controller sẽ call AI API (Gemini hoặc OpenAI) và return exercise
       const response = await apiService.post<GenerateResponse>('/api/ReadingExercise/generate-ai', {
         topic: topic,
         level: level,
-        type: type
+        type: type,
+        provider: provider
       });
       
       return {

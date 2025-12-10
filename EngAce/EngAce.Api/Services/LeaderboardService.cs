@@ -18,18 +18,18 @@ public class LeaderboardService : ILeaderboardService
 
     public async Task<IEnumerable<LeaderboardEntryDto>> GetLeaderboardAsync(string? timeFilter = null, string? skill = null)
     {
-        var completionsQuery = _context.Completions
-            .Include(c => c.Exercise);
+        // Load users and completions separately (same approach as ProgressService)
+        var users = await _context.Users
+            .Where(u => u.Status == "active" || u.Status == null) // Include users without status or active
+            .ToListAsync();
 
-        // Updated to use new schema: Users and Completions instead of UserProgresses
-        var query = _context.Users
-            .Where(u => u.Status == "active")
-            .GroupJoin(completionsQuery,
-                u => u.Id,
-                c => c.UserId,
-                (u, completions) => new { User = u, Completions = completions });
+        // Filter completions the same way as ProgressService - only completed exercises
+        var allCompletions = await _context.Completions
+            .Where(c => c.CompletedAt.HasValue)
+            .Include(c => c.Exercise)
+            .ToListAsync();
 
-        // Apply time filter
+        // Apply time filter to users
         if (!string.IsNullOrEmpty(timeFilter))
         {
             var filterDate = timeFilter.ToLower() switch
@@ -42,11 +42,16 @@ public class LeaderboardService : ILeaderboardService
 
             if (filterDate != DateTime.MinValue)
             {
-                query = query.Where(up => up.User.LastActiveAt >= filterDate);
+                users = users.Where(u => u.LastActiveAt >= filterDate).ToList();
             }
         }
 
-        var userProgressData = await query.ToListAsync();
+        // Group completions by userId (client-side join, same as ProgressService approach)
+        var userProgressData = users.Select(u => new
+        {
+            User = u,
+            Completions = allCompletions.Where(c => c.UserId == u.Id).ToList()
+        }).ToList();
 
         // Sort by skill or total score
         var leaderboard = userProgressData.Select(uc =>
@@ -141,21 +146,29 @@ public class LeaderboardService : ILeaderboardService
 
     public async Task<IEnumerable<LeaderboardEntryDto>> GetTopUsersAsync(int count = 10)
     {
-        var completionsQuery = _context.Completions.Include(c => c.Exercise);
-
-        var topUsers = await _context.Users
-            .Where(u => u.Status == "active")
-            .GroupJoin(completionsQuery,
-                u => u.Id,
-                c => c.UserId,
-                (u, completions) => new { User = u, Completions = completions })
-            .OrderByDescending(uc => uc.User.TotalXp)
+        // Load users and completions separately (same approach as ProgressService)
+        var users = await _context.Users
+            .Where(u => u.Status == "active" || u.Status == null) // Include users without status or active
+            .OrderByDescending(u => u.TotalXp)
             .Take(count)
             .ToListAsync();
 
+        // Filter completions the same way as ProgressService - only completed exercises
+        var allCompletions = await _context.Completions
+            .Where(c => c.CompletedAt.HasValue)
+            .Include(c => c.Exercise)
+            .ToListAsync();
+
+        // Group completions by userId (client-side join, same as ProgressService approach)
+        var topUsers = users.Select(u => new
+        {
+            User = u,
+            Completions = allCompletions.Where(c => c.UserId == u.Id).ToList()
+        }).ToList();
+
         return topUsers.Select((uc, index) =>
         {
-            var completionList = uc.Completions?.ToList() ?? new List<Completion>();
+            var completionList = uc.Completions ?? new List<Completion>();
             var toeicParts = ToeicPartHelper.BuildPartScores(completionList);
 
             return new LeaderboardEntryDto

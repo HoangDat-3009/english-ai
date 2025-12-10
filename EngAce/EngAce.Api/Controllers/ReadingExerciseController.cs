@@ -358,19 +358,41 @@ public class ReadingExerciseController : ControllerBase
 
             var score = questions.Count > 0 ? (decimal)Math.Round((double)correctAnswers / questions.Count * 100, 2) : 0;
 
+            // Get max attempt number for this user and exercise
+            // Load to client first because DefaultIfEmpty with MaxAsync cannot be translated to SQL
+            var existingAttempts = await _context.Completions
+                .Where(c => c.UserId == request.UserId && c.ExerciseId == request.ExerciseId)
+                .Select(c => c.Attempts)
+                .ToListAsync();
+            
+            var maxAttempt = existingAttempts.Any() ? existingAttempts.Max() : 0;
+            var attemptNumber = maxAttempt + 1;
+
             // Save completion result
             var completion = new Completion
             {
                 UserId = request.UserId,
                 ExerciseId = request.ExerciseId,
                 Score = score,
+                TotalQuestions = questions.Count,
                 UserAnswers = JsonSerializer.Serialize(request.Answers),
                 StartedAt = DateTime.UtcNow.AddMinutes(-(exercise.EstimatedMinutes ?? 30)),
                 CompletedAt = DateTime.UtcNow,
-                IsCompleted = true
+                IsCompleted = true,
+                Attempts = attemptNumber,
+                TimeSpentMinutes = exercise.EstimatedMinutes ?? 30
             };
 
             _context.Completions.Add(completion);
+            
+            // Update user stats
+            var user = await _context.Users.FindAsync(request.UserId);
+            if (user != null)
+            {
+                user.TotalXp += (int)Math.Round(score);
+                user.LastActiveAt = DateTime.UtcNow;
+            }
+            
             await _context.SaveChangesAsync();
 
             var result = new
@@ -429,6 +451,15 @@ public class ReadingExerciseController : ControllerBase
             List<GeneratedQuestion> aiQuestions;
             string finalContent;
             
+            // Determine provider (default to gemini if not specified)
+            var provider = string.IsNullOrWhiteSpace(request.Provider) ? "gemini" : request.Provider.ToLower();
+            if (provider != "gemini" && provider != "openai")
+            {
+                provider = "gemini"; // Fallback to gemini if invalid provider
+            }
+            
+            _logger.LogInformation("Using AI provider: {Provider}", provider);
+            
             if (request.Type == "Part 6" || request.Type == "Part 7")
             {
                 // Use the combined method for Part 6/7 to get both questions and passage
@@ -436,14 +467,15 @@ public class ReadingExerciseController : ControllerBase
                     baseContent, 
                     request.Type, 
                     request.Level, 
-                    questionCount
+                    questionCount,
+                    provider
                 );
                 
                 aiQuestions = questions;
                 finalContent = passage;
                 
-                _logger.LogInformation("AI Questions and passage generated: {Count} questions, passage length: {PassageLength} for type {Type}", 
-                    aiQuestions?.Count ?? 0, finalContent?.Length ?? 0, request.Type);
+                _logger.LogInformation("AI Questions and passage generated using {Provider}: {Count} questions, passage length: {PassageLength} for type {Type}", 
+                    provider, aiQuestions?.Count ?? 0, finalContent?.Length ?? 0, request.Type);
             }
             else
             {
@@ -452,12 +484,13 @@ public class ReadingExerciseController : ControllerBase
                     baseContent, 
                     request.Type, 
                     request.Level, 
-                    questionCount
+                    questionCount,
+                    provider
                 );
                 finalContent = baseContent;
                 
-                _logger.LogInformation("AI Questions generated: {Count} questions for type {Type}", 
-                    aiQuestions?.Count ?? 0, request.Type);
+                _logger.LogInformation("AI Questions generated using {Provider}: {Count} questions for type {Type}", 
+                    provider, aiQuestions?.Count ?? 0, request.Type);
             }
 
             // If AI generation fails, fall back to sample questions
@@ -465,15 +498,26 @@ public class ReadingExerciseController : ControllerBase
             
             if (aiQuestions.Any())
             {
-                // Use AI-generated questions
-                questionsJson = JsonSerializer.Serialize(aiQuestions.Select(q => new
+                // Use AI-generated questions - ensure consistent format
+                var formattedQuestions = aiQuestions.Select((q, index) => new
                 {
-                    questionText = q.QuestionText,
-                    options = q.Options,
-                    correctAnswer = q.CorrectAnswer,
-                    explanation = q.Explanation,
-                    difficulty = q.Difficulty
-                }));
+                    id = index + 1,
+                    questionText = q.QuestionText ?? $"Question {index + 1}",
+                    question = q.QuestionText ?? $"Question {index + 1}",
+                    options = q.Options ?? new List<string> { "Option A", "Option B", "Option C", "Option D" },
+                    correctAnswer = q.CorrectAnswer >= 0 && q.CorrectAnswer < (q.Options?.Count ?? 4) 
+                        ? q.CorrectAnswer 
+                        : 0,
+                    explanation = q.Explanation ?? "No explanation available",
+                    difficulty = q.Difficulty > 0 && q.Difficulty <= 5 ? q.Difficulty : 3,
+                    orderNumber = index + 1
+                }).ToList();
+                
+                questionsJson = JsonSerializer.Serialize(formattedQuestions, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = false
+                });
 
                 _logger.LogInformation("Successfully generated {Count} questions using Gemini AI", aiQuestions.Count);
             }
@@ -532,13 +576,23 @@ public class ReadingExerciseController : ControllerBase
 
             return CreatedAtAction(nameof(GetExerciseById), new { id = exercise.ExerciseId }, result);
         }
+        catch (HttpRequestException ex) when (ex.Message.Contains("403") || ex.Message.Contains("401") || ex.Message.Contains("authentication failed"))
+        {
+            _logger.LogError(ex, "Gemini API authentication failed. Please check API key.");
+            return StatusCode(500, new 
+            { 
+                success = false,
+                message = "AI service authentication failed. Please check the API key configuration in appsettings.json.",
+                error = "Authentication failed. Please verify your Gemini API key is valid and has the necessary permissions."
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating exercise with AI questions");
             return StatusCode(500, new { 
-                Success = false,
-                Message = "Error creating exercise with AI questions", 
-                ErrorDetails = ex.Message 
+                success = false,
+                message = "Failed to generate exercise with AI. Using fallback questions instead.",
+                error = ex.Message 
             });
         }
     }
@@ -1644,6 +1698,7 @@ Booking Deadline: 60 days before departure"
         public string Level { get; set; } = "Intermediate";
         public string Type { get; set; } = "Reading";
         public string? CreatedBy { get; set; }
+        public string Provider { get; set; } = "gemini"; // "gemini" or "openai"
     }
 
     public class CreatePassageRequest

@@ -26,6 +26,7 @@ const ReadingExercises = () => {
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState<Level>("Intermediate");
   const [type, setType] = useState<Type>("Part 7");
+  const [provider, setProvider] = useState<"gemini" | "openai">("gemini");
   const filteredExercises = exercises.filter((exercise) => {
     const levelMatch = filterLevel === "all" || exercise.level === filterLevel;
     const sourceMatch = filterSource === "all" || exercise.sourceType === filterSource;
@@ -34,9 +35,9 @@ const ReadingExercises = () => {
 
   const handleGenerate = () => {
     if (!topic.trim()) return;
-    // 🤖 TẠO BÀI BẰNG AI: Gọi hook useReadingExercises để tạo bài tập với Gemini AI
-    // Luồng: Frontend -> useReadingExercises hook -> API call -> Backend controller -> Gemini service -> Database
-    generateExercise({ topic, level, type });
+    // 🤖 TẠO BÀI BẰNG AI: Gọi hook useReadingExercises để tạo bài tập với AI (Gemini hoặc OpenAI)
+    // Luồng: Frontend -> useReadingExercises hook -> API call -> Backend controller -> AI service -> Database
+    generateExercise({ topic, level, type, provider });
     setTopic("");
     setShowGenerator(false);
   };
@@ -99,12 +100,12 @@ const ReadingExercises = () => {
           {/* Input: topic, level, type -> Output: Bài tập TOEIC với questions JSON */}
           <h3 className="font-semibold text-lg mb-4">
             <Sparkles className="h-5 w-5 inline mr-2" />
-            Generate New Exercise with Gemini AI
+            Generate New Exercise with AI
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Your backend (.NET API) will call Gemini AI to generate a personalized TOEIC exercise based on your input.
+            Choose between Gemini or OpenAI to generate a personalized TOEIC exercise based on your input.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Input
               placeholder="Topic (e.g., business meeting, travel, etc.)"
               value={topic}
@@ -129,6 +130,15 @@ const ReadingExercises = () => {
                 <SelectItem value="Part 5">Part 5 - Grammar</SelectItem>
                 <SelectItem value="Part 6">Part 6 - Text Completion</SelectItem>
                 <SelectItem value="Part 7">Part 7 - Reading Comprehension</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={provider} onValueChange={(v) => setProvider(v as "gemini" | "openai")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini">🤖 Gemini</SelectItem>
+                <SelectItem value="openai">✨ OpenAI GPT</SelectItem>
               </SelectContent>
             </Select>
             <Button onClick={handleGenerate} disabled={isGenerating || !topic.trim()} className="w-full">

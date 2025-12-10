@@ -13,6 +13,7 @@ public class GeminiService : IGeminiService
     private readonly IConfiguration _configuration;
     private readonly ILogger<GeminiService> _logger;
     private readonly string _apiKey;
+    private readonly string _openAiApiKey;
     private readonly string _baseUrl;
 
     public GeminiService(HttpClient httpClient, IConfiguration configuration, ILogger<GeminiService> logger)
@@ -20,8 +21,39 @@ public class GeminiService : IGeminiService
         _httpClient = httpClient;
         _configuration = configuration;
         _logger = logger;
-        _apiKey = configuration["Gemini:ApiKey"] ?? "AIzaSyBhj4pAZhz05eIiAANufwmTgizO96H4cjc";
+        _apiKey = configuration["Gemini:ApiKey"] ?? string.Empty;
+        _openAiApiKey = configuration["OpenAI:ApiKey"] ?? string.Empty;
         _baseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+        
+        // Validate and log API key status
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            _logger.LogError("❌ Gemini API key is NOT configured. Please set Gemini:ApiKey in appsettings.json or appsettings.Development.json");
+        }
+        else
+        {
+            // Mask API key for logging (show first 10 and last 4 chars only)
+            var maskedKey = _apiKey.Length > 14 
+                ? $"{_apiKey.Substring(0, 10)}...{_apiKey.Substring(_apiKey.Length - 4)}" 
+                : "***masked***";
+            _logger.LogInformation("✓ Gemini API key configured (length: {Length}, masked: {Masked})", _apiKey.Length, maskedKey);
+            _logger.LogInformation("✓ Using model: gemini-2.5-flash");
+            _logger.LogInformation("✓ API endpoint: {Endpoint}", _baseUrl);
+        }
+        
+        // Validate and log OpenAI API key status
+        if (string.IsNullOrWhiteSpace(_openAiApiKey))
+        {
+            _logger.LogWarning("⚠️ OpenAI API key is NOT configured. OpenAI provider will not be available.");
+        }
+        else
+        {
+            // Mask OpenAI API key for logging (show first 7 and last 4 chars only)
+            var maskedOpenAIKey = _openAiApiKey.Length > 11 
+                ? $"{_openAiApiKey.Substring(0, 7)}...{_openAiApiKey.Substring(_openAiApiKey.Length - 4)}" 
+                : "***masked***";
+            _logger.LogInformation("✓ OpenAI API key configured (length: {Length}, masked: {Masked})", _openAiApiKey.Length, maskedOpenAIKey);
+        }
     }
 
     // 🤖 Gọi Gemini API với retry logic và error handling
@@ -63,11 +95,39 @@ public class GeminiService : IGeminiService
             {
                 try
                 {
-                    response = await _httpClient.PostAsync($"{_baseUrl}?key={_apiKey}", content);
+                    // Build full URL with API key as query parameter
+                    var url = $"{_baseUrl}?key={Uri.EscapeDataString(_apiKey)}";
+                    _logger.LogDebug("Calling Gemini API: {Url} (API key masked)", _baseUrl);
+                    response = await _httpClient.PostAsync(url, content);
                     
                     if (response.IsSuccessStatusCode)
                     {
                         break; // Success, exit retry loop
+                    }
+                    
+                    // Read error response body for better error messages
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Gemini API returned {StatusCode}. Response: {ErrorBody}", response.StatusCode, errorBody);
+                    
+                    // Don't retry for authentication/authorization errors (401, 403) - these are permanent errors
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                        response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                    {
+                        var errorMessage = $"Gemini API authentication failed (Status: {response.StatusCode}). " +
+                                         $"Please check your API key in appsettings.json. " +
+                                         $"API Key is configured: {!string.IsNullOrEmpty(_apiKey)}. " +
+                                         $"Error details: {errorBody}";
+                        _logger.LogError(errorMessage);
+                        throw new HttpRequestException(errorMessage);
+                    }
+                    
+                    // Don't retry for other client errors (4xx) except 429 (Too Many Requests)
+                    if ((int)response.StatusCode >= 400 && (int)response.StatusCode < 500 && 
+                        response.StatusCode != System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        var errorMessage = $"Gemini API client error (Status: {response.StatusCode}). Error details: {errorBody}";
+                        _logger.LogError(errorMessage);
+                        throw new HttpRequestException(errorMessage);
                     }
                     
                     // If it's a 503 or 429, retry with exponential backoff
@@ -83,24 +143,50 @@ public class GeminiService : IGeminiService
                         continue;
                     }
                     
-                    // For other errors or max retries reached, throw
-                    response.EnsureSuccessStatusCode();
+                    // For other errors, throw with error details
+                    throw new HttpRequestException($"Gemini API returned {response.StatusCode}. Error details: {errorBody}");
                 }
-                catch (HttpRequestException ex) when (retryCount < maxRetries)
+                catch (HttpRequestException ex)
                 {
-                    int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
-                    _logger.LogWarning("Network error calling Gemini API: {Error}. Retrying in {DelayMs}ms... (Attempt {RetryCount}/{MaxRetries})", 
-                                     ex.Message, delayMs, retryCount + 1, maxRetries);
-                    await Task.Delay(delayMs);
-                    retryCount++;
+                    // Check if it's a 401/403 error - don't retry
+                    if (ex.Message.Contains("401") || ex.Message.Contains("403") || 
+                        ex.Message.Contains("authentication failed") || 
+                        ex.Message.Contains("Forbidden") || 
+                        ex.Message.Contains("Unauthorized"))
+                    {
+                        throw; // Re-throw authentication errors immediately
+                    }
+                    
+                    // Check if it's a 4xx client error - don't retry
+                    if (ex.Message.Contains("400") || ex.Message.Contains("404") || 
+                        ex.Message.Contains("client error"))
+                    {
+                        throw; // Re-throw client errors immediately
+                    }
+                    
+                    // Retry for network errors or 5xx errors
+                    if (retryCount < maxRetries)
+                    {
+                        int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
+                        _logger.LogWarning("Network error calling Gemini API: {Error}. Retrying in {DelayMs}ms... (Attempt {RetryCount}/{MaxRetries})", 
+                                         ex.Message, delayMs, retryCount + 1, maxRetries);
+                        await Task.Delay(delayMs);
+                        retryCount++;
+                        continue;
+                    }
+                    
+                    // Max retries reached
+                    throw;
                 }
             }
             
             // Final check
             if (response != null && !response.IsSuccessStatusCode)
             {
-                _logger.LogError("Gemini API failed after {MaxRetries} retries. Final status: {StatusCode}", maxRetries, response.StatusCode);
-                response.EnsureSuccessStatusCode();
+                var errorBody = await response.Content.ReadAsStringAsync();
+                var errorMessage = $"Gemini API failed after {maxRetries} retries. Final status: {response.StatusCode}. Error details: {errorBody}";
+                _logger.LogError(errorMessage);
+                throw new HttpRequestException(errorMessage);
             }
 
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -130,16 +216,158 @@ public class GeminiService : IGeminiService
         }
     }
 
-    // 🤖 Tạo câu hỏi từ Gemini AI (Part 5) - Build prompt -> Call API -> Parse response
-    public async Task<List<GeneratedQuestion>> GenerateQuestionsAsync(string content, string exerciseType, string level, int questionCount = 5)
+    // 🤖 Gọi OpenAI API với retry logic và error handling
+    private async Task<string> GenerateResponseOpenAI(string prompt, int maxTokens = 4096)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_openAiApiKey))
+            {
+                throw new InvalidOperationException("OpenAI API key is not configured");
+            }
+
+            var requestBody = new
+            {
+                model = "gpt-4o-mini",
+                messages = new[]
+                {
+                    new { role = "user", content = prompt }
+                },
+                temperature = 0.7,
+                max_tokens = maxTokens
+            };
+
+            var json = JsonSerializer.Serialize(requestBody);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_openAiApiKey}");
+
+            HttpResponseMessage response = null;
+            int retryCount = 0;
+            int maxRetries = 3;
+            int baseDelayMs = 1000;
+
+            while (retryCount <= maxRetries)
+            {
+                try
+                {
+                    var url = "https://api.openai.com/v1/chat/completions";
+                    _logger.LogDebug("Calling OpenAI API: {Url} (API key masked)", url);
+                    response = await _httpClient.PostAsync(url, content);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        break;
+                    }
+                    
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("OpenAI API returned {StatusCode}. Response: {ErrorBody}", response.StatusCode, errorBody);
+                    
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                        response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                    {
+                        var errorMessage = $"OpenAI API authentication failed (Status: {response.StatusCode}). Error details: {errorBody}";
+                        _logger.LogError(errorMessage);
+                        throw new HttpRequestException(errorMessage);
+                    }
+                    
+                    if ((int)response.StatusCode >= 400 && (int)response.StatusCode < 500 && 
+                        response.StatusCode != System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        var errorMessage = $"OpenAI API client error (Status: {response.StatusCode}). Error details: {errorBody}";
+                        _logger.LogError(errorMessage);
+                        throw new HttpRequestException(errorMessage);
+                    }
+                    
+                    if ((response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable || 
+                         response.StatusCode == System.Net.HttpStatusCode.TooManyRequests) && 
+                        retryCount < maxRetries)
+                    {
+                        int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
+                        _logger.LogWarning("OpenAI API returned {StatusCode}. Retrying in {DelayMs}ms... (Attempt {RetryCount}/{MaxRetries})", 
+                                         response.StatusCode, delayMs, retryCount + 1, maxRetries);
+                        await Task.Delay(delayMs);
+                        retryCount++;
+                        continue;
+                    }
+                    
+                    throw new HttpRequestException($"OpenAI API returned {response.StatusCode}. Error details: {errorBody}");
+                }
+                catch (HttpRequestException ex)
+                {
+                    if (ex.Message.Contains("401") || ex.Message.Contains("403") || 
+                        ex.Message.Contains("authentication failed") || 
+                        ex.Message.Contains("Forbidden") || 
+                        ex.Message.Contains("Unauthorized"))
+                    {
+                        throw;
+                    }
+                    
+                    if (ex.Message.Contains("400") || ex.Message.Contains("404") || 
+                        ex.Message.Contains("client error"))
+                    {
+                        throw;
+                    }
+                    
+                    if (retryCount < maxRetries)
+                    {
+                        int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
+                        _logger.LogWarning("Network error calling OpenAI API: {Error}. Retrying in {DelayMs}ms... (Attempt {RetryCount}/{MaxRetries})", 
+                                         ex.Message, delayMs, retryCount + 1, maxRetries);
+                        await Task.Delay(delayMs);
+                        retryCount++;
+                        continue;
+                    }
+                    
+                    throw;
+                }
+            }
+            
+            if (response != null && !response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                var errorMessage = $"OpenAI API failed after {maxRetries} retries. Final status: {response.StatusCode}. Error details: {errorBody}";
+                _logger.LogError(errorMessage);
+                throw new HttpRequestException(errorMessage);
+            }
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("Full OpenAI response: {Response}", responseContent);
+
+            using var doc = JsonDocument.Parse(responseContent);
+            var root = doc.RootElement;
+            
+            if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+            {
+                var message = choices[0].GetProperty("message").GetProperty("content").GetString();
+                _logger.LogInformation("Extracted text from OpenAI: {Text}", message?.Substring(0, Math.Min(message?.Length ?? 0, 200)) + "...");
+                return message ?? string.Empty;
+            }
+
+            _logger.LogWarning("No valid response from OpenAI API");
+            return string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling OpenAI API");
+            throw;
+        }
+    }
+
+    // 🤖 Tạo câu hỏi từ AI (Part 5) - Build prompt -> Call API -> Parse response
+    public async Task<List<GeneratedQuestion>> GenerateQuestionsAsync(string content, string exerciseType, string level, int questionCount = 5, string provider = "gemini")
     {
         try
         {
             string prompt = BuildPrompt(content, exerciseType, level, questionCount);
-            _logger.LogInformation("Sending prompt to Gemini for {ExerciseType} with {QuestionCount} questions", exerciseType, questionCount);
+            _logger.LogInformation("Sending prompt to {Provider} for {ExerciseType} with {QuestionCount} questions", provider, exerciseType, questionCount);
             
-            string response = await GenerateResponse(prompt);
-            _logger.LogInformation("Received response from Gemini with length: {Length}", response.Length);
+            string response = provider.ToLower() == "openai" 
+                ? await GenerateResponseOpenAI(prompt)
+                : await GenerateResponse(prompt);
+            
+            _logger.LogInformation("Received response from {Provider} with length: {Length}", provider, response.Length);
             
             if (string.IsNullOrWhiteSpace(response))
             {
@@ -148,6 +376,12 @@ public class GeminiService : IGeminiService
             }
 
             return ParseGeneratedQuestions(response);
+        }
+        catch (HttpRequestException ex) when (ex.Message.Contains("403") || ex.Message.Contains("401") || ex.Message.Contains("authentication failed"))
+        {
+            _logger.LogError(ex, "Gemini API authentication failed for type: {ExerciseType}. Cannot generate questions.", exerciseType);
+            // Return empty questions list so controller can use fallback
+            return new List<GeneratedQuestion>();
         }
         catch (Exception ex)
         {
@@ -160,22 +394,27 @@ public class GeminiService : IGeminiService
                 return GetFallbackQuestions(exerciseType, level, questionCount);
             }
             
-            throw;
+            // For other errors, return empty so controller can use fallback
+            _logger.LogWarning("AI generation failed, will use fallback questions");
+            return new List<GeneratedQuestion>();
         }
     }
 
-    // 🤖 Tạo câu hỏi + passage từ Gemini AI (Part 6/7) - Build prompt -> Call API -> Parse questions & passage
-    public async Task<(List<GeneratedQuestion> questions, string passage)> GenerateQuestionsWithPassageAsync(string content, string exerciseType, string level, int questionCount = 5)
+    // 🤖 Tạo câu hỏi + passage từ AI (Part 6/7) - Build prompt -> Call API -> Parse questions & passage
+    public async Task<(List<GeneratedQuestion> questions, string passage)> GenerateQuestionsWithPassageAsync(string content, string exerciseType, string level, int questionCount = 5, string provider = "gemini")
     {
         try
         {
             string prompt = BuildPrompt(content, exerciseType, level, questionCount);
-            _logger.LogInformation("Sending prompt to Gemini for {ExerciseType} with {QuestionCount} questions (with passage)", exerciseType, questionCount);
+            _logger.LogInformation("Sending prompt to {Provider} for {ExerciseType} with {QuestionCount} questions (with passage)", provider, exerciseType, questionCount);
             
-            // Use higher maxOutputTokens for Part 6/7 to avoid truncated responses
-            int maxTokens = 8192; // Increase from 4096 to handle longer responses with passage + questions
-            string response = await GenerateResponse(prompt, maxTokens);
-            _logger.LogInformation("Received response from Gemini with length: {Length}", response.Length);
+            // Use higher maxTokens for Part 6/7 to avoid truncated responses
+            int maxTokens = 8192;
+            string response = provider.ToLower() == "openai" 
+                ? await GenerateResponseOpenAI(prompt, maxTokens)
+                : await GenerateResponse(prompt, maxTokens);
+            
+            _logger.LogInformation("Received response from {Provider} with length: {Length}", provider, response.Length);
             
             if (string.IsNullOrWhiteSpace(response))
             {
@@ -287,6 +526,12 @@ public class GeminiService : IGeminiService
             
             return (questions, passage);
         }
+        catch (HttpRequestException ex) when (ex.Message.Contains("403") || ex.Message.Contains("401") || ex.Message.Contains("authentication failed"))
+        {
+            _logger.LogError(ex, "Gemini API authentication failed for type: {ExerciseType}. Cannot generate questions.", exerciseType);
+            // Return empty questions list so controller can use fallback
+            return (new List<GeneratedQuestion>(), content);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating questions with passage for type: {ExerciseType}", exerciseType);
@@ -298,7 +543,9 @@ public class GeminiService : IGeminiService
                 return (GetFallbackQuestions(exerciseType, level, questionCount), content);
             }
             
-            throw;
+            // For other errors, return empty so controller can use fallback
+            _logger.LogWarning("AI generation failed, will use fallback questions");
+            return (new List<GeneratedQuestion>(), content);
         }
     }
 

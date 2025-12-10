@@ -50,7 +50,8 @@ public class ProgressController : ControllerBase
                 totalExercisesAvailable = progress.TotalExercisesAvailable,
                 averageAccuracy = progress.AverageAccuracy,
                 createdAt = progress.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                updatedAt = progress.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                updatedAt = progress.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                toeicParts = progress.ToeicParts ?? new List<ToeicPartScoreDto>() // ✅ Add toeicParts to response
             };
 
             return Ok(response);

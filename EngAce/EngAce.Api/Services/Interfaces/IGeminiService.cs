@@ -8,9 +8,9 @@ namespace EngAce.Api.Services.Interfaces;
 public interface IGeminiService
 {
     /// <summary>
-    /// 🤖 Tạo câu hỏi từ Gemini AI (Part 5)
+    /// 🤖 Tạo câu hỏi từ AI (Part 5) - hỗ trợ Gemini và OpenAI
     /// </summary>
-    Task<List<GeneratedQuestion>> GenerateQuestionsAsync(string content, string exerciseType, string level, int questionCount = 5);
+    Task<List<GeneratedQuestion>> GenerateQuestionsAsync(string content, string exerciseType, string level, int questionCount = 5, string provider = "gemini");
 
     /// <summary>
     /// 🤖 Tạo giải thích cho câu hỏi
@@ -28,7 +28,7 @@ public interface IGeminiService
     Task<string?> GetRawGeminiResponseAsync(string content, string exerciseType, string level, int questionCount);
 
     /// <summary>
-    /// 🤖 Tạo câu hỏi + passage từ Gemini AI (Part 6/7)
+    /// 🤖 Tạo câu hỏi + passage từ AI (Part 6/7) - hỗ trợ Gemini và OpenAI
     /// </summary>
-    Task<(List<GeneratedQuestion> questions, string passage)> GenerateQuestionsWithPassageAsync(string content, string exerciseType, string level, int questionCount = 5);
+    Task<(List<GeneratedQuestion> questions, string passage)> GenerateQuestionsWithPassageAsync(string content, string exerciseType, string level, int questionCount = 5, string provider = "gemini");
 }

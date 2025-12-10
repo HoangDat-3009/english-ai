@@ -32,16 +32,28 @@ public class ProgressService : IProgressService
             .Include(c => c.Exercise)
             .ToListAsync();
 
+        // Debug: Log completion count and exercise loading
+        System.Diagnostics.Debug.WriteLine($"GetUserProgressAsync: Found {userCompletions.Count} completions for user {userId}");
+        foreach (var comp in userCompletions)
+        {
+            System.Diagnostics.Debug.WriteLine($"  Completion {comp.CompletionId}: ExerciseId={comp.ExerciseId}, Exercise={(comp.Exercise != null ? $"Type={comp.Exercise.Type}" : "NULL")}, Score={comp.Score}");
+        }
+
         var completedExercises = userCompletions.Count;
         var uniqueExercises = userCompletions
             .Select(c => c.ExerciseId)
             .Distinct()
             .Count();
         var averageScore = userCompletions.Any()
-            ? (double)userCompletions.Average(c => c.Score)
+            ? (double)userCompletions.Average(c => c.Score ?? 0)
             : 0;
 
         var toeicParts = ToeicPartHelper.BuildPartScores(userCompletions);
+        System.Diagnostics.Debug.WriteLine($"BuildPartScores returned {toeicParts.Count} parts");
+        foreach (var part in toeicParts)
+        {
+            System.Diagnostics.Debug.WriteLine($"  Part: {part.Part} ({part.Key}), Score={part.Score}, Attempts={part.Attempts}");
+        }
         var listeningScore = ToeicPartHelper.SumListening(toeicParts);
         var readingScore = ToeicPartHelper.SumReading(toeicParts);
         var profileTier = UserProfileHelper.GetProfileTier(user.TotalXp);
