@@ -312,7 +312,7 @@ export const UserStatisticsCharts: React.FC<UserStatisticsChartsProps> = ({ load
 
       {/* Row 2: Monthly Growth & XP Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Growth Line Chart */}
+        {/* Monthly Growth Bar Chart - Better for sparse data */}
         <Card className="rounded-2xl bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 dark:from-gray-800 dark:via-blue-900/10 dark:to-indigo-900/10 border-2 border-blue-100 dark:border-blue-900/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
@@ -328,52 +328,88 @@ export const UserStatisticsCharts: React.FC<UserStatisticsChartsProps> = ({ load
             </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={chartData.monthlyGrowth}>
-                <defs>
-                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.4}/>
-                    <stop offset="50%" stopColor={COLORS.indigo} stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" className="opacity-50" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#6b7280"
-                  style={{ fontSize: '12px', fontWeight: '600' }}
-                />
-                <YAxis 
-                  stroke="#6b7280"
-                  style={{ fontSize: '12px', fontWeight: '600' }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="users" 
-                  stroke="url(#lineGradient)" 
-                  strokeWidth={3}
-                  fillOpacity={1} 
-                  fill="url(#colorUsers)" 
-                  name="Người dùng"
-                />
-                <defs>
-                  <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={COLORS.primary} />
-                    <stop offset="100%" stopColor={COLORS.indigo} />
-                  </linearGradient>
-                </defs>
-              </AreaChart>
-            </ResponsiveContainer>
+            {chartData.monthlyGrowth.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                <p>Chưa có dữ liệu tăng trưởng</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData.monthlyGrowth} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="colorMonthlyBar" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3B82F6" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#6366F1" stopOpacity={0.8}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" className="opacity-50" />
+                  <XAxis 
+                    dataKey="month" 
+                    stroke="#6b7280"
+                    style={{ fontSize: '12px', fontWeight: '600' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={{ stroke: '#d1d5db' }}
+                  />
+                  <YAxis 
+                    stroke="#6b7280"
+                    style={{ fontSize: '12px', fontWeight: '600' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={{ stroke: '#d1d5db' }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '2px solid #3B82F6',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 25px rgba(59, 130, 246, 0.2)'
+                    }}
+                    formatter={(value: number) => [`${value} người dùng`, 'Số lượng']}
+                    labelStyle={{ fontWeight: 'bold', color: '#1f2937' }}
+                  />
+                  <Bar 
+                    dataKey="users" 
+                    fill="url(#colorMonthlyBar)" 
+                    radius={[8, 8, 0, 0]}
+                    name="Người dùng mới"
+                    maxBarSize={60}
+                    label={{
+                      position: 'top',
+                      fill: '#3B82F6',
+                      fontWeight: 'bold',
+                      fontSize: 14
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+            
+            {/* Summary stats */}
+            {chartData.monthlyGrowth.length > 0 && (
+              <div className="mt-4 flex justify-center gap-4">
+                <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Tổng: </span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">
+                    {chartData.monthlyGrowth.reduce((sum, item) => sum + item.users, 0)}
+                  </span>
+                </div>
+                <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">TB/tháng: </span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                    {Math.round(chartData.monthlyGrowth.reduce((sum, item) => sum + item.users, 0) / chartData.monthlyGrowth.length)}
+                  </span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* XP Distribution Bar Chart */}
+        {/* XP Distribution - Horizontal Bar Chart for better readability */}
         <Card className="rounded-2xl bg-gradient-to-br from-white via-purple-50/30 to-pink-50/50 dark:from-gray-800 dark:via-purple-900/10 dark:to-pink-900/10 border-2 border-purple-100 dark:border-purple-900/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg shadow-purple-500/30">
-                <TrendingUp className="h-6 w-6 text-white" />
+                <Crown className="h-6 w-6 text-white" />
               </div>
               <div>
                 <CardTitle className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
@@ -384,37 +420,90 @@ export const UserStatisticsCharts: React.FC<UserStatisticsChartsProps> = ({ load
             </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData.xpDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="range" 
-                  stroke="#6b7280"
-                  style={{ fontSize: '12px' }}
-                />
-                <YAxis 
-                  stroke="#6b7280"
-                  style={{ fontSize: '12px' }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="count" 
-                  fill="url(#colorBar)" 
-                  radius={[12, 12, 0, 0]}
-                  name="Số người dùng"
+            {chartData.xpDistribution.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                <p>Chưa có dữ liệu điểm XP</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart 
+                  data={chartData.xpDistribution} 
+                  layout="vertical"
+                  margin={{ top: 5, right: 40, left: 20, bottom: 5 }}
                 >
                   <defs>
-                    <linearGradient id="colorBar" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={COLORS.purple} stopOpacity={1}/>
-                      <stop offset="100%" stopColor={COLORS.pink} stopOpacity={0.8}/>
-                    </linearGradient>
+                    {chartData.xpDistribution.map((_, index) => (
+                      <linearGradient key={`xpGradient-${index}`} id={`xpGradient-${index}`} x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor={`hsl(${270 + index * 15}, 70%, 60%)`} stopOpacity={1}/>
+                        <stop offset="100%" stopColor={`hsl(${290 + index * 15}, 80%, 55%)`} stopOpacity={1}/>
+                      </linearGradient>
+                    ))}
                   </defs>
-                  {chartData.xpDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill="url(#colorBar)" />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={true} vertical={false} />
+                  <XAxis 
+                    type="number"
+                    stroke="#6b7280"
+                    style={{ fontSize: '12px', fontWeight: '600' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                    allowDecimals={false}
+                  />
+                  <YAxis 
+                    type="category"
+                    dataKey="range" 
+                    stroke="#6b7280"
+                    style={{ fontSize: '11px', fontWeight: '600' }}
+                    width={70}
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={false}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(139, 92, 246, 0.1)' }}
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '2px solid #8B5CF6',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 25px rgba(139, 92, 246, 0.2)'
+                    }}
+                    formatter={(value: number) => [`${value} người dùng`, 'Số lượng']}
+                    labelStyle={{ fontWeight: 'bold', color: '#1f2937' }}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    radius={[0, 8, 8, 0]}
+                    name="Số người dùng"
+                    maxBarSize={35}
+                    label={{
+                      position: 'right',
+                      fill: '#7c3aed',
+                      fontWeight: 'bold',
+                      fontSize: 12
+                    }}
+                  >
+                    {chartData.xpDistribution.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={`url(#xpGradient-${index})`} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+            
+            {/* Summary legend */}
+            {chartData.xpDistribution.length > 0 && (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <div className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Tổng người dùng: </span>
+                  <span className="font-bold text-purple-600 dark:text-purple-400">
+                    {chartData.xpDistribution.reduce((sum, item) => sum + item.count, 0)}
+                  </span>
+                </div>
+                <div className="px-3 py-1.5 bg-pink-50 dark:bg-pink-900/30 rounded-lg border border-pink-200 dark:border-pink-800">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Nhóm đông nhất: </span>
+                  <span className="font-bold text-pink-600 dark:text-pink-400">
+                    {chartData.xpDistribution.reduce((max, item) => item.count > max.count ? item : max, chartData.xpDistribution[0])?.range || 'N/A'}
+                  </span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
