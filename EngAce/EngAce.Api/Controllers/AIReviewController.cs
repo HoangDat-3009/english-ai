@@ -267,4 +267,80 @@ public class AIReviewController : ControllerBase
             return StatusCode(500, new { message = "Internal server error", error = ex.Message });
         }
     }
+
+    // PUT: api/AIReview/submissions/{id}/review
+    [HttpPut("submissions/{id}/review")]
+    public async Task<IActionResult> UpdateReview(int id, [FromBody] ReviewUpdateRequest request)
+    {
+        if (request == null)
+            return BadRequest(new { message = "Invalid request data" });
+
+        try
+        {
+            var connectionString = _configuration.GetConnectionString("DefaultConnection");
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            // Cập nhật exercise_completions với điểm mới và trạng thái
+            var updateCompletionQuery = @"
+                UPDATE exercise_completions 
+                SET 
+                    final_score = @finalScore,
+                    review_status = @reviewStatus,
+                    review_notes = @reviewNotes,
+                    reviewed_by = @reviewedBy,
+                    reviewed_at = NOW()
+                WHERE id = @id";
+
+            using var cmd = new MySqlCommand(updateCompletionQuery, connection);
+            cmd.Parameters.AddWithValue("@id", id);
+            cmd.Parameters.AddWithValue("@finalScore", request.FinalScore);
+            cmd.Parameters.AddWithValue("@reviewStatus", request.ReviewStatus);
+            cmd.Parameters.AddWithValue("@reviewNotes", request.ReviewNotes ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@reviewedBy", request.ReviewedBy.HasValue ? request.ReviewedBy.Value : (object)DBNull.Value);
+            
+            var rowsAffected = await cmd.ExecuteNonQueryAsync();
+            if (rowsAffected == 0)
+            {
+                return NotFound(new { message = "Submission not found" });
+            }
+
+            _logger.LogInformation(
+                "Review updated successfully for submission {SubmissionId}. Final score: {FinalScore}, Status: {ReviewStatus}",
+                id, request.FinalScore, request.ReviewStatus);
+
+            return Ok(new
+            {
+                message = "Review updated successfully",
+                submissionId = id,
+                finalScore = request.FinalScore,
+                reviewStatus = request.ReviewStatus
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating review for submission {SubmissionId}", id);
+            return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    // DTO classes
+    public class ReviewUpdateRequest
+    {
+        public int SubmissionId { get; set; }
+        public decimal FinalScore { get; set; }
+        public string ReviewStatus { get; set; } = "pending";
+        public string? ReviewNotes { get; set; }
+        public int? ReviewedBy { get; set; }
+        public List<QuestionAdjustment>? QuestionAdjustments { get; set; }
+    }
+
+    public class QuestionAdjustment
+    {
+        public int QuestionNumber { get; set; }
+        public string? NewCorrectAnswer { get; set; }
+        public string? TeacherExplanation { get; set; }
+        public decimal NewPoints { get; set; }
+        public bool IsCorrect { get; set; }
+    }
 }

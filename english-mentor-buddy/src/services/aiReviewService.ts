@@ -1,3 +1,5 @@
+import { authService } from './authService';
+
 const API_BASE_URL = 'http://localhost:5000/api';
 
 export interface AIReviewStats {
@@ -67,6 +69,45 @@ export const aiReviewService = {
     const response = await fetch(`${API_BASE_URL}/AIReview/submissions/${id}/details`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  },
+
+  // Update review with teacher adjustments
+  async updateReview(id: number, reviewData: {
+    submissionId: number;
+    finalScore: number;
+    reviewStatus: string;
+    reviewNotes: string;
+    questionAdjustments: Array<{
+      questionNumber: number;
+      newCorrectAnswer: string;
+      teacherExplanation: string;
+      newPoints: number;
+      isCorrect: boolean;
+    }>;
+  }) {
+    // Get current user ID from auth service
+    const currentUser = authService.getUser();
+    const reviewedBy = currentUser?.userId || 1; // Default to admin ID 1 if not found
+
+    const payload = {
+      ...reviewData,
+      reviewedBy,
+    };
+
+    const response = await fetch(`${API_BASE_URL}/AIReview/submissions/${id}/review`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authService.getAuthHeader(),
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
     return await response.json();
   },
