@@ -6,7 +6,10 @@ using Helper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 namespace EngAce.Api.Controllers
 {
@@ -20,6 +23,8 @@ namespace EngAce.Api.Controllers
         private const int MaxTopicWordCount = 12;
         private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(45);
         private static readonly ConcurrentDictionary<Guid, ListeningExerciseSummary> _recentExercises = new();
+        private static readonly string ArchiveDirectoryPath = Path.Combine(AppContext.BaseDirectory, "Data", "ListeningExercises");
+        private static readonly JsonSerializerOptions ArchiveSerializerOptions = new() { WriteIndented = true };
 
         private readonly IMemoryCache _cache = cache;
         private readonly ILogger<ListeningController> _logger = logger;
@@ -95,6 +100,8 @@ namespace EngAce.Api.Controllers
                     createdAt,
                     expiresAt);
                 _recentExercises[exerciseId] = summary;
+
+                await PersistExerciseArchiveAsync(exerciseId, exercise, request, audioContent, createdAt);
 
                 var response = new ListeningExerciseResponse
                 {
@@ -206,6 +213,65 @@ namespace EngAce.Api.Controllers
         }
 
         /// <summary>
+        /// Lists archived listening exercises saved as JSON files for teachers to review later.
+        /// </summary>
+        /// <param name="take">Optional page size (1-200). Defaults to 50.</param>
+        [HttpGet("Archive")]
+        public async Task<ActionResult<IEnumerable<ListeningExerciseArchiveSummary>>> GetArchivedExercises([FromQuery] int? take)
+        {
+            var limit = take.HasValue ? Math.Clamp(take.Value, 1, 200) : 50;
+
+            if (!Directory.Exists(ArchiveDirectoryPath))
+            {
+                return Ok(Array.Empty<ListeningExerciseArchiveSummary>());
+            }
+
+            var summaries = new List<ListeningExerciseArchiveSummary>(limit);
+            var archiveFiles = Directory
+                .EnumerateFiles(ArchiveDirectoryPath, "*.json", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(path => System.IO.File.GetCreationTimeUtc(path));
+
+            foreach (var filePath in archiveFiles)
+            {
+                if (summaries.Count >= limit)
+                {
+                    break;
+                }
+
+                try
+                {
+                    await using var stream = System.IO.File.OpenRead(filePath);
+                    var archiveRecord = await JsonSerializer.DeserializeAsync<ListeningExerciseArchive>(stream);
+
+                    if (archiveRecord is null)
+                    {
+                        continue;
+                    }
+
+                    var fileInfo = new FileInfo(filePath);
+                    summaries.Add(new ListeningExerciseArchiveSummary(
+                        archiveRecord.ExerciseId,
+                        archiveRecord.Title,
+                        archiveRecord.GenreLabel,
+                        archiveRecord.Genre,
+                        archiveRecord.EnglishLevel,
+                        archiveRecord.TotalQuestions,
+                        archiveRecord.CreatedAt,
+                        archiveRecord.ExpiresAt,
+                        fileInfo.Name,
+                        fileInfo.Length,
+                        archiveRecord.Request));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to read listening archive file {FilePath}", filePath);
+                }
+            }
+
+            return Ok(summaries);
+        }
+
+        /// <summary>
         /// Retrieves the list of available listening genres.
         /// </summary>
         /// <returns>A dictionary mapping genre identifiers to their localized descriptions.</returns>
@@ -221,6 +287,40 @@ namespace EngAce.Api.Controllers
             return Ok(descriptions);
         }
 
+        private async Task PersistExerciseArchiveAsync(Guid exerciseId, ListeningExercise exercise, GenerateListeningExercise request, string? audioContent, DateTime createdAt)
+        {
+            try
+            {
+                Directory.CreateDirectory(ArchiveDirectoryPath);
+                var archiveRecord = new ListeningExerciseArchive(
+                    exerciseId,
+                    exercise.Title,
+                    exercise.Genre,
+                    GeneralHelper.GetEnumDescription(exercise.Genre),
+                    exercise.EnglishLevel,
+                    exercise.Questions.Count,
+                    exercise.Transcript,
+                    audioContent,
+                    exercise.Questions,
+                    createdAt,
+                    createdAt.Add(CacheLifetime),
+                    new ListeningExerciseArchiveRequest(
+                        request.Genre,
+                        request.EnglishLevel,
+                        request.TotalQuestions,
+                        request.CustomTopic,
+                        request.AiModel));
+
+                var filePath = Path.Combine(ArchiveDirectoryPath, $"{exerciseId}.json");
+                await using var stream = System.IO.File.Create(filePath);
+                await JsonSerializer.SerializeAsync(stream, archiveRecord, ArchiveSerializerOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to archive listening exercise {ExerciseId}", exerciseId);
+            }
+        }
+
         private static string GetCacheKey(Guid exerciseId) => $"ListeningExercise-{exerciseId}";
 
         private sealed record ListeningExerciseCacheItem(ListeningExercise Exercise, string? AudioContent, DateTime CreatedAt);
@@ -233,5 +333,39 @@ namespace EngAce.Api.Controllers
             sbyte TotalQuestions,
             DateTime CreatedAt,
             DateTime ExpiresAt);
+
+        public sealed record ListeningExerciseArchiveSummary(
+            Guid ExerciseId,
+            string Title,
+            string GenreLabel,
+            ListeningGenre Genre,
+            EnglishLevel EnglishLevel,
+            int TotalQuestions,
+            DateTime CreatedAt,
+            DateTime ExpiresAt,
+            string FileName,
+            long FileSizeBytes,
+            ListeningExerciseArchiveRequest Request);
+
+        private sealed record ListeningExerciseArchive(
+            Guid ExerciseId,
+            string Title,
+            ListeningGenre Genre,
+            string GenreLabel,
+            EnglishLevel EnglishLevel,
+            int TotalQuestions,
+            string Transcript,
+            string? AudioContent,
+            IReadOnlyList<Quiz> Questions,
+            DateTime CreatedAt,
+            DateTime ExpiresAt,
+            ListeningExerciseArchiveRequest Request);
+
+        public sealed record ListeningExerciseArchiveRequest(
+            ListeningGenre Genre,
+            EnglishLevel EnglishLevel,
+            sbyte TotalQuestions,
+            string? CustomTopic,
+            AiModel AiModel);
     }
 }
