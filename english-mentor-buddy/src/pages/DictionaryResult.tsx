@@ -15,6 +15,7 @@ const DictionaryResult: React.FC = () => {
     const { toast } = useToast();
     const searchParams = new URLSearchParams(location.search);
     const keyword = searchParams.get('keyword') || '';
+    const provider = (searchParams.get('provider') as 'gemini' | 'openai') || 'gemini';
 
     const [wordData, setWordData] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -50,8 +51,8 @@ const DictionaryResult: React.FC = () => {
             setIsLoading(true);
 
             try {
-                console.log('Fetching word definition for:', keyword);
-                const result = await dictionaryService.searchWord(keyword);
+                console.log('Fetching word definition for:', keyword, 'using provider:', provider);
+                const result = await dictionaryService.searchWord(keyword, provider);
 
                 if (result) {
                     // Treat the response as a string
@@ -81,7 +82,7 @@ const DictionaryResult: React.FC = () => {
         };
 
         fetchWordDefinition();
-    }, [keyword, navigate, toast]);
+    }, [keyword, provider, navigate, toast]);
 
     if (isLoading) {
         return (

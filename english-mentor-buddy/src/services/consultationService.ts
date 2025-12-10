@@ -38,7 +38,8 @@ export const chatService = {
     age: number,
     englishLevel: number,
     enableReasoning: boolean = false,
-    enableSearching: boolean = false
+    enableSearching: boolean = false,
+    provider: 'gemini' | 'openai' = 'gemini'
   ): Promise<string> => {
     // Rate limiting: ensure minimum time between requests
     const now = Date.now();
@@ -67,7 +68,8 @@ export const chatService = {
           age: age.toString(),
           englishLevel: englishLevel.toString(),
           enableReasoning: enableReasoning.toString(),
-          enableSearching: enableSearching.toString()
+          enableSearching: enableSearching.toString(),
+          provider: provider
         });
 
         // Get the raw response

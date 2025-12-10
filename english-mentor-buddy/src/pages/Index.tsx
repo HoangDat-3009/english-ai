@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import FeatureCard from '@/components/FeatureCard';
-import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink, FileText } from 'lucide-react';
+import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink, FileText, TrendingUp, Trophy, BookOpen } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
 import { useAuth0Integration } from '@/hooks/useAuth0Integration';
 
@@ -16,7 +16,7 @@ const features = [
     bgColor: 'bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/50 dark:to-rose-950/50',
   },
   {
-    title: 'Bài tập',
+    title: 'Bài tập ngữ pháp',
     description: 'Thiết lập bài tập phù hợp với nhu cầu học tập của bạn với các chủ đề và dạng bài tập đa dạng.',
     icon: GraduationCap,
     path: '/exercises',
@@ -32,7 +32,15 @@ const features = [
     bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/50 dark:to-cyan-950/50',
   },
   {
-    title: 'Viết',
+    title: 'Bài tập đọc hiểu',
+    description: 'Luyện tập đọc hiểu theo chuẩn TOEIC với các bài tập Parts 5, 6, 7 và tạo bài tập tự động bằng AI.',
+    icon: BookOpen,
+    path: '/reading-exercises',
+    color: 'text-indigo-600',
+    bgColor: 'bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/50 dark:to-violet-950/50',
+  },
+  {
+    title: 'Bài tập viết',
     description: 'Nâng cao kỹ năng viết tiếng Anh của bạn với các bài tập và hướng dẫn chi tiết.',
     icon: Pencil,
     path: '/writing-mode',
@@ -46,6 +54,22 @@ const features = [
     path: '/chat',
     color: 'text-rose-600',
     bgColor: 'bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/50 dark:to-pink-950/50',
+  },
+  {
+    title: 'Tiến độ học tập',
+    description: 'Theo dõi quá trình học tập của bạn với biểu đồ chi tiết, thống kê điểm số và các mục tiêu đạt được.',
+    icon: TrendingUp,
+    path: '/progress',
+    color: 'text-blue-600',
+    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/50 dark:to-cyan-950/50',
+  },
+  {
+    title: 'Bảng xếp hạng',
+    description: 'Cạnh tranh với những người học khác, xem thứ hạng của bạn và động lực phấn đấu hơn nữa.',
+    icon: Trophy,
+    path: '/leaderboard',
+    color: 'text-yellow-600',
+    bgColor: 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/50 dark:to-orange-950/50',
   }
 
 ];
@@ -111,16 +135,7 @@ const Index = () => {
                 Khám phá tính năng
                 <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
               </Link>
-              <a
-                href="https://sotatek-congvu.github.io/LuyenTap/#/test-list"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group inline-flex h-12 items-center justify-center rounded-xl border-2 border-fuchsia-300 dark:border-fuchsia-600 bg-fuchsia-50/90 dark:bg-fuchsia-950/50 backdrop-blur-sm px-8 text-sm font-medium text-fuchsia-700 dark:text-fuchsia-300 shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500"
-              >
-                <span className="mr-2">📚</span>
-                Luyện Tập Nâng Cao
-                <ExternalLink className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </a>
+              
             </motion.div>
           </div>
         </div>

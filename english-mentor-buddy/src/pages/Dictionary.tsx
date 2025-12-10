@@ -12,6 +12,7 @@ const Dictionary: React.FC = () => {
   const navigate = useNavigate();
   const { error } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
 
   const { isLoading, request } = useApi();
 
@@ -26,15 +27,15 @@ const Dictionary: React.FC = () => {
     try {
       // Attempt to fetch the word definition
       const wordResult = await request(
-        () => dictionaryService.searchWord(searchTerm.trim()),
+        () => dictionaryService.searchWord(searchTerm.trim(), aiProvider),
         {
           skipToast: true,
         }
       );
 
       if (wordResult) {
-        // If successful, navigate to the result page
-        navigate(`/dictionary-result?keyword=${encodeURIComponent(searchTerm.trim())}`);
+        // If successful, navigate to the result page with provider
+        navigate(`/dictionary-result?keyword=${encodeURIComponent(searchTerm.trim())}&provider=${aiProvider}`);
       } else {
         error('Không tìm thấy từ', 'Từ này không có trong từ điển của chúng tôi');
       }
@@ -82,10 +83,36 @@ const Dictionary: React.FC = () => {
         </div>
 
         <h1 className="text-4xl font-bold text-center mb-2 text-foreground">TỪ ĐIỂN</h1>
-        <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
+        <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
           Tra cứu từ vựng với định nghĩa chi tiết, ví dụ thực tế và gợi ý sử dụng trong nhiều ngữ
           cảnh khác nhau.
         </p>
+
+        {/* AI Provider Selector */}
+        <div className="flex justify-center mb-6">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50">
+            <button
+              onClick={() => setAiProvider('gemini')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                aiProvider === 'gemini'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              🤖 Gemini
+            </button>
+            <button
+              onClick={() => setAiProvider('openai')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                aiProvider === 'openai'
+                  ? 'bg-green-500 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              ✨ ChatGPT
+            </button>
+          </div>
+        </div>
 
         <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8">
           <div className="relative">

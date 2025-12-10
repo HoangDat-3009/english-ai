@@ -174,7 +174,19 @@ Từ: ""advice""
 ✅ Khi Trả Lời Bỏ Các thông tin kí hiệu thừa như dâu * hay các thông tin gợi ý tìm kiếm trên google.
 ✅ Kiểm tra chính tả & ngữ pháp trước khi gửi.
 }";
-        public static async Task<string> Search(string apiKey, string keyword, string context)
+        public static async Task<string> Search(string apiKey, string keyword, string context, string provider = "gemini")
+        {
+            // Route to appropriate AI service based on provider
+            if (provider.Equals("openai", StringComparison.OrdinalIgnoreCase))
+            {
+                return await SearchWithOpenAI(apiKey, keyword, context);
+            }
+            
+            // Default to Gemini
+            return await SearchWithGemini(apiKey, keyword, context);
+        }
+
+        private static async Task<string> SearchWithGemini(string apiKey, string keyword, string context)
         {
             var promptBuilder = new StringBuilder();
             keyword = keyword.Trim();
@@ -242,5 +254,11 @@ Từ: ""advice""
             return response.Result;
         }
 
+        private static async Task<string> SearchWithOpenAI(string apiKey, string keyword, string context)
+        {
+            // TODO: Implement OpenAI logic
+            // For now, fallback to Gemini
+            return await SearchWithGemini(apiKey, keyword, context);
+        }
     }
 }

@@ -23,6 +23,7 @@ const Consultation: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Cài đặt người dùng cố định
@@ -164,7 +165,8 @@ const Consultation: React.FC = () => {
         userSettings.age,
         userSettings.englishLevel,
         userSettings.enableReasoning,
-        userSettings.enableSearching
+        userSettings.enableSearching,
+        aiProvider
       );
 
       // Validate response
@@ -304,16 +306,41 @@ const Consultation: React.FC = () => {
                 </div>
                 <h2 className="font-semibold text-lg text-foreground">Chat AI</h2>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                onClick={handleClearConversation}
-                disabled={isLoading}
-              >
-                <RefreshCw size={16} className="mr-2" />
-                Làm mới
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* AI Provider Selector */}
+                <div className="flex items-center gap-2 mr-2 px-3 py-1.5 rounded-md bg-muted/50">
+                  <button
+                    onClick={() => setAiProvider('gemini')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                      aiProvider === 'gemini'
+                        ? 'bg-blue-500 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    🤖 Gemini
+                  </button>
+                  <button
+                    onClick={() => setAiProvider('openai')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                      aiProvider === 'openai'
+                        ? 'bg-green-500 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    ✨ ChatGPT
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                  onClick={handleClearConversation}
+                  disabled={isLoading}
+                >
+                  <RefreshCw size={16} className="mr-2" />
+                  Làm mới
+                </Button>
+              </div>
             </div>
             
             {/* Rate limit warning */}

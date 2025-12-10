@@ -88,7 +88,19 @@ You are an expert English teacher with over 20 years of teaching experience, and
 ]
 ```";
 
-        public static async Task<List<Quiz>> GenerateQuizes(string apiKey, string topic, List<AssignmentType> quizzTypes, EnglishLevel level, short questionsCount)
+        public static async Task<List<Quiz>> GenerateQuizes(string apiKey, string topic, List<AssignmentType> quizzTypes, EnglishLevel level, short questionsCount, string provider = "gemini")
+        {
+            // Route to appropriate AI service based on provider
+            if (provider.Equals("openai", StringComparison.OrdinalIgnoreCase))
+            {
+                return await GenerateQuizesWithOpenAI(apiKey, topic, quizzTypes, level, questionsCount);
+            }
+            
+            // Default to Gemini
+            return await GenerateQuizesWithGemini(apiKey, topic, quizzTypes, level, questionsCount);
+        }
+
+        private static async Task<List<Quiz>> GenerateQuizesWithGemini(string apiKey, string topic, List<AssignmentType> quizzTypes, EnglishLevel level, short questionsCount)
         {
             if (questionsCount <= 15)
             {
@@ -506,6 +518,13 @@ You are an expert English teacher with over 20 years of teaching experience, and
                 EnglishLevel.Proficient => C2_Description,
                 _ => string.Empty,
             };
+        }
+
+        private static async Task<List<Quiz>> GenerateQuizesWithOpenAI(string apiKey, string topic, List<AssignmentType> quizzTypes, EnglishLevel level, short questionsCount)
+        {
+            // TODO: Implement OpenAI logic
+            // For now, fallback to Gemini
+            return await GenerateQuizesWithGemini(apiKey, topic, quizzTypes, level, questionsCount);
         }
     }
 

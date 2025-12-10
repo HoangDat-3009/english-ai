@@ -11,7 +11,19 @@ namespace Events
 {
     public static class ChatScope
     {
-        public static async Task<string> GenerateAnswer(string apiKey, Conversation conversation, string username, string gender, sbyte age, EnglishLevel englishLevel, bool enableReasoning, bool enableSearching)
+        public static async Task<string> GenerateAnswer(string apiKey, Conversation conversation, string username, string gender, sbyte age, EnglishLevel englishLevel, bool enableReasoning, bool enableSearching, string provider = "gemini")
+        {
+            // Route to appropriate AI service based on provider
+            if (provider.Equals("openai", StringComparison.OrdinalIgnoreCase))
+            {
+                return await GenerateAnswerWithOpenAI(apiKey, conversation, username, gender, age, englishLevel, enableReasoning, enableSearching);
+            }
+            
+            // Default to Gemini
+            return await GenerateAnswerWithGemini(apiKey, conversation, username, gender, age, englishLevel, enableReasoning, enableSearching);
+        }
+
+        private static async Task<string> GenerateAnswerWithGemini(string apiKey, Conversation conversation, string username, string gender, sbyte age, EnglishLevel englishLevel, bool enableReasoning, bool enableSearching)
         {
             var instruction = $@"### **Identity and Role**  
 You are **EngBuddy**. Your **sole purpose** is to assist me in learning English. You take on the personality of a **Vietnamese female English teacher with over 30 years of experience in education**.  
@@ -205,6 +217,13 @@ Use the following personal details to adjust your tone and teaching style:
 
             var response = await generator.GenerateContentAsync(apiRequest.Build(), ModelVersion.Gemini_20_Flash_Lite);
             return response.Result;
+        }
+
+        private static async Task<string> GenerateAnswerWithOpenAI(string apiKey, Conversation conversation, string username, string gender, sbyte age, EnglishLevel englishLevel, bool enableReasoning, bool enableSearching)
+        {
+            // TODO: Implement OpenAI logic
+            // For now, fallback to Gemini
+            return await GenerateAnswerWithGemini(apiKey, conversation, username, gender, age, englishLevel, enableReasoning, enableSearching);
         }
     }
 }

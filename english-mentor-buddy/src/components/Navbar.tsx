@@ -48,10 +48,9 @@ const Navbar = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    tendangnhap: user?.tendangnhap || '',
+    username: user?.username || '',
+    fullName: user?.fullName || '',
     email: user?.email || '',
-    englishlevel: user?.englishlevel || '',
-    password: user?.password || '', // Hiển thị mật khẩu hiện tại
   });
 
   const navItems = [
@@ -78,10 +77,9 @@ const Navbar = () => {
   const handleEditToggle = () => {
     setIsEditing(true);
     setFormData({
-      tendangnhap: user?.tendangnhap || '',
+      username: user?.username || '',
+      fullName: user?.fullName || '',
       email: user?.email || '',
-      englishlevel: user?.englishlevel || '',
-      password: user?.password || '', // Giữ mật khẩu hiện tại
     });
   };
 
@@ -89,22 +87,14 @@ const Navbar = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('user')
-        .update({
-          tendangnhap: formData.tendangnhap,
-          email: formData.email,
-          englishlevel: formData.englishlevel,
-          password: formData.password, // Cập nhật mật khẩu thô
-        })
-        .eq('id', user.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Cập nhật user trong Context
-      login({ ...user, ...data });
+      // TODO: Call backend API to update user profile
+      // For now, just update local state
+      login({ 
+        ...user, 
+        username: formData.username,
+        fullName: formData.fullName,
+        email: formData.email,
+      });
 
       toast({
         title: "Cập nhật thành công",
@@ -113,11 +103,12 @@ const Navbar = () => {
       });
 
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Update error:', error);
+      const message = error instanceof Error ? error.message : "Có lỗi xảy ra khi lưu thông tin. Vui lòng kiểm tra lại.";
       toast({
         title: "Cập nhật thất bại",
-        description: "Có lỗi xảy ra khi lưu thông tin. Vui lòng kiểm tra lại.",
+        description: message,
         variant: "destructive",
       });
     }
@@ -200,7 +191,7 @@ const Navbar = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-medium">
-                {user ? `Xin chào, ${user.tendangnhap}` : 'Khách'}
+                {user ? `Xin chào, ${user.username || user.fullName}` : 'Khách'}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
@@ -239,11 +230,21 @@ const Navbar = () => {
                         {isEditing ? (
                           <>
                             <div className="space-y-2">
-                              <Label htmlFor="tendangnhap" className="font-medium text-sm">Tên đăng nhập</Label>
+                              <Label htmlFor="username" className="font-medium text-sm">Tên đăng nhập</Label>
                               <Input
-                                id="tendangnhap"
-                                name="tendangnhap"
-                                value={formData.tendangnhap}
+                                id="username"
+                                name="username"
+                                value={formData.username}
+                                onChange={handleInputChange}
+                                className="w-full"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="fullName" className="font-medium text-sm">Họ và tên</Label>
+                              <Input
+                                id="fullName"
+                                name="fullName"
+                                value={formData.fullName}
                                 onChange={handleInputChange}
                                 className="w-full"
                               />
@@ -259,53 +260,27 @@ const Navbar = () => {
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="englishlevel" className="font-medium text-sm">Cấp độ</Label>
-                              <Input
-                                id="englishlevel"
-                                name="englishlevel"
-                                value={formData.englishlevel}
-                                onChange={handleInputChange}
-                                className="w-full"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="password" className="font-medium text-sm">Mật khẩu</Label>
-                              <Input
-                                id="password"
-                                name="password"
-                                type="password"
-                                value={formData.password}
-                                onChange={handleInputChange}
-                                className="w-full"
-                                placeholder="Nhập mật khẩu mới"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <h4 className="font-medium text-sm">Ngày tham gia</h4>
-                              <p className="text-muted-foreground">
-                                {user?.ngaytaotaikhoan ? new Date(user.ngaytaotaikhoan).toLocaleDateString() : 'Chưa có'}
-                              </p>
+                              <h4 className="font-medium text-sm">Vai trò</h4>
+                              <p className="text-muted-foreground">{user?.role || 'user'}</p>
                             </div>
                           </>
                         ) : (
                           <>
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Tên đăng nhập</h4>
-                              <p className="text-muted-foreground">{user?.tendangnhap || 'Chưa đăng nhập'}</p>
+                              <p className="text-muted-foreground">{user?.username || 'Chưa có'}</p>
+                            </div>
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Họ và tên</h4>
+                              <p className="text-muted-foreground">{user?.fullName || 'Chưa có'}</p>
                             </div>
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Email</h4>
                               <p className="text-muted-foreground">{user?.email || 'Chưa có'}</p>
                             </div>
                             <div className="space-y-2">
-                              <h4 className="font-medium text-sm">Cấp độ</h4>
-                              <p className="text-muted-foreground">{user?.englishlevel || 'Chưa có'}</p>
-                            </div>
-                            <div className="space-y-2">
-                              <h4 className="font-medium text-sm">Ngày tham gia</h4>
-                              <p className="text-muted-foreground">
-                                {user?.ngaytaotaikhoan ? new Date(user.ngaytaotaikhoan).toLocaleDateString() : 'Chưa có'}
-                              </p>
+                              <h4 className="font-medium text-sm">Vai trò</h4>
+                              <p className="text-muted-foreground">{user?.role || 'user'}</p>
                             </div>
                           </>
                         )}
@@ -361,10 +336,9 @@ const Navbar = () => {
                   </Sheet>
 
                   {/* Admin access - chỉ hiển thị cho admin */}
-                  {(user.email === 'admin@example.com' || 
-                    user.tendangnhap === 'Admin' ||
-                    user.email?.includes('admin') ||
-                    user.id === 1) && (
+                  {(user.role === 'admin' || 
+                    user.role === 'super_admin' ||
+                    user.email?.includes('admin')) && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => navigate('/admin')}>

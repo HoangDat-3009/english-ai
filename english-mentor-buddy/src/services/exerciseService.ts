@@ -58,7 +58,7 @@ export interface SubmissionResult {
 
 export const exerciseService = {
   // Generate exercise
-  generateExercise: async (params: ExerciseGenerationParams): Promise<ExerciseSet> => {
+  generateExercise: async (params: ExerciseGenerationParams, provider: 'gemini' | 'openai' = 'gemini'): Promise<ExerciseSet> => {
     try {
       // Format request to match the required structure
       const requestBody = {
@@ -68,9 +68,9 @@ export const exerciseService = {
         TotalQuestions: params.TotalQuestions
       };
 
-      console.log('REQUEST - generateExercise:', JSON.stringify(requestBody, null, 2));
+      console.log('REQUEST - generateExercise:', JSON.stringify(requestBody, null, 2), 'using provider:', provider);
 
-      const response = await fetch(`${apiService.getBaseUrl()}/api/Assignment/Generate`, {
+      const response = await fetch(`${apiService.getBaseUrl()}/api/Assignment/Generate?provider=${provider}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

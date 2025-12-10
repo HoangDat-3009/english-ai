@@ -11,6 +11,9 @@ import DictionaryResult from "./pages/DictionaryResult";
 import Exercises from "./pages/Exercises";
 import Writing from "./pages/Writing";
 import WritingMode from "./pages/WritingMode";
+import Leaderboard from "./pages/Leaderboard"
+import Progress from "./pages/Progress";
+import ReadingExercises from "./pages/ReadingExercises";
 import SentenceWriting from "./pages/SentenceWriting";
 import SentencePractice from "./pages/SentencePractice";
 import WritingEssayLibrary from "./pages/WritingEssayLibrary";
@@ -81,6 +84,10 @@ const App = () => (
               
               <Route path="/chat" element={<Chat />} />
               <Route path="/test-stats" element={<TestStatistics />} />
+
+              <Route path="/progress" element={<Progress />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/reading-exercises" element={<ReadingExercises />} />
               
               {/* TOEIC Test routes */}
               <Route path="/test-list" element={<TestList />} />

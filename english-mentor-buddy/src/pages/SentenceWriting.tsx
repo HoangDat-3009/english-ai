@@ -20,6 +20,7 @@ import { sentenceWritingApi } from "@/lib/api";
 const SentenceWriting = () => {
   const navigate = useNavigate();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
   const [topicMode, setTopicMode] = useState<"suggested" | "custom">("suggested");
   const [formData, setFormData] = useState({
     topic: "travel", // Mặc định chọn Du lịch
@@ -64,7 +65,7 @@ const SentenceWriting = () => {
         level: formData.level,
         sentenceCount: parseInt(formData.sentenceCount),
         writingStyle: formData.writingStyle
-      });
+      }, aiProvider);
       
       // Validate data before navigate
       if (!data || !data.Sentences || data.Sentences.length === 0) {
@@ -144,6 +145,23 @@ const SentenceWriting = () => {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Các câu tiếng Việt theo chủ đề, bạn dịch sang tiếng Anh và nhận feedback
           </p>
+        </div>
+
+        <div className="flex justify-center gap-3 mb-6">
+          <Button
+            variant={aiProvider === 'gemini' ? 'default' : 'outline'}
+            onClick={() => setAiProvider('gemini')}
+            className="transition-all"
+          >
+            🤖 Gemini
+          </Button>
+          <Button
+            variant={aiProvider === 'openai' ? 'default' : 'outline'}
+            onClick={() => setAiProvider('openai')}
+            className="transition-all"
+          >
+            ✨ ChatGPT
+          </Button>
         </div>
 
         <Card>

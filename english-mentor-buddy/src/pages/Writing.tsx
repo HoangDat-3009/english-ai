@@ -12,12 +12,13 @@ const Index = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [review, setReview] = useState<string | null>(null);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
 
   const handleSubmit = async (data: GenerateReviewRequest) => {
     setIsLoading(true);
     
     try {
-      const result = await reviewApi.generateReview(data);
+      const result = await reviewApi.generateReview(data, aiProvider);
       setReview(result);
       toast.success("Nhận xét đã được tạo thành công!");
     } catch (error: unknown) {
@@ -77,6 +78,23 @@ const Index = () => {
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Nhận phản hồi chi tiết để nâng cao kỹ năng viết tiếng Anh của bạn
               </p>
+            </div>
+
+            <div className="flex justify-center gap-3 mb-6">
+              <Button
+                variant={aiProvider === 'gemini' ? 'default' : 'outline'}
+                onClick={() => setAiProvider('gemini')}
+                className="transition-all"
+              >
+                🤖 Gemini
+              </Button>
+              <Button
+                variant={aiProvider === 'openai' ? 'default' : 'outline'}
+                onClick={() => setAiProvider('openai')}
+                className="transition-all"
+              >
+                ✨ ChatGPT
+              </Button>
             </div>
 
             <ReviewForm onSubmit={handleSubmit} isLoading={isLoading} />

@@ -27,15 +27,15 @@ interface ApiResponse<T> {
 
 export const dictionaryService = {
   // Search for a word
-  searchWord: async (keyword: string): Promise<string | WordDefinition | null> => {
-    console.log('DictionaryService: Searching for word:', keyword);
+  searchWord: async (keyword: string, provider: 'gemini' | 'openai' = 'gemini'): Promise<string | WordDefinition | null> => {
+    console.log('DictionaryService: Searching for word:', keyword, 'using provider:', provider);
 
     try {
-      console.log('API URL:', `${apiService.getBaseUrl()}/api/Dictionary/Search?keyword=${encodeURIComponent(keyword)}`);
+      console.log('API URL:', `${apiService.getBaseUrl()}/api/Dictionary/Search?keyword=${encodeURIComponent(keyword)}&provider=${provider}`);
       console.log('Headers:', apiService.getHeaders());
 
       // Get the raw response first
-      const response = await fetch(`${apiService.getBaseUrl()}/api/Dictionary/Search?keyword=${encodeURIComponent(keyword)}`, {
+      const response = await fetch(`${apiService.getBaseUrl()}/api/Dictionary/Search?keyword=${encodeURIComponent(keyword)}&provider=${provider}`, {
         method: 'GET',
         headers: apiService.getHeaders(),
       });

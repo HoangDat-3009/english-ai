@@ -9,6 +9,10 @@ using EngAce.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Entities.Data;
+using Microsoft.EntityFrameworkCore;
+using EngAce.Api.Services.Interfaces;
+using EngAce.Api.Services.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +42,17 @@ HttpContextHelper.Configure(
     serviceProvider.GetRequiredService<IConfiguration>()
 );
 builder.Services.AddMemoryCache();
+
+// Register Database Context
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+// Register Services
+builder.Services.AddScoped<IReadingExerciseService, ReadingExerciseService>();
+builder.Services.AddScoped<IProgressService, ProgressService>();
+builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
+builder.Services.AddHttpClient<IGeminiService, GeminiService>();
 
 // Register Authentication Services
 builder.Services.AddScoped<IUserRepository, UserRepository>();

@@ -17,13 +17,14 @@ export interface GenerateReviewRequest {
 }
 
 export const reviewApi = {
-  generateReview: async (data: GenerateReviewRequest): Promise<string> => {
+  generateReview: async (data: GenerateReviewRequest, provider: 'gemini' | 'openai' = 'gemini'): Promise<string> => {
     try {
       console.log("🚀 Calling Review API with data:", {
         userLevel: data.userLevel,
         mappedLevel: levelMapping[data.userLevel],
         requirementLength: data.requirement.length,
         contentLength: data.content.length,
+        provider: provider,
       });
 
       // Chuẩn bị request body giống backend mong đợi
@@ -36,7 +37,7 @@ export const reviewApi = {
       console.log("📤 Request body:", requestBody);
 
       // Sử dụng fetch giống như Chat page
-      const response = await fetch(`${apiService.getBaseUrl()}/api/Review/Generate`, {
+      const response = await fetch(`${apiService.getBaseUrl()}/api/Review/Generate?provider=${provider}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +109,7 @@ export interface GenerateSentencesResponse {
 }
 
 export const sentenceWritingApi = {
-  generateSentences: async (data: GenerateSentencesRequest): Promise<GenerateSentencesResponse> => {
+  generateSentences: async (data: GenerateSentencesRequest, provider: 'gemini' | 'openai' = 'gemini'): Promise<GenerateSentencesResponse> => {
     try {
       const requestBody = {
         Topic: data.topic,
@@ -117,7 +118,7 @@ export const sentenceWritingApi = {
         WritingStyle: data.writingStyle || "Communicative",
       };
       
-      const url = `${apiService.getBaseUrl()}/api/SentenceWriting/Generate`;
+      const url = `${apiService.getBaseUrl()}/api/SentenceWriting/Generate?provider=${provider}`;
 
       const response = await fetch(url, {
         method: 'POST',

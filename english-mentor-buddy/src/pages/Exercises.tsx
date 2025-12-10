@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, ArrowLeft, Clock, ArrowRight, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { GraduationCap, ArrowLeft, Clock, ArrowRight, Sparkles, ChevronDown, ChevronUp, Bot, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -252,6 +252,7 @@ const Exercises: React.FC = () => {
   } | null>(null);
 
   const [selectedQuestionTypes, setSelectedQuestionTypes] = useState<AssignmentType[]>([]);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
 
   // Timer effect
   useEffect(() => {
@@ -323,7 +324,7 @@ const Exercises: React.FC = () => {
         "TotalQuestions": 10
       }, null, 2));
 
-      const result = await exerciseService.generateExercise(params);
+      const result = await exerciseService.generateExercise(params, aiProvider);
 
       console.log('RECEIVED RESPONSE:');
       console.log(JSON.stringify(result, null, 2));
@@ -482,9 +483,35 @@ const Exercises: React.FC = () => {
             </div>
 
             <h1 className="text-4xl font-bold text-center mb-2 text-foreground">BÀI TẬP</h1>
-            <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
               Thiết lập bài tập phù hợp với nhu cầu học tập của bạn với các chủ đề và dạng bài tập đa dạng.
             </p>
+
+            {/* AI Provider Selector */}
+            <div className="flex justify-center mb-6">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50">
+                <button
+                  onClick={() => setAiProvider('gemini')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    aiProvider === 'gemini'
+                      ? 'bg-blue-500 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  🤖 Gemini
+                </button>
+                <button
+                  onClick={() => setAiProvider('openai')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    aiProvider === 'openai'
+                      ? 'bg-green-500 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  ✨ ChatGPT
+                </button>
+              </div>
+            </div>
 
             <div className="space-y-6">
               <div className="mb-4">
