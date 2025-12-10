@@ -418,3 +418,13 @@ dist-ssr
 *.sw?
 .env
 .vercel
+
+# API Keys and sensitive configuration (DO NOT COMMIT)
+# Note: appsettings.json may contain API keys - review before committing
+appsettings.Development.json
+appsettings.Local.json
+*.secrets.json
+secrets.json
+user-secrets.json
+API_KEYS_BACKUP.txt
+*_KEYS_BACKUP.txt

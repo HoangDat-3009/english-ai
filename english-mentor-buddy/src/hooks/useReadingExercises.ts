@@ -36,12 +36,14 @@ export const useReadingExercises = () => {
     mutationFn: ({
       topic,
       level,
-      type
+      type,
+      provider = 'gemini'
     }: {
       topic: string;
       level: 'Beginner' | 'Intermediate' | 'Advanced';
       type: 'Part 5' | 'Part 6' | 'Part 7';
-    }) => databaseStatsService.generateReadingExercise(topic, level, type),
+      provider?: 'gemini' | 'openai';
+    }) => databaseStatsService.generateReadingExercise(topic, level, type, provider),
     onSuccess: (newExercise: ReadingExercise) => {
       // THÊM VÀO DANH SÁCH
       queryClient.setQueryData<ReadingExercise[]>(['reading-exercises-main'], (old) => 

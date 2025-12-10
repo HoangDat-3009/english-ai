@@ -13,7 +13,9 @@ namespace Helper
 
         public static string? GetAccessKey()
         {
-            string key = "AIzaSyDqpdmRtOHyAJqUvl2UWrK63A5pxu-wTJ8";
+            // API key should be retrieved from configuration, not hardcoded
+            // This is a placeholder - replace with actual configuration retrieval
+            string key = "YOUR_API_KEY_HERE";
 
             return key;
         }

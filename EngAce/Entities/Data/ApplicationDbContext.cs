@@ -131,6 +131,11 @@ public class ApplicationDbContext : DbContext
                 .WithMany(ex => ex.Completions)
                 .HasForeignKey(e => e.ExerciseId)
                 .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(e => e.Exercise)
+                .WithMany(ex => ex.Completions)
+                .HasForeignKey(e => e.ExerciseId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Configure CompletionScore entity - matches schema gốc

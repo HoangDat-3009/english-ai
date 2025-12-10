@@ -116,42 +116,118 @@ public static class ToeicPartHelper
             return "part7";
         }
 
+        // First, try to extract digits (handles "Part 6", "Part6", "part 6", etc.)
         var digits = new string(raw.Where(char.IsDigit).ToArray());
         if (int.TryParse(digits, out var number) && number is >= 1 and <= 7)
         {
             return $"part{number}";
         }
 
+        // Second, try exact match with Part definitions (handles "Part 6", "Part 7", etc.)
         raw = raw.Trim();
         var match = Definitions.FirstOrDefault(part =>
-            part.Part.Equals(raw, StringComparison.OrdinalIgnoreCase));
+            part.Part.Equals(raw, StringComparison.OrdinalIgnoreCase) ||
+            part.Key.Equals(raw, StringComparison.OrdinalIgnoreCase));
+
+        if (match != null)
+        {
+            return match.Key;
+        }
+
+        // Third, try partial match (handles "Part6", "part6", etc.)
+        var normalizedRaw = raw.Replace(" ", "").ToLowerInvariant();
+        match = Definitions.FirstOrDefault(part =>
+            part.Key.Equals(normalizedRaw, StringComparison.OrdinalIgnoreCase));
 
         return match?.Key ?? "part7";
     }
 
     public static string NormalizePartLabel(string? raw)
     {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return "Part 7"; // Default fallback
+        }
+        
         var key = NormalizeKey(raw);
-        return Definitions.First(part => part.Key == key).Part;
+        var definition = Definitions.FirstOrDefault(part => part.Key == key);
+        
+        if (definition == null)
+        {
+            System.Diagnostics.Debug.WriteLine($"Warning: NormalizeKey('{raw}') returned '{key}' but no definition found. Using fallback 'Part 7'.");
+            return "Part 7"; // Fallback
+        }
+        
+        System.Diagnostics.Debug.WriteLine($"NormalizePartLabel('{raw}') -> key='{key}' -> part='{definition.Part}'");
+        return definition.Part;
     }
 
     public static List<ToeicPartScoreDto> BuildPartScores(IEnumerable<Completion> completions)
     {
+        var completionList = completions.ToList();
+        System.Diagnostics.Debug.WriteLine($"BuildPartScores: Processing {completionList.Count} completions");
+        
         var aggregates = Definitions.ToDictionary(
             part => part.Part,
             _ => new PartAggregate(0m, 0));
 
-        foreach (var completion in completions)
+        foreach (var completion in completionList)
         {
-            var exerciseType = completion.Exercise?.Type ?? completion.Exercise?.Category ?? completion.Exercise?.Title;
+            // Ensure Exercise is loaded - if null, try to get from database context
+            if (completion.Exercise == null)
+            {
+                // Skip if Exercise is not loaded - this should not happen if Include is used correctly
+                System.Diagnostics.Debug.WriteLine($"Warning: Completion {completion.CompletionId} has null Exercise. Skipping.");
+                continue;
+            }
+
+            var exerciseType = completion.Exercise.Type ?? completion.Exercise.Category ?? completion.Exercise.Title;
+            
+            // Debug: Log if exerciseType is null or empty
+            if (string.IsNullOrWhiteSpace(exerciseType))
+            {
+                // Fallback to default Part 7 if type is missing
+                System.Diagnostics.Debug.WriteLine($"Warning: Exercise {completion.ExerciseId} has no Type/Category/Title. Using fallback 'Part 7'.");
+                exerciseType = "Part 7";
+            }
+
+            // Normalize exercise type - handle variations like "Part 6", "Part6", "part 6", etc.
             var partLabel = NormalizePartLabel(exerciseType);
+            
+            // Debug: Log for troubleshooting
+            if (string.IsNullOrWhiteSpace(partLabel))
+            {
+                System.Diagnostics.Debug.WriteLine($"Warning: NormalizePartLabel returned empty for exerciseType '{exerciseType}'. Using fallback 'Part 7'.");
+                partLabel = "Part 7"; // Fallback
+            }
+            
+            // Ensure partLabel exists in aggregates dictionary
+            if (!aggregates.ContainsKey(partLabel))
+            {
+                // Log warning but continue with fallback
+                System.Diagnostics.Debug.WriteLine($"Warning: Part label '{partLabel}' (from '{exerciseType}') not found in aggregates. Available keys: {string.Join(", ", aggregates.Keys)}. Using fallback 'Part 7'.");
+                partLabel = "Part 7"; // Fallback
+                
+                // Double check - if still not in aggregates, skip
+                if (!aggregates.ContainsKey(partLabel))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error: Fallback 'Part 7' also not found in aggregates. Skipping completion {completion.CompletionId}.");
+                    continue;
+                }
+            }
+
             var aggregate = aggregates[partLabel];
+            var scoreToAdd = completion.Score ?? 0;
+            System.Diagnostics.Debug.WriteLine($"Adding completion {completion.CompletionId}: ExerciseType='{exerciseType}' -> PartLabel='{partLabel}', Score={scoreToAdd}, Attempts={aggregate.Attempts + 1}");
+            
             aggregates[partLabel] = aggregate with
             {
-                TotalScore = aggregate.TotalScore + (completion.Score ?? 0),
+                TotalScore = aggregate.TotalScore + scoreToAdd,
                 Attempts = aggregate.Attempts + 1
             };
         }
+        
+        System.Diagnostics.Debug.WriteLine($"BuildPartScores: Final aggregates - {string.Join(", ", aggregates.Select(kvp => $"{kvp.Key}: Score={kvp.Value.TotalScore}, Attempts={kvp.Value.Attempts}"))}");
 
         return Definitions
             .Select(definition =>
