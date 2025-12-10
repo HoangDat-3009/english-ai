@@ -62,6 +62,16 @@ export interface ListeningGradeResult {
   Questions: ListeningGradeQuestionFeedback[];
 }
 
+export interface ListeningExerciseSummary {
+  ExerciseId: string;
+  Title: string;
+  Genre: string;
+  EnglishLevel: number;
+  TotalQuestions: number;
+  CreatedAt: string;
+  ExpiresAt: string;
+}
+
 export const listeningService = {
   async getGenres(): Promise<Record<number, string>> {
     return apiService.get<Record<number, string>>('/api/Listening/Genres');
@@ -80,5 +90,10 @@ export const listeningService = {
       '/api/Listening/Grade',
       { ExerciseId: exerciseId, Answers: answers }
     );
+  },
+
+  async getRecentExercises(take?: number): Promise<ListeningExerciseSummary[]> {
+    const query = typeof take === 'number' ? `?take=${take}` : '';
+    return apiService.get<ListeningExerciseSummary[]>(`/api/Listening/Recent${query}`);
   },
 };

@@ -5,6 +5,7 @@ using Events;
 using Helper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Concurrent;
 using System.Linq;
 
 namespace EngAce.Api.Controllers
@@ -18,6 +19,7 @@ namespace EngAce.Api.Controllers
     {
         private const int MaxTopicWordCount = 12;
         private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(45);
+        private static readonly ConcurrentDictionary<Guid, ListeningExerciseSummary> _recentExercises = new();
 
         private readonly IMemoryCache _cache = cache;
         private readonly ILogger<ListeningController> _logger = logger;
@@ -68,8 +70,31 @@ namespace EngAce.Api.Controllers
                     : $"data:audio/mp3;base64,{rawAudioContent}";
 
                 var exerciseId = Guid.NewGuid();
-                var cacheItem = new ListeningExerciseCacheItem(exercise, audioContent);
-                _cache.Set(GetCacheKey(exerciseId), cacheItem, CacheLifetime);
+                var createdAt = DateTime.UtcNow;
+                var cacheItem = new ListeningExerciseCacheItem(exercise, audioContent, createdAt);
+
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(CacheLifetime)
+                    .RegisterPostEvictionCallback(static (_, _, _, state) =>
+                    {
+                        if (state is Guid expiredId)
+                        {
+                            _recentExercises.TryRemove(expiredId, out _);
+                        }
+                    }, exerciseId);
+
+                _cache.Set(GetCacheKey(exerciseId), cacheItem, cacheEntryOptions);
+
+                var expiresAt = createdAt.Add(CacheLifetime);
+                var summary = new ListeningExerciseSummary(
+                    exerciseId,
+                    exercise.Title,
+                    GeneralHelper.GetEnumDescription(request.Genre),
+                    exercise.EnglishLevel,
+                    Convert.ToSByte(exercise.Questions.Count),
+                    createdAt,
+                    expiresAt);
+                _recentExercises[exerciseId] = summary;
 
                 var response = new ListeningExerciseResponse
                 {
@@ -164,6 +189,23 @@ namespace EngAce.Api.Controllers
         }
 
         /// <summary>
+        /// Returns the list of recently generated listening exercises that are still cached.
+        /// </summary>
+        /// <param name="take">Optional number of items to return (1-50). Defaults to 20.</param>
+        [HttpGet("Recent")]
+        public ActionResult<IEnumerable<ListeningExerciseSummary>> GetRecent([FromQuery] int? take)
+        {
+            var limit = take.HasValue ? Math.Clamp(take.Value, 1, 50) : 20;
+            var items = _recentExercises
+                .Values
+                .OrderByDescending(item => item.CreatedAt)
+                .Take(limit)
+                .ToList();
+
+            return Ok(items);
+        }
+
+        /// <summary>
         /// Retrieves the list of available listening genres.
         /// </summary>
         /// <returns>A dictionary mapping genre identifiers to their localized descriptions.</returns>
@@ -181,6 +223,15 @@ namespace EngAce.Api.Controllers
 
         private static string GetCacheKey(Guid exerciseId) => $"ListeningExercise-{exerciseId}";
 
-        private sealed record ListeningExerciseCacheItem(ListeningExercise Exercise, string? AudioContent);
+        private sealed record ListeningExerciseCacheItem(ListeningExercise Exercise, string? AudioContent, DateTime CreatedAt);
+
+        public sealed record ListeningExerciseSummary(
+            Guid ExerciseId,
+            string Title,
+            string Genre,
+            EnglishLevel EnglishLevel,
+            sbyte TotalQuestions,
+            DateTime CreatedAt,
+            DateTime ExpiresAt);
     }
 }

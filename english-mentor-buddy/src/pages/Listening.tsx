@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { listeningService, ListeningAnswerPayload, ListeningExerciseParams, ListeningExerciseResult, ListeningGenre, ListeningGradeResult, AiModel } from '@/services/listeningService';
+import { listeningService, ListeningAnswerPayload, ListeningExerciseParams, ListeningExerciseResult, ListeningGenre, ListeningGradeResult, AiModel, ListeningExerciseSummary } from '@/services/listeningService';
 import { useToast } from '@/hooks/use-toast';
-import { AudioLines, BookOpen, Ear, Loader2, Music, Trophy, Volume2, Play, Square, Sparkles } from 'lucide-react';
+import { AudioLines, BookOpen, Ear, History, Loader2, Music, Play, RefreshCcw, Sparkles, Square, Trophy, Volume2 } from 'lucide-react';
 
 const DEFAULT_QUESTION_COUNT = 5;
 
@@ -42,10 +42,56 @@ const Listening = () => {
   const [gradeResult, setGradeResult] = useState<ListeningGradeResult | null>(null);
   const [showTranscript, setShowTranscript] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [recentExercises, setRecentExercises] = useState<ListeningExerciseSummary[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState<boolean>(false);
   const currentAiModelMeta = useMemo(
     () => AI_MODEL_OPTIONS.find(option => option.value === selectedAiModel),
     [selectedAiModel]
   );
+  const dateTimeFormatter = useMemo(
+    () => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }),
+    []
+  );
+
+  const formatTimestamp = (value: string) => dateTimeFormatter.format(new Date(value));
+
+  const loadRecentExercises = async () => {
+    try {
+      setIsHistoryLoading(true);
+      const data = await listeningService.getRecentExercises(25);
+      setRecentExercises(data);
+    } catch (error) {
+      console.error('Failed to load listening history', error);
+      toast({
+        title: 'Không thể tải lịch sử',
+        description: 'Vui lòng thử lại sau vài phút.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  const handleHistoryButtonClick = () => {
+    const nextState = !isHistoryOpen;
+    setIsHistoryOpen(nextState);
+    if (nextState) {
+      void loadRecentExercises();
+    }
+  };
+
+  const handleRefreshHistory = () => {
+    if (isHistoryLoading) {
+      return;
+    }
+
+    if (!isHistoryOpen) {
+      setIsHistoryOpen(true);
+    }
+
+    void loadRecentExercises();
+  };
 
   useEffect(() => {
     const loadMetadata = async () => {
@@ -321,7 +367,7 @@ const Listening = () => {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 dark:bg-blue-900/40 dark:text-blue-200">
                 <Volume2 className="h-4 w-4" />
@@ -340,21 +386,114 @@ const Listening = () => {
                 {currentAiModelMeta ? `AI: ${currentAiModelMeta.label}` : 'Chọn mô hình AI'}
               </span>
             </div>
-            <Button onClick={handleGenerateExercise} disabled={isLoading} className="min-w-[220px]">
-              {isLoading ? (
-                <>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                onClick={handleHistoryButtonClick}
+                disabled={isHistoryLoading}
+                className="min-w-[220px]"
+              >
+                {isHistoryLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Đang tạo bài nghe...
-                </>
-              ) : (
-                <>
-                  <AudioLines className="mr-2 h-4 w-4" />
-                  Tạo bài nghe mới
-                </>
-              )}
-            </Button>
+                ) : (
+                  <History className="mr-2 h-4 w-4" />
+                )}
+                {isHistoryOpen ? 'Ẩn lịch sử đã tạo' : 'Xem lịch sử đã tạo'}
+              </Button>
+              <Button onClick={handleGenerateExercise} disabled={isLoading} className="min-w-[220px]">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Đang tạo bài nghe...
+                  </>
+                ) : (
+                  <>
+                    <AudioLines className="mr-2 h-4 w-4" />
+                    Tạo bài nghe mới
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </Card>
+
+        {isHistoryOpen && (
+          <Card className="p-6 shadow-md dark:shadow-none dark:bg-gray-900/60">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-1">
+                <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">Lịch sử bài nghe gần đây</p>
+                <p className="text-sm text-muted-foreground dark:text-gray-400">
+                  Các bài đã tạo sẽ tồn tại tối đa 45 phút. Bạn có thể mở lại để chấm điểm hoặc nghe lại bất kỳ lúc nào trước khi hết hạn.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-amber-900/20 dark:text-amber-100">
+                  {recentExercises.length} bài khả dụng
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRefreshHistory}
+                  disabled={isHistoryLoading}
+                  className="gap-2"
+                >
+                  <RefreshCcw className={`h-4 w-4 ${isHistoryLoading ? 'animate-spin' : ''}`} />
+                  Tải lại
+                </Button>
+              </div>
+            </div>
+
+            <ScrollArea className="mt-6 max-h-[360px] pr-2">
+              {isHistoryLoading ? (
+                <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang tải lịch sử...
+                </div>
+              ) : recentExercises.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-muted-foreground dark:border-gray-800">
+                  Chưa có bài nghe nào trong bộ nhớ. Hãy tạo một bài mới để bắt đầu.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentExercises.map((item) => {
+                    const englishLevelLabel = englishLevels[String(item.EnglishLevel)] ?? `Level ${item.EnglishLevel}`;
+                    return (
+                      <div
+                        key={item.ExerciseId}
+                        className="rounded-2xl border border-rose-100/80 bg-white/80 p-4 shadow-sm transition hover:border-rose-300 dark:border-gray-800 dark:bg-gray-900/40"
+                      >
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="text-base font-semibold text-gray-900 dark:text-gray-50">{item.Title}</p>
+                            <p className="text-sm text-muted-foreground dark:text-gray-400">
+                              Tạo lúc {formatTimestamp(item.CreatedAt)}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="border-rose-200 text-rose-500 dark:border-rose-400 dark:text-rose-100">
+                              {item.Genre}
+                            </Badge>
+                            <Badge variant="outline" className="border-slate-300 text-slate-600 dark:border-slate-500 dark:text-slate-100">
+                              {englishLevelLabel}
+                            </Badge>
+                            <Badge variant="outline" className="border-emerald-300 text-emerald-600 dark:border-emerald-400 dark:text-emerald-100">
+                              {item.TotalQuestions} câu hỏi
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-amber-600 dark:text-amber-300">
+                          <span>Hết hạn {formatTimestamp(item.ExpiresAt)}</span>
+                          <span className="text-muted-foreground dark:text-gray-400">•</span>
+                          <span className="text-muted-foreground dark:text-gray-400">ID: {item.ExerciseId}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </Card>
+        )}
 
         {exercise && (
           <section className="space-y-6">
