@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Book, GraduationCap, MessageCircle, User, Sun, Moon, Globe, Settings, LogOut, UserCircle, Pencil, FileText } from 'lucide-react';
+import { Book, GraduationCap, MessageCircle, User, Sun, Moon, Globe, Settings, LogOut, UserCircle, Pencil, FileText, Trophy, TrendingUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from './ThemeProvider';
 import { Button } from './ui/button';
@@ -11,6 +11,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from './ui/dropdown-menu';
 import {
   Dialog,
@@ -54,11 +57,23 @@ const Navbar = () => {
   });
 
   const navItems = [
-    { name: 'Dictionary', path: '/dictionary', icon: Book, color: 'text-pink-600' },
-    { name: 'Exercises', path: '/exercises', icon: GraduationCap, color: 'text-fuchsia-600' },
-    { name: 'Luyện Đề', path: '/test-list', icon: FileText, color: 'text-blue-600' },
-    { name: 'Writing', path: '/writing-mode', icon: Pencil, color: 'text-emerald-600' },
+    { name: 'Bảng xếp hạng', path: '/leaderboard', icon: Trophy, color: 'text-yellow-600' },
+    { name: 'Tiến độ', path: '/progress', icon: TrendingUp, color: 'text-blue-600' },
     { name: 'AI Chat', path: '/chat', icon: MessageCircle, color: 'text-rose-600' },
+    { name: 'Từ điển', path: '/dictionary', icon: Book, color: 'text-pink-600' },
+    { 
+      name: 'Bài tập', 
+      icon: GraduationCap, 
+      color: 'text-fuchsia-600',
+      subItems: [
+        { name: 'Ngữ pháp', path: '/exercises' },
+        { name: 'Luyện nghe', path: '/listening' },
+        { name: 'Luyện nói', path: '/speaking' },
+        { name: 'Đọc hiểu', path: '/reading-exercises' },
+        { name: 'Viết', path: '/writing-mode' },
+      ]
+    },
+    { name: 'Luyện Đề TOEIC', path: '/test-list', icon: FileText, color: 'text-blue-600' },
   ];
 
   const handleLogout = async () => {
@@ -132,34 +147,58 @@ const Navbar = () => {
             <span className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
               EngBuddy
             </span>
-            <span className="hidden sm:inline-block text-sm text-muted-foreground">
-              | Nền tảng học tiếng Anh thông minh
-            </span>
           </motion.div>
         </Link>
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden md:flex items-center gap-4">
           {navItems.map((item) => {
+            // Check if item has submenu
+            if (item.subItems) {
+              const isAnySubActive = item.subItems.some(sub => location.pathname === sub.path);
+              return (
+                <DropdownMenu key={item.name}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium transition-all duration-200 relative",
+                        isAnySubActive 
+                          ? "text-foreground bg-slate-100 dark:bg-slate-800" 
+                          : "text-muted-foreground hover:text-foreground hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      )}
+                    >
+                      <item.icon className={cn("w-4 h-4", item.color)} />
+                      <span>{item.name}</span>
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    {item.subItems.map((subItem) => (
+                      <DropdownMenuItem key={subItem.path} asChild>
+                        <Link to={subItem.path} className="cursor-pointer flex items-center gap-2">
+                          <span className={cn("w-1.5 h-1.5 rounded-full", item.color.replace('text-', 'bg-'))} />
+                          {subItem.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+            
+            // Regular nav item
             const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex items-center gap-1.5 font-medium transition-colors hover:text-foreground relative py-2",
-                  isActive ? "text-foreground" : "text-muted-foreground"
+                  "flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium transition-all duration-200",
+                  isActive 
+                    ? "text-foreground bg-slate-100 dark:bg-slate-800" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 )}
               >
                 <item.icon className={cn("w-4 h-4", item.color)} />
                 <span>{item.name}</span>
-                {isActive && (
-                  <motion.div
-                    layoutId="navbar-indicator"
-                    className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-primary"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                  />
-                )}
               </Link>
             );
           })}

@@ -10,6 +10,8 @@ import Dictionary from "./pages/Dictionary";
 import DictionaryResult from "./pages/DictionaryResult";
 import Exercises from "./pages/Exercises";
 import Writing from "./pages/Writing";
+import Listening from "./pages/Listening";
+import Speaking from "./pages/Speaking";
 import WritingMode from "./pages/WritingMode";
 import Leaderboard from "./pages/Leaderboard"
 import Progress from "./pages/Progress";
@@ -99,6 +101,16 @@ const App = () => (
               <Route path="/writing" element={
                 <ProtectedRoute>
                   <Writing />
+                </ProtectedRoute>
+              } />
+              <Route path="/listening" element={
+                <ProtectedRoute>
+                  <Listening />
+                </ProtectedRoute>
+              } />
+              <Route path="/speaking" element={
+                <ProtectedRoute>
+                  <Speaking />
                 </ProtectedRoute>
               } />
               <Route path="/sentence-writing" element={

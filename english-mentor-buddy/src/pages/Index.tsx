@@ -2,58 +2,19 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import FeatureCard from '@/components/FeatureCard';
-import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink, FileText, TrendingUp, Trophy, BookOpen } from 'lucide-react';
+import FeatureCardWithSubmenu from '@/components/FeatureCardWithSubmenu';
+import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink, FileText, TrendingUp, Trophy, BookOpen, Headphones, Mic, ChevronDown } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
 import { useAuth0Integration } from '@/hooks/useAuth0Integration';
 
 const features = [
   {
-    title: 'Từ điển',
-    description: 'Tra cứu từ vựng với định nghĩa chi tiết, ví dụ thực tế và gợi ý sử dụng trong nhiều ngữ cảnh khác nhau.',
-    icon: Book,
-    path: '/dictionary',
-    color: 'text-pink-600',
-    bgColor: 'bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/50 dark:to-rose-950/50',
-  },
-  {
-    title: 'Bài tập ngữ pháp',
-    description: 'Thiết lập bài tập phù hợp với nhu cầu học tập của bạn với các chủ đề và dạng bài tập đa dạng.',
-    icon: GraduationCap,
-    path: '/exercises',
-    color: 'text-fuchsia-600',
-    bgColor: 'bg-gradient-to-br from-fuchsia-50 to-purple-50 dark:from-fuchsia-950/50 dark:to-purple-950/50',
-  },
-  {
-    title: 'Luyện Đề TOEIC',
-    description: 'Hệ thống đề thi TOEIC đầy đủ với giải thích chi tiết, giúp bạn ôn luyện hiệu quả cho kỳ thi.',
-    icon: FileText,
-    path: '/test-list',
-    color: 'text-blue-600',
-    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/50 dark:to-cyan-950/50',
-  },
-  {
-    title: 'Bài tập đọc hiểu',
-    description: 'Luyện tập đọc hiểu theo chuẩn TOEIC với các bài tập Parts 5, 6, 7 và tạo bài tập tự động bằng AI.',
-    icon: BookOpen,
-    path: '/reading-exercises',
-    color: 'text-indigo-600',
-    bgColor: 'bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/50 dark:to-violet-950/50',
-  },
-  {
-    title: 'Bài tập viết',
-    description: 'Nâng cao kỹ năng viết tiếng Anh của bạn với các bài tập và hướng dẫn chi tiết.',
-    icon: Pencil,
-    path: '/writing-mode',
-    color: 'text-emerald-600',
-    bgColor: 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50',
-  },
-  {
-    title: 'Chat với AI',
-    description: 'Trò chuyện với trợ lý AI thông minh để được hướng dẫn, giải thích và luyện tập tiếng Anh trong tình huống thực tế.',
-    icon: MessageCircle,
-    path: '/chat',
-    color: 'text-rose-600',
-    bgColor: 'bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/50 dark:to-pink-950/50',
+    title: 'Bảng xếp hạng',
+    description: 'Cạnh tranh với những người học khác, xem thứ hạng của bạn và động lực phấn đấu hơn nữa.',
+    icon: Trophy,
+    path: '/leaderboard',
+    color: 'text-yellow-600',
+    bgColor: 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/50 dark:to-orange-950/50',
   },
   {
     title: 'Tiến độ học tập',
@@ -64,12 +25,42 @@ const features = [
     bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/50 dark:to-cyan-950/50',
   },
   {
-    title: 'Bảng xếp hạng',
-    description: 'Cạnh tranh với những người học khác, xem thứ hạng của bạn và động lực phấn đấu hơn nữa.',
-    icon: Trophy,
-    path: '/leaderboard',
-    color: 'text-yellow-600',
-    bgColor: 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/50 dark:to-orange-950/50',
+    title: 'Chat với AI',
+    description: 'Trò chuyện với trợ lý AI thông minh để được hướng dẫn, giải thích và luyện tập tiếng Anh trong tình huống thực tế.',
+    icon: MessageCircle,
+    path: '/chat',
+    color: 'text-rose-600',
+    bgColor: 'bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/50 dark:to-pink-950/50',
+  },
+  {
+    title: 'Từ điển',
+    description: 'Tra cứu từ vựng với định nghĩa chi tiết, ví dụ thực tế và gợi ý sử dụng trong nhiều ngữ cảnh khác nhau.',
+    icon: Book,
+    path: '/dictionary',
+    color: 'text-pink-600',
+    bgColor: 'bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/50 dark:to-rose-950/50',
+  },
+  {
+    title: 'Bài tập',
+    description: 'Luyện tập các kỹ năng tiếng Anh toàn diện với đa dạng loại bài tập: ngữ pháp, nghe, nói, đọc hiểu và viết.',
+    icon: GraduationCap,
+    color: 'text-fuchsia-600',
+    bgColor: 'bg-gradient-to-br from-fuchsia-50 to-purple-50 dark:from-fuchsia-950/50 dark:to-purple-950/50',
+    subItems: [
+      { name: 'Ngữ pháp', path: '/exercises' },
+      { name: 'Luyện nghe', path: '/listening' },
+      { name: 'Luyện nói', path: '/speaking' },
+      { name: 'Đọc hiểu', path: '/reading-exercises' },
+      { name: 'Viết', path: '/writing-mode' },
+    ]
+  },
+  {
+    title: 'Luyện Đề TOEIC',
+    description: 'Hệ thống đề thi TOEIC đầy đủ với giải thích chi tiết, giúp bạn ôn luyện hiệu quả cho kỳ thi.',
+    icon: FileText,
+    path: '/test-list',
+    color: 'text-blue-600',
+    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/50 dark:to-cyan-950/50',
   }
 
 ];
@@ -77,6 +68,13 @@ const features = [
 const Index = () => {
   // Tích hợp Auth0 để tự động đồng bộ user khi đăng nhập
   useAuth0Integration();
+
+  const scrollToFeatures = () => {
+    const featuresSection = document.getElementById('features');
+    if (featuresSection) {
+      featuresSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
     <MainLayout>
@@ -119,23 +117,14 @@ const Index = () => {
               transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
               className="flex flex-wrap gap-4 justify-center"
             >
-              <Link
-                to="/dictionary"
+              <button
+                onClick={scrollToFeatures}
                 className="group inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 px-8 text-sm font-medium text-white shadow-lg shadow-pink-200/50 transition-all duration-300 hover:shadow-xl hover:scale-105 hover:shadow-pink-300/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
-              >
-                <span className="mr-2">✨</span>
-                Bắt đầu ngay
-                <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
-              </Link>
-              <Link
-                to="/exercises"
-                className="group inline-flex h-12 items-center justify-center rounded-xl border border-pink-200 dark:border-pink-700 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm px-8 text-sm font-medium text-pink-700 dark:text-pink-200 shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 hover:bg-pink-50 dark:hover:bg-pink-900/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
               >
                 <span className="mr-2">🚀</span>
                 Khám phá tính năng
-                <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
-              </Link>
-              
+                <ChevronDown className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-y-1" />
+              </button>
             </motion.div>
           </div>
         </div>
@@ -177,13 +166,29 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-            {features.map((feature, index) => (
-              <FeatureCard
-                key={feature.title}
-                {...feature}
-                delay={index}
-              />
-            ))}
+            {features.map((feature, index) => {
+              if (feature.subItems) {
+                return (
+                  <FeatureCardWithSubmenu
+                    key={feature.title}
+                    title={feature.title}
+                    description={feature.description}
+                    icon={feature.icon}
+                    color={feature.color}
+                    bgColor={feature.bgColor}
+                    subItems={feature.subItems}
+                    delay={index}
+                  />
+                );
+              }
+              return (
+                <FeatureCard
+                  key={feature.title}
+                  {...feature}
+                  delay={index}
+                />
+              );
+            })}
           </div>
         </div>
       </section>

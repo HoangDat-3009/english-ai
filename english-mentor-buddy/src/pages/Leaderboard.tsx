@@ -352,32 +352,24 @@ export default function Leaderboard() {
     return username.slice(0, 2).toUpperCase();
   };
 
-  // Filter and sort data based on search, time, and skill filters
-  const filteredData = normalizedLeaderboard
-    .filter(user => user.username.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => {
-      return getFilterScore(b, partFilter) - getFilterScore(a, partFilter);
-    });
+  // Sort all data by current filter first (this determines real ranking)
+  const sortedByFilter = [...normalizedLeaderboard].sort((a, b) => {
+    return getFilterScore(b, partFilter) - getFilterScore(a, partFilter);
+  });
+
+  // Filter after sorting to maintain correct ranks
+  const filteredData = sortedByFilter
+    .filter(user => user.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const currentUser =
     normalizedLeaderboard.find((user) => user.username === CURRENT_USER) ??
     normalizedLeaderboard[0] ??
     null;
 
-  const currentRankInFiltered = currentUser
-    ? filteredData.findIndex((user) => user.username === currentUser.username)
-    : -1;
-
-  const currentRankAcrossAll = currentUser
-    ? normalizedLeaderboard.findIndex((user) => user.username === currentUser.username)
-    : -1;
-
-  const currentRank =
-    currentRankInFiltered >= 0
-      ? currentRankInFiltered + 1
-      : currentRankAcrossAll >= 0
-        ? currentRankAcrossAll + 1
-        : 0;
+  // Calculate rank based on sorted data (not filtered)
+  const currentRank = currentUser
+    ? sortedByFilter.findIndex((user) => user.username === currentUser.username) + 1
+    : 0;
 
   const currentScore = currentUser ? getFilterScore(currentUser, partFilter) : 0;
   const currentFilterLabel = getFilterLabel(partFilter);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Building2, CheckCircle2, ArrowLeft, QrCode, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/components/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -26,6 +28,16 @@ const Checkout = () => {
     email: "",
     phone: "",
   });
+
+  // Auto-fill email from user data
+  useEffect(() => {
+    if (user?.email) {
+      setCustomerInfo(prev => ({
+        ...prev,
+        email: user.email || ""
+      }));
+    }
+  }, [user]);
 
   // Pricing plans
   const plans = {
@@ -165,8 +177,17 @@ const Checkout = () => {
                             name="email"
                             type="email"
                             placeholder="example@email.com"
+                            value={customerInfo.email}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
+                            readOnly={!!user?.email}
+                            className={user?.email ? "bg-muted cursor-not-allowed" : ""}
                             required
                           />
+                          {user?.email && (
+                            <p className="text-xs text-muted-foreground">
+                              Email tự động lấy từ tài khoản của bạn
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="space-y-2">

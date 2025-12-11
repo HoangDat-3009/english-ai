@@ -1354,22 +1354,6 @@ const UploadPage = () => {
           </Card>
         </TabsContent>
 
-        {/* Action Buttons */}
-      <div className="flex justify-end space-x-4">
-        <Button variant="outline" className="rounded-xl">
-          <Eye className="mr-2 h-4 w-4" />
-          Xem trước
-        </Button>
-        <Button 
-          className="rounded-xl"
-          onClick={createReadingExerciseFromUpload}
-          disabled={!exerciseTitle.trim() || questions.length === 0}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          Lưu bài test và tạo Reading Exercise
-        </Button>
-      </div>
-
         <TabsContent value="manage" className="space-y-4">
           <Card className="rounded-2xl">
             <CardHeader>

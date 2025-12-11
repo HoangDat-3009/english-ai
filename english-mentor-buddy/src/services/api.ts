@@ -88,6 +88,20 @@ class ApiService {
         throw new Error(
           errorData?.message || `Server responded with status: ${response.status}`
         );
+        const errorText = await response.text();
+        let errorMessage = errorText || `Server responded with status: ${response.status}`;
+        
+        // Try to parse as JSON if possible
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData?.message || errorData || errorMessage;
+        } catch {
+          // If not JSON, use the text as is
+        }
+        
+        const error: any = new Error(errorMessage);
+        error.response = { status: response.status, statusText: response.statusText };
+        throw error;
       }
 
       // For 204 No Content responses, return empty object
@@ -108,7 +122,7 @@ class ApiService {
   }
 
   // POST request
-  post<T>(endpoint: string, data: unknown, options: RequestInit = {}): Promise<T> {
+  post<T, D = unknown>(endpoint: string, data: D, options: RequestInit = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -117,7 +131,7 @@ class ApiService {
   }
 
   // PUT request
-  put<T>(endpoint: string, data: unknown, options: RequestInit = {}): Promise<T> {
+  put<T, D = unknown>(endpoint: string, data: D, options: RequestInit = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'PUT',
