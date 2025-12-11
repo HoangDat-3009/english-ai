@@ -67,9 +67,13 @@ class ApiService {
     try {
       const url = `${this.baseUrl}${endpoint}`;
 
+      // Get auth token from localStorage
+      const token = localStorage.getItem('engace_token');
+
       // Default headers
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
       };
 

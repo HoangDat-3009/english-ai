@@ -48,17 +48,17 @@ import {
 // Types based on API response
 interface Submission {
   id: number;
-  userId: number;
-  userName: string;
+  exerciseId: number;
   exerciseTitle: string;
+  exerciseCode: string;
+  exerciseLevel: string;
   exerciseType: string;
-  originalScore: number;
-  finalScore?: number;
-  maxScore: number;
-  completedAt: string;
+  aiGenerated: boolean;
+  createdBy?: number;
+  createdAt: string;
+  sourceType?: string;
+  totalQuestions: number;
   reviewStatus: ReviewStatus;
-  reviewNotes?: string;
-  confidenceScore: number;
 }
 
 interface QuestionDetail {
@@ -128,8 +128,9 @@ export default function AIReview() {
   // Filtered submissions based on search and status filter
   const filteredSubmissions = submissions.filter((submission) => {
     const matchesSearch = searchQuery === "" || 
-      submission.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      submission.exerciseTitle.toLowerCase().includes(searchQuery.toLowerCase());
+      submission.exerciseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      submission.exerciseCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      submission.exerciseLevel.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || submission.reviewStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -139,21 +140,25 @@ export default function AIReview() {
     setLoading(true);
     try {
       const data = await aiReviewService.getSubmissions();
-      // Transform API data to component format
+      console.log('Backend response:', data); // Debug log
+      
+      // Map API data directly to component format
       const transformedData: Submission[] = data.map((item) => ({
         id: item.id,
-        userId: item.userId,
-        userName: item.userName,
+        exerciseId: item.exerciseId,
         exerciseTitle: item.exerciseTitle,
+        exerciseCode: item.exerciseCode,
+        exerciseLevel: item.exerciseLevel,
         exerciseType: item.exerciseType,
-        originalScore: item.originalScore,
-        finalScore: item.finalScore,
-        maxScore: 100, // Total max score is 100
-        completedAt: item.completedAt,
-        reviewStatus: item.reviewStatus as ReviewStatus,
-        reviewNotes: item.reviewNotes,
-        confidenceScore: item.confidenceScore,
+        aiGenerated: item.aiGenerated,
+        createdBy: item.createdBy,
+        createdAt: item.createdAt,
+        sourceType: item.sourceType,
+        totalQuestions: item.totalQuestions,
+        reviewStatus: item.reviewStatus,
       }));
+      
+      console.log('Transformed data:', transformedData); // Debug log
       setSubmissions(transformedData);
     } catch (error) {
       console.error("Error fetching submissions:", error);
@@ -683,10 +688,10 @@ export default function AIReview() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Học viên</TableHead>
+                <TableHead>Mã</TableHead>
                 <TableHead>Bài tập</TableHead>
-                <TableHead>Điểm</TableHead>
-                <TableHead>Thời gian nộp</TableHead>
+                <TableHead>Số câu hỏi</TableHead>
+                <TableHead>Thời gian tạo</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
@@ -705,20 +710,27 @@ export default function AIReview() {
               ) : (
                 filteredSubmissions.map((submission) => (
                   <TableRow key={submission.id}>
-                    <TableCell className="font-medium">{submission.userName}</TableCell>
+                    <TableCell className="font-medium">
+                      {submission.exerciseCode || 'N/A'}
+                    </TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{submission.exerciseTitle}</p>
-                        <p className="text-sm text-muted-foreground">{submission.exerciseType}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {submission.exerciseLevel} - {submission.exerciseType}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell>
                       <span className="font-semibold">
-                        {submission.finalScore ?? submission.originalScore}/{submission.maxScore}
+                        {submission.totalQuestions} câu hỏi
                       </span>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(submission.completedAt), "dd/MM/yyyy HH:mm", { locale: vi })}
+                      {submission.createdAt 
+                        ? format(new Date(submission.createdAt), "dd/MM/yyyy HH:mm", { locale: vi })
+                        : 'N/A'
+                      }
                     </TableCell>
                     <TableCell>{getStatusBadge(submission.reviewStatus)}</TableCell>
                     <TableCell className="text-right">

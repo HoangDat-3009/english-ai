@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from '@/components/Navbar';
+import { useAuth } from '@/components/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import { sentenceWritingApi } from "@/lib/api";
 
 const SentenceWriting = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
   const [topicMode, setTopicMode] = useState<"suggested" | "custom">("suggested");
@@ -90,6 +92,25 @@ const SentenceWriting = () => {
       };
       
       toast.success("Đã tạo bài luyện viết thành công!");
+      
+      // Tự động lưu bài sentence writing vào database
+      try {
+        const saveRequest = {
+          title: `${finalTopic} - Sentence Writing`,
+          topic: finalTopic,
+          sentences: normalizedData.sentences,
+          level: formData.level,
+          category: finalTopic,
+          estimatedMinutes: Math.ceil(normalizedData.sentences.length * 3),
+          timeLimit: 900,
+          description: `AI-generated sentence writing with ${normalizedData.sentences.length} sentences`,
+          createdBy: user?.userId || 1
+        };
+        
+      } catch (saveError) {
+        console.error('⚠️ Failed to save sentence writing:', saveError);
+        // Không show error toast vì vẫn có thể làm bài
+      }
       
       // Navigate to practice page with generated data
       navigate("/sentence-practice", {

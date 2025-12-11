@@ -1,6 +1,8 @@
 import { authService } from './authService';
+import { apiService } from './api';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+// Sử dụng Vite proxy thay vì hardcode URL
+const API_BASE_URL = apiService.getBaseUrl();
 
 export interface AIReviewStats {
   totalPending: number;
@@ -13,32 +15,24 @@ export interface AIReviewStats {
 
 export interface AIGradedSubmission {
   id: number;
-  userId: number;
-  userName: string;
-  userEmail: string;
   exerciseId: number;
   exerciseTitle: string;
-  exerciseCode?: string;
+  exerciseCode: string;
   exerciseLevel: string;
   exerciseType: string;
   aiGenerated: boolean;
-  originalScore: number;
-  finalScore?: number;
-  confidenceScore: number;
-  reviewStatus: 'pending' | 'approved' | 'rejected' | 'needs_regrade';
-  completedAt: string;
-  reviewedBy?: number;
-  reviewedAt?: string;
-  reviewNotes?: string;
+  createdBy?: number;
+  createdAt: string;
+  sourceType?: string;
   totalQuestions: number;
-  userAnswers: string;
+  reviewStatus: 'pending' | 'approved' | 'rejected' | 'needs_regrade';
 }
 
 export const aiReviewService = {
   // Get statistics for dashboard cards
   async getStats(): Promise<AIReviewStats> {
     try {
-      const response = await fetch(`${API_BASE_URL}/AIReview/stats`, {
+      const response = await fetch(`${API_BASE_URL}/api/AIReview/stats`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -79,7 +73,7 @@ export const aiReviewService = {
       if (confidenceFilter && confidenceFilter !== 'all') params.append('confidenceFilter', confidenceFilter);
       if (search) params.append('search', search);
 
-      const url = `${API_BASE_URL}/AIReview/submissions${params.toString() ? '?' + params.toString() : ''}`;
+      const url = `${API_BASE_URL}/api/AIReview/submissions${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -104,48 +98,38 @@ export const aiReviewService = {
     return [
       {
         id: 1,
-        userId: 101,
-        userName: "Nguyễn Văn A",
-        userEmail: "vana@example.com",
         exerciseId: 1001,
         exerciseTitle: "Basic Grammar Quiz - Present Simple",
         exerciseCode: "GRAM-001",
         exerciseLevel: "A1",
         exerciseType: "grammar",
         aiGenerated: true,
-        originalScore: 85,
-        finalScore: undefined,
-        confidenceScore: 0.92,
-        reviewStatus: 'pending',
-        completedAt: new Date().toISOString(),
+        createdBy: 1,
+        createdAt: new Date().toISOString(),
+        sourceType: "ai_generated",
         totalQuestions: 10,
-        userAnswers: '{"q1":"A","q2":"B","q3":"C"}',
+        reviewStatus: 'pending',
       },
       {
         id: 2,
-        userId: 102,
-        userName: "Trần Thị B",
-        userEmail: "thib@example.com",
         exerciseId: 1002,
         exerciseTitle: "Vocabulary Test - Daily Activities",
         exerciseCode: "VOC-002",
         exerciseLevel: "A2",
         exerciseType: "vocabulary",
         aiGenerated: true,
-        originalScore: 65,
-        finalScore: undefined,
-        confidenceScore: 0.68,
-        reviewStatus: 'pending',
-        completedAt: new Date(Date.now() - 86400000).toISOString(),
+        createdBy: 1,
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        sourceType: "ai_generated",
         totalQuestions: 15,
-        userAnswers: '{"q1":"A","q2":"B"}',
+        reviewStatus: 'pending',
       },
     ];
   },
 
   // Get detailed information for a specific submission
   async getSubmissionDetails(id: number) {
-    const response = await fetch(`${API_BASE_URL}/AIReview/submissions/${id}/details`);
+    const response = await fetch(`${API_BASE_URL}/api/AIReview/submissions/${id}/details`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -175,7 +159,7 @@ export const aiReviewService = {
       reviewedBy,
     };
 
-    const response = await fetch(`${API_BASE_URL}/AIReview/submissions/${id}/review`, {
+    const response = await fetch(`${API_BASE_URL}/api/AIReview/submissions/${id}/review`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

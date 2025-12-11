@@ -178,5 +178,45 @@ export const sentenceWritingApi = {
       throw new Error("Không thể kết nối đến server. Vui lòng kiểm tra backend.");
     }
   },
+
+  saveSentenceWriting: async (data: {
+    title: string;
+    topic: string;
+    sentences: Array<{
+      id: number;
+      vietnamese: string;
+      correctAnswer: string;
+      suggestion?: {
+        vocabulary: Array<{ word: string; meaning: string }>;
+        structure: string;
+      };
+    }>;
+    level?: string;
+    category?: string;
+    estimatedMinutes?: number;
+    timeLimit?: number;
+    description?: string;
+    createdBy?: number;
+  }): Promise<{ success: boolean; exerciseId?: number; message: string }> => {
+    try {
+      const response = await fetch(`${apiService.getBaseUrl()}/api/exercise/save-sentence-writing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...apiService.getHeaders()
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save sentence writing: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('❌ Error saving sentence writing:', error);
+      throw error;
+    }
+  }
 };
 

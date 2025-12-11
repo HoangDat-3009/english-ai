@@ -20,18 +20,27 @@ const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState<'1month' | '6months'>('1month');
   const [customerInfo, setCustomerInfo] = useState({
     fullName: "",
     email: "",
     phone: "",
   });
 
+  // Pricing plans
+  const plans = {
+    '1month': { price: 199000, vat: 19900, total: 218900, label: '1 tháng' },
+    '6months': { price: 999000, vat: 99900, total: 1098900, label: '6 tháng' }
+  };
+
+  const currentPlan = plans[selectedPlan];
+
   // Bank information
   const bankInfo = {
     bankId: "970407", // Techcombank bank code
     accountNo: "999914052004",
     accountName: "LE TRUNG KIEN",
-    amount: 218900,
+    amount: currentPlan.total,
   };
 
   // Generate VietQR code URL
@@ -98,6 +107,44 @@ const Checkout = () => {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Plan Selection */}
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-lg">Chọn gói đăng ký</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlan('1month')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            selectedPlan === '1month'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="text-lg font-bold">1 Tháng</div>
+                          <div className="text-2xl font-bold text-primary mt-2">199.000đ</div>
+                          <div className="text-sm text-muted-foreground mt-1">199.000đ/tháng</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlan('6months')}
+                          className={`p-4 rounded-lg border-2 transition-all relative ${
+                            selectedPlan === '6months'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                            Giảm 16%
+                          </div>
+                          <div className="text-lg font-bold">6 Tháng</div>
+                          <div className="text-2xl font-bold text-primary mt-2">999.000đ</div>
+                          <div className="text-sm text-muted-foreground mt-1">166.500đ/tháng</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <Separator />
+
                     {/* Customer Information */}
                     <div className="space-y-4">
                       <h3 className="font-semibold text-lg">Thông tin khách hàng</h3>
@@ -176,19 +223,21 @@ const Checkout = () => {
                         <CheckCircle2 className="w-6 h-6 text-primary-foreground" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-lg">Gói Premium</h3>
-                        <p className="text-sm text-muted-foreground">Thanh toán hàng tháng</p>
+                        <h3 className="font-semibold text-lg">Gói Premium {currentPlan.label}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedPlan === '6months' ? 'Tiết kiệm 16%' : 'Thanh toán hàng tháng'}
+                        </p>
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Giá gói</span>
-                        <span className="font-medium">199.000đ</span>
+                        <span className="font-medium">{currentPlan.price.toLocaleString('vi-VN')}đ</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Thuế VAT (10%)</span>
-                        <span className="font-medium">19.900đ</span>
+                        <span className="font-medium">{currentPlan.vat.toLocaleString('vi-VN')}đ</span>
                       </div>
                     </div>
 
@@ -196,7 +245,7 @@ const Checkout = () => {
 
                     <div className="flex justify-between text-lg font-bold">
                       <span>Tổng cộng</span>
-                      <span className="text-primary">218.900đ</span>
+                      <span className="text-primary">{currentPlan.total.toLocaleString('vi-VN')}đ</span>
                     </div>
                   </div>
 

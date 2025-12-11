@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { chatService, ChatMessage } from '@/services/consultationService';
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from '@/components/AuthContext';
 
 // Định nghĩa interface Message cho UI
 interface Message {
@@ -18,6 +19,7 @@ interface Message {
 
 const Consultation: React.FC = () => {
   const { success, error } = useToast();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -26,12 +28,12 @@ const Consultation: React.FC = () => {
   const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Cài đặt người dùng cố định
+  // Lấy thông tin người dùng từ AuthContext
   const userSettings = {
-    username: 'Cong',
-    gender: 'Nam',
-    age: 19,
-    englishLevel: 1,
+    username: user?.username || user?.fullName || 'User',
+    gender: 'Nam', // Có thể thêm trường này vào User interface nếu cần
+    age: 20, // Có thể thêm trường này vào User interface nếu cần
+    englishLevel: 1, // Có thể thêm trường này vào User interface nếu cần
     enableReasoning: false,
     enableSearching: false
   };

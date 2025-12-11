@@ -318,5 +318,36 @@ namespace EngAce.Api.Services
                 };
             }
         }
+
+        public async Task<UserDto?> GetUserByIdAsync(int userId)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return null;
+                }
+
+                return new UserDto
+                {
+                    UserId = user.UserID,
+                    Email = user.Email,
+                    Username = user.Username,
+                    FullName = user.FullName,
+                    Avatar = user.Avatar,
+                    Role = user.Role,
+                    Status = user.Status,
+                    EmailVerified = true,
+                    AccountType = user.AccountType,
+                    PremiumExpiresAt = user.PremiumExpiresAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user by ID: {UserId}", userId);
+                return null;
+            }
+        }
     }
 }

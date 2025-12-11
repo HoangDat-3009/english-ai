@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import Header from '@/components/Navbar';
@@ -27,7 +27,7 @@ const Pricing = () => {
       isPremium: false,
     },
     {
-      name: "Premium",
+      name: "Premium 1 tháng",
       price: "199.000đ",
       period: "/tháng",
       description: "Mở khóa toàn bộ tính năng",
@@ -40,6 +40,29 @@ const Pricing = () => {
         "Báo cáo tiến độ học tập",
         "Hỗ trợ ưu tiên",
         "Không quảng cáo",
+      ],
+      limitations: [],
+      buttonText: "Nâng cấp ngay",
+      isPremium: true,
+      popular: false,
+    },
+    {
+      name: "Premium 6 tháng",
+      price: "999.000đ",
+      period: "/6 tháng",
+      originalPrice: "1.194.000đ",
+      discount: "16%",
+      description: "Tiết kiệm hơn với gói dài hạn",
+      features: [
+        "Không giới hạn số bài viết",
+        "Nhận xét chi tiết và chuyên sâu",
+        "Từ vựng không giới hạn",
+        "Lưu lịch sử bài viết",
+        "Xuất file PDF",
+        "Báo cáo tiến độ học tập",
+        "Hỗ trợ ưu tiên",
+        "Không quảng cáo",
+        "Tiết kiệm 195.000đ",
       ],
       limitations: [],
       buttonText: "Nâng cấp ngay",
@@ -60,6 +83,16 @@ const Pricing = () => {
     <div className="min-h-screen bg-gradient-soft">
       <Header />
       <main className="container mx-auto px-4 py-12">
+        <div className="max-w-6xl mx-auto">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/")}
+            className="mb-6"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Quay về
+          </Button>
+        </div>
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
             Nâng cấp Premium
@@ -69,7 +102,7 @@ const Pricing = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan) => (
             <Card
               key={plan.name}
@@ -92,6 +125,18 @@ const Pricing = () => {
                   {plan.description}
                 </CardDescription>
                 <div className="mt-4">
+                  {plan.originalPrice && (
+                    <div className="mb-1">
+                      <span className="text-lg text-muted-foreground line-through">
+                        {plan.originalPrice}
+                      </span>
+                      {plan.discount && (
+                        <span className="ml-2 text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
+                          Giảm {plan.discount}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <span className="text-4xl font-bold text-primary">
                     {plan.price}
                   </span>

@@ -46,6 +46,30 @@ namespace Entities.Models
 
         [Column("attempts")]
         public int Attempts { get; set; } = 1;
+
+        [Column("ai_graded")]
+        public bool AiGraded { get; set; } = false;
+
+        [Column("review_status")]
+        public string? ReviewStatus { get; set; } = "pending";
+
+        [Column("reviewed_by")]
+        public int? ReviewedBy { get; set; }
+
+        [Column("reviewed_at")]
+        public DateTime? ReviewedAt { get; set; }
+
+        [Column("original_score", TypeName = "decimal(5,2)")]
+        public decimal? OriginalScore { get; set; }
+
+        [Column("final_score", TypeName = "decimal(5,2)")]
+        public decimal? FinalScore { get; set; }
+
+        [Column("review_notes")]
+        public string? ReviewNotes { get; set; }
+
+        [Column("confidence_score", TypeName = "decimal(3,2)")]
+        public decimal? ConfidenceScore { get; set; }
         
         // Note: UNIQUE constraint trên (user_id, exercise_id, attempts) trong database
 

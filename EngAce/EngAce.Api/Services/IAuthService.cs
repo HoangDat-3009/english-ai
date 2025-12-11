@@ -8,5 +8,6 @@ namespace EngAce.Api.Services
         Task<AuthResponse> RegisterAsync(RegisterRequest request);
         Task<AuthResponse> LoginAsync(LoginRequest request);
         Task<AuthResponse> OAuthLoginAsync(OAuthLoginRequest request);
+        Task<UserDto?> GetUserByIdAsync(int userId);
     }
 }

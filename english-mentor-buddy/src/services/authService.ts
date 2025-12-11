@@ -137,6 +137,31 @@ class AuthService {
     const token = this.getToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
+
+  /**
+   * Refresh current user data from server
+   */
+  async refreshUser(): Promise<UserDto | null> {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return null;
+      }
+
+      const response = await api.get<{ success: boolean; user: UserDto }>('/api/auth/me');
+      
+      if (response.success && response.user) {
+        // Update local storage with fresh user data
+        localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+        return response.user;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+      return null;
+    }
+  }
 }
 
 // Export singleton instance

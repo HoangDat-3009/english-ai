@@ -551,6 +551,8 @@ public class ReadingExerciseController : ControllerBase
             _context.Exercises.Add(exercise);
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("✅ AI-generated reading exercise created with ID: {ExerciseId}", exercise.ExerciseId);
+
             var result = new
             {
                 Success = true,

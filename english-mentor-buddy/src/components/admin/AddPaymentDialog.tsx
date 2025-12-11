@@ -31,11 +31,19 @@ export const AddPaymentDialog: React.FC<AddPaymentDialogProps> = ({
   const [userInfo, setUserInfo] = useState<{ fullName?: string; accountType?: string; status?: string } | null>(null);
   const [formData, setFormData] = useState({
     email: '',
-    amount: '218900', // Giá cố định 218,900 VNĐ/tháng
+    amount: '218900',
     method: 'Chuyển khoản',
     durationMonths: '1',
     note: '',
   });
+
+  // Pricing calculator
+  const calculateAmount = (months: number) => {
+    if (months === 6) {
+      return 1098900; // 999,000 + VAT 10%
+    }
+    return months * 218900; // 199,000 + VAT per month
+  };
 
   const handleEmailBlur = async () => {
     const email = formData.email.trim();
@@ -193,17 +201,18 @@ export const AddPaymentDialog: React.FC<AddPaymentDialogProps> = ({
               value={formData.durationMonths}
               onChange={(e) => {
                 const months = parseInt(e.target.value) || 1;
+                const newAmount = calculateAmount(months);
                 setFormData({ 
                   ...formData, 
                   durationMonths: e.target.value,
-                  amount: (months * 218900).toString()
+                  amount: newAmount.toString()
                 });
               }}
               required
               disabled={loading}
             />
             <p className="text-xs text-gray-500">
-              Giá: 218,900 VNĐ/tháng
+              1 tháng: 218,900 VNĐ | 6 tháng: 1,098,900 VNĐ (Giảm 16%)
             </p>
           </div>
 

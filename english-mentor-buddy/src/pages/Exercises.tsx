@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/AuthContext';
 import {
   exerciseService,
   ExerciseGenerationParams,
@@ -235,6 +236,7 @@ const QuestionTypesSelector: React.FC<{
 const Exercises: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [showExercise, setShowExercise] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -314,16 +316,6 @@ const Exercises: React.FC = () => {
         TotalQuestions: totalQuestions
       };
 
-      console.log('REQUEST FORMAT:');
-      console.log(JSON.stringify(params, null, 2));
-      console.log('EXPECTED REQUEST FORMAT:');
-      console.log(JSON.stringify({
-        "Topic": "Animals in the wild",
-        "AssignmentTypes": [1],
-        "EnglishLevel": 1,
-        "TotalQuestions": 10
-      }, null, 2));
-
       const result = await exerciseService.generateExercise(params, aiProvider);
 
       console.log('RECEIVED RESPONSE:');
@@ -337,6 +329,34 @@ const Exercises: React.FC = () => {
         setTimeLeft(600); // Reset timer
         setSubmissionResult(null);
         setAnswers({}); // Reset answers
+        
+        // Tự động lưu bài tập vào database
+        try {
+          const saveRequest = {
+            title: `${result.Topic} - AI Generated`,
+            topic: result.Topic,
+            questions: result.Questions,
+            level: 'A1', // Có thể thay đổi theo level thực tế
+            type: selectedQuestionTypes.length > 1 ? 'mixed' : 'single',
+            category: result.Topic,
+            estimatedMinutes: Math.ceil(result.Questions.length * 1.5),
+            timeLimit: 600,
+            description: `AI-generated exercise with ${result.Questions.length} questions`,
+            createdBy: user?.userId || 1 // Sử dụng user ID hiện tại
+          };
+          
+          console.log('💾 Saving exercise to database...');
+          console.log('📊 Save request:', JSON.stringify(saveRequest, null, 2));
+          const saveResult = await exerciseService.saveExercise(saveRequest);
+          
+          if (saveResult.success) {
+            console.log('✅ Exercise saved with ID:', saveResult.exerciseId);
+          }
+        } catch (saveError) {
+          console.error('⚠️ Failed to save exercise:', saveError);
+          // Không show error toast vì vẫn có thể làm bài
+        }
+        
         toast({
           title: 'Đã tạo bài tập',
           description: 'Bài tập đã được tạo thành công',

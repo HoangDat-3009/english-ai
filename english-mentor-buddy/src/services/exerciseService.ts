@@ -49,6 +49,20 @@ export interface ExerciseSet {
   TimeLimit?: number;
 }
 
+export interface SaveExerciseRequest {
+  title: string;
+  topic: string;
+  content?: string;
+  questions: Question[];
+  level?: string;
+  type?: string;
+  category?: string;
+  estimatedMinutes?: number;
+  timeLimit?: number;
+  description?: string;
+  createdBy?: number;
+}
+
 export interface SubmissionResult {
   score: number;
   totalQuestions: number;
@@ -192,6 +206,24 @@ export const exerciseService = {
       return result;
     } catch (error) {
       console.error('Error submitting answers:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Save AI-generated exercise to database
+   */
+  async saveExercise(request: SaveExerciseRequest): Promise<{ success: boolean; exerciseId?: number; message: string }> {
+    try {
+      console.log('💾 Saving exercise to database:', request);
+      const response = await apiService.post<{ success: boolean; exerciseId?: number; message: string }, SaveExerciseRequest>(
+        '/api/exercise/save',
+        request
+      );
+      console.log('✅ Exercise saved successfully:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error saving exercise:', error);
       throw error;
     }
   }

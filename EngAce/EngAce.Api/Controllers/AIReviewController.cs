@@ -92,68 +92,46 @@ public class AIReviewController : ControllerBase
         try
         {
             var connectionString = _configuration.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                _logger.LogError("❌ Connection string is null or empty");
+                return StatusCode(500, new { message = "Database connection not configured" });
+            }
+
             using var connection = new MySqlConnection(connectionString);
             await connection.OpenAsync();
 
             var whereConditions = new List<string>
             {
-                "ec.is_completed = 1",
-                "e.ai_generated = 1"  // Chỉ lấy bài do AI tạo
+                "e.ai_generated = 1"  // Only show AI-generated exercises
             };
 
-            // Status filter
-            if (!string.IsNullOrEmpty(status) && status != "all")
-            {
-                whereConditions.Add($"ec.review_status = '{status}'");
-            }
-
-            // Confidence filter
-            if (!string.IsNullOrEmpty(confidenceFilter) && confidenceFilter != "all")
-            {
-                if (confidenceFilter == "low")
-                    whereConditions.Add("ec.confidence_score < 0.75");
-                else if (confidenceFilter == "medium")
-                    whereConditions.Add("ec.confidence_score >= 0.75 AND ec.confidence_score < 0.9");
-                else if (confidenceFilter == "high")
-                    whereConditions.Add("ec.confidence_score >= 0.9");
-            }
+            // Status filter - removed (no longer using exercise_completions)
 
             // Search filter
             if (!string.IsNullOrEmpty(search))
             {
-                whereConditions.Add($"(u.username LIKE '%{search}%' OR e.title LIKE '%{search}%' OR e.category LIKE '%{search}%')");
+                var safeSearch = search.Replace("'", "''"); // Prevent SQL injection
+                whereConditions.Add($"(e.title LIKE '%{safeSearch}%' OR e.category LIKE '%{safeSearch}%' OR e.level LIKE '%{safeSearch}%')");
             }
 
             var whereClause = string.Join(" AND ", whereConditions);
 
             var query = $@"
                 SELECT 
-                    ec.id,
-                    ec.user_id as userId,
-                    u.username as userName,
-                    u.email as userEmail,
-                    ec.exercise_id as exerciseId,
+                    e.id as exerciseId,
                     e.title as exerciseTitle,
-                    e.category as exerciseCode,
-                    e.level as exerciseLevel,
-                    e.type as exerciseType,
-                    e.ai_generated as aiGenerated,
-                    ec.score as originalScore,
-                    ec.final_score as finalScore,
-                    ec.score as currentScore,
-                    COALESCE(ec.confidence_score, 0.85) as confidenceScore,
-                    COALESCE(ec.review_status, 'pending') as reviewStatus,
-                    ec.completed_at as completedAt,
-                    ec.reviewed_by as reviewedBy,
-                    ec.reviewed_at as reviewedAt,
-                    ec.review_notes as reviewNotes,
-                    COALESCE(ec.total_questions, 10) as totalQuestions,
-                    COALESCE(ec.user_answers_json, '{{}}') as userAnswers
-                FROM exercise_completions ec
-                JOIN users u ON ec.user_id = u.id
-                JOIN exercises e ON ec.exercise_id = e.id
+                    COALESCE(e.category, 'general') as exerciseCode,
+                    COALESCE(e.level, 'A1') as exerciseLevel,
+                    COALESCE(e.type, 'quiz') as exerciseType,
+                    COALESCE(e.ai_generated, 0) as aiGenerated,
+                    e.created_by as createdBy,
+                    e.created_at as createdAt,
+                    e.source_type as sourceType,
+                    e.questions_json as questionsJson
+                FROM exercises e
                 WHERE {whereClause}
-                ORDER BY ec.completed_at DESC
+                ORDER BY e.created_at DESC
                 LIMIT 100";
 
             using var cmd = new MySqlCommand(query, connection);
@@ -162,47 +140,45 @@ public class AIReviewController : ControllerBase
             var submissions = new List<object>();
             while (await reader.ReadAsync())
             {
-                // Calculate confidence score based on actual score if not provided
-                var currentScore = reader.GetDecimal("currentScore");
-                decimal confidenceScore;
-                
-                if (!reader.IsDBNull(reader.GetOrdinal("confidenceScore")))
+                try
                 {
-                    confidenceScore = reader.GetDecimal("confidenceScore");
+                    var questionsJson = reader.IsDBNull(reader.GetOrdinal("questionsJson")) 
+                        ? "[]" 
+                        : reader.GetString("questionsJson");
+                    
+                    // Count questions from JSON
+                    int totalQuestions = 0;
+                    try
+                    {
+                        var questions = System.Text.Json.JsonSerializer.Deserialize<List<object>>(questionsJson);
+                        totalQuestions = questions?.Count ?? 0;
+                    }
+                    catch
+                    {
+                        totalQuestions = 0;
+                    }
+                    
+                    submissions.Add(new
+                    {
+                        id = reader.GetInt32("exerciseId"),
+                        exerciseId = reader.GetInt32("exerciseId"),
+                        exerciseTitle = reader.GetString("exerciseTitle"),
+                        exerciseCode = reader.GetString("exerciseCode"),
+                        exerciseLevel = reader.GetString("exerciseLevel"),
+                        exerciseType = reader.GetString("exerciseType"),
+                        aiGenerated = reader.GetBoolean("aiGenerated"),
+                        createdBy = reader.IsDBNull(reader.GetOrdinal("createdBy")) ? (int?)null : reader.GetInt32("createdBy"),
+                        createdAt = reader.GetDateTime("createdAt"),
+                        sourceType = reader.IsDBNull(reader.GetOrdinal("sourceType")) ? null : reader.GetString("sourceType"),
+                        totalQuestions = totalQuestions,
+                        reviewStatus = "pending" // Default status for AI-generated exercises
+                    });
                 }
-                else
+                catch (Exception ex)
                 {
-                    // Generate confidence based on score: high score = high confidence
-                    if (currentScore >= 90) confidenceScore = 0.92m;
-                    else if (currentScore >= 80) confidenceScore = 0.85m;
-                    else if (currentScore >= 70) confidenceScore = 0.78m;
-                    else if (currentScore >= 60) confidenceScore = 0.68m;
-                    else confidenceScore = 0.45m;
+                    _logger.LogWarning(ex, "⚠️ Error reading submission row, skipping...");
+                    continue;
                 }
-                
-                submissions.Add(new
-                {
-                    id = reader.GetInt32("id"),
-                    userId = reader.GetInt32("userId"),
-                    userName = reader.GetString("userName"),
-                    userEmail = reader.GetString("userEmail"),
-                    exerciseId = reader.GetInt32("exerciseId"),
-                    exerciseTitle = reader.GetString("exerciseTitle"),
-                    exerciseCode = reader.IsDBNull(reader.GetOrdinal("exerciseCode")) ? null : reader.GetString("exerciseCode"),
-                    exerciseLevel = reader.IsDBNull(reader.GetOrdinal("exerciseLevel")) ? "A1" : reader.GetString("exerciseLevel"),
-                    exerciseType = reader.IsDBNull(reader.GetOrdinal("exerciseType")) ? "quiz" : reader.GetString("exerciseType"),
-                    aiGenerated = true,
-                    originalScore = reader.IsDBNull(reader.GetOrdinal("originalScore")) ? currentScore : reader.GetDecimal("originalScore"),
-                    finalScore = reader.IsDBNull(reader.GetOrdinal("finalScore")) ? (decimal?)null : reader.GetDecimal("finalScore"),
-                    confidenceScore = confidenceScore,
-                    reviewStatus = reader.GetString("reviewStatus"),
-                    completedAt = reader.IsDBNull(reader.GetOrdinal("completedAt")) ? DateTime.Now : reader.GetDateTime("completedAt"),
-                    reviewedBy = reader.IsDBNull(reader.GetOrdinal("reviewedBy")) ? (int?)null : reader.GetInt32("reviewedBy"),
-                    reviewedAt = reader.IsDBNull(reader.GetOrdinal("reviewedAt")) ? (DateTime?)null : reader.GetDateTime("reviewedAt"),
-                    reviewNotes = reader.IsDBNull(reader.GetOrdinal("reviewNotes")) ? null : reader.GetString("reviewNotes"),
-                    totalQuestions = reader.GetInt32("totalQuestions"),
-                    userAnswers = reader.IsDBNull(reader.GetOrdinal("userAnswers")) ? "{}" : reader.GetString("userAnswers")
-                });
             }
 
             return Ok(submissions);
@@ -226,17 +202,15 @@ public class AIReviewController : ControllerBase
 
             var query = @"
                 SELECT 
-                    ec.id,
-                    ec.exercise_id as exerciseId,
-                    ec.user_answers_json as userAnswers,
-                    ec.score as score,
-                    ec.total_questions as totalQuestions,
+                    e.id as exerciseId,
+                    e.title as exerciseTitle,
                     e.questions_json as questionsJson,
                     e.correct_answers_json as correctAnswersJson,
-                    e.title as exerciseTitle
-                FROM exercise_completions ec
-                JOIN exercises e ON ec.exercise_id = e.id
-                WHERE ec.id = @id";
+                    e.level,
+                    e.type,
+                    e.category
+                FROM exercises e
+                WHERE e.id = @id AND e.ai_generated = 1";
 
             using var cmd = new MySqlCommand(query, connection);
             cmd.Parameters.AddWithValue("@id", id);
@@ -246,24 +220,24 @@ public class AIReviewController : ControllerBase
             {
                 var details = new
                 {
-                    id = reader.GetInt32("id"),
+                    id = id,
                     exerciseId = reader.GetInt32("exerciseId"),
                     exerciseTitle = reader.GetString("exerciseTitle"),
-                    userAnswers = reader.IsDBNull(reader.GetOrdinal("userAnswers")) ? "[]" : reader.GetString("userAnswers"),
                     questionsJson = reader.IsDBNull(reader.GetOrdinal("questionsJson")) ? "[]" : reader.GetString("questionsJson"),
                     correctAnswersJson = reader.IsDBNull(reader.GetOrdinal("correctAnswersJson")) ? "[]" : reader.GetString("correctAnswersJson"),
-                    score = reader.IsDBNull(reader.GetOrdinal("score")) ? 0 : reader.GetDecimal("score"),
-                    totalQuestions = reader.GetInt32("totalQuestions")
+                    level = reader.IsDBNull(reader.GetOrdinal("level")) ? "A1" : reader.GetString("level"),
+                    type = reader.IsDBNull(reader.GetOrdinal("type")) ? "quiz" : reader.GetString("type"),
+                    category = reader.IsDBNull(reader.GetOrdinal("category")) ? "general" : reader.GetString("category")
                 };
 
                 return Ok(details);
             }
 
-            return NotFound(new { message = "Submission not found" });
+            return NotFound(new { message = "Exercise not found" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting submission details");
+            _logger.LogError(ex, "Error getting exercise details");
             return StatusCode(500, new { message = "Internal server error", error = ex.Message });
         }
     }
@@ -304,10 +278,6 @@ public class AIReviewController : ControllerBase
             {
                 return NotFound(new { message = "Submission not found" });
             }
-
-            _logger.LogInformation(
-                "Review updated successfully for submission {SubmissionId}. Final score: {FinalScore}, Status: {ReviewStatus}",
-                id, request.FinalScore, request.ReviewStatus);
 
             return Ok(new
             {
