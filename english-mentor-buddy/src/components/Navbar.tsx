@@ -184,14 +184,40 @@ const Navbar = () => {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="rounded-full border-border">
+              <Button variant="outline" size="icon" className="rounded-full border-border relative">
                 <User className="h-5 w-5" />
+                {user && user.accountType === 'premium' && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-background"></span>
+                )}
                 <span className="sr-only">Account</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-medium">
-                {user ? `Xin chào, ${user.username || user.fullName}` : 'Khách'}
+                <div className="flex flex-col space-y-1">
+                  <span>{user ? `Xin chào, ${user.username || user.fullName}` : 'Khách'}</span>
+                  {user && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {user.accountType === 'premium' ? (
+                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                          <span className="inline-block w-2 h-2 rounded-full bg-amber-600 dark:bg-amber-400"></span>
+                          Premium
+                          {user.premiumExpiresAt && (
+                            <span className="ml-1">- Hết hạn: {new Date(user.premiumExpiresAt).toLocaleDateString('vi-VN')}</span>
+                          )}
+                          {!user.premiumExpiresAt && (
+                            <span className="ml-1">- Vĩnh viễn</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="inline-block w-2 h-2 rounded-full bg-gray-400"></span>
+                          Free
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
@@ -281,6 +307,26 @@ const Navbar = () => {
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm">Vai trò</h4>
                               <p className="text-muted-foreground">{user?.role || 'user'}</p>
+                            </div>
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Loại tài khoản</h4>
+                              <p className="text-muted-foreground">
+                                {user?.accountType === 'premium' ? (
+                                  <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                                    Premium
+                                    {user.premiumExpiresAt && (
+                                      <span className="text-xs text-muted-foreground ml-1">
+                                        (Hết hạn: {new Date(user.premiumExpiresAt).toLocaleDateString('vi-VN')})
+                                      </span>
+                                    )}
+                                    {!user.premiumExpiresAt && (
+                                      <span className="text-xs text-muted-foreground ml-1">(Vĩnh viễn)</span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  'Free'
+                                )}
+                              </p>
                             </div>
                           </>
                         )}

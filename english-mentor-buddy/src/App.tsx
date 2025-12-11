@@ -59,40 +59,124 @@ const App = () => (
         <BrowserRouter>
           <AnimatePresence mode="wait">
             <Routes>
-              {/* Route mặc định - chuyển thẳng tới trang chính */}
+              {/* Route mặc định - trang landing public */}
               <Route path="/" element={<Index />} />
 
-              {/* Public routes */}
+              {/* Public routes - không cần đăng nhập */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/callback" element={<Auth0Callback />} />
+              <Route path="/pricing" element={<Pricing />} />
 
-              {/* Các routes chính - không còn bắt buộc đăng nhập */}
-              <Route path="/index" element={<Index />} />
-              <Route path="/dictionary" element={<Dictionary />} />
-              <Route path="/dictionary-result" element={<DictionaryResult />} />
-              <Route path="/exercises" element={<Exercises />} />
+              {/* Protected routes - cần đăng nhập */}
+              <Route path="/index" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/dictionary" element={
+                <ProtectedRoute>
+                  <Dictionary />
+                </ProtectedRoute>
+              } />
+              <Route path="/dictionary-result" element={
+                <ProtectedRoute>
+                  <DictionaryResult />
+                </ProtectedRoute>
+              } />
+              <Route path="/exercises" element={
+                <ProtectedRoute>
+                  <Exercises />
+                </ProtectedRoute>
+              } />
               
-              {/* Writing routes */}
-              <Route path="/writing-mode" element={<WritingMode />} />
-              <Route path="/writing" element={<Writing />} />
-              <Route path="/sentence-writing" element={<SentenceWriting />} />
-              <Route path="/sentence-practice" element={<SentencePractice />} />
-              <Route path="/writing-essay-library" element={<WritingEssayLibrary />} />
-              <Route path="/writing-sentence-library" element={<WritingSentenceLibrary />} />
-              <Route path="/writing-practice/:id" element={<WritingPractice />} />
+              {/* Writing routes - cần đăng nhập */}
+              <Route path="/writing-mode" element={
+                <ProtectedRoute>
+                  <WritingMode />
+                </ProtectedRoute>
+              } />
+              <Route path="/writing" element={
+                <ProtectedRoute>
+                  <Writing />
+                </ProtectedRoute>
+              } />
+              <Route path="/sentence-writing" element={
+                <ProtectedRoute>
+                  <SentenceWriting />
+                </ProtectedRoute>
+              } />
+              <Route path="/sentence-practice" element={
+                <ProtectedRoute>
+                  <SentencePractice />
+                </ProtectedRoute>
+              } />
+              <Route path="/writing-essay-library" element={
+                <ProtectedRoute>
+                  <WritingEssayLibrary />
+                </ProtectedRoute>
+              } />
+              <Route path="/writing-sentence-library" element={
+                <ProtectedRoute>
+                  <WritingSentenceLibrary />
+                </ProtectedRoute>
+              } />
+              <Route path="/writing-practice/:id" element={
+                <ProtectedRoute>
+                  <WritingPractice />
+                </ProtectedRoute>
+              } />
               
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/test-stats" element={<TestStatistics />} />
+              <Route path="/chat" element={
+                <ProtectedRoute>
+                  <Chat />
+                </ProtectedRoute>
+              } />
+              <Route path="/test-stats" element={
+                <ProtectedRoute>
+                  <TestStatistics />
+                </ProtectedRoute>
+              } />
 
-              <Route path="/progress" element={<Progress />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/reading-exercises" element={<ReadingExercises />} />
+              <Route path="/progress" element={
+                <ProtectedRoute>
+                  <Progress />
+                </ProtectedRoute>
+              } />
+              <Route path="/leaderboard" element={
+                <ProtectedRoute>
+                  <Leaderboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/reading-exercises" element={
+                <ProtectedRoute>
+                  <ReadingExercises />
+                </ProtectedRoute>
+              } />
               
-              {/* TOEIC Test routes */}
-              <Route path="/test-list" element={<TestList />} />
-              <Route path="/test-config/:testId" element={<TestConfiguration />} />
-              <Route path="/test-exam/:testId" element={<TestExam />} />
+              {/* TOEIC Test routes - cần đăng nhập */}
+              <Route path="/test-list" element={
+                <ProtectedRoute>
+                  <TestList />
+                </ProtectedRoute>
+              } />
+              <Route path="/test-config/:testId" element={
+                <ProtectedRoute>
+                  <TestConfiguration />
+                </ProtectedRoute>
+              } />
+              <Route path="/test-exam/:testId" element={
+                <ProtectedRoute>
+                  <TestExam />
+                </ProtectedRoute>
+              } />
+              
+              {/* Checkout - cần đăng nhập */}
+              <Route path="/checkout" element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              } />
 
               {/* Admin routes */}
               <Route path="/admin" element={

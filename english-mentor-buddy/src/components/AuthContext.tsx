@@ -10,6 +10,8 @@ export interface User {
     role: string;
     status: string;
     emailVerified: boolean;
+    accountType?: string;
+    premiumExpiresAt?: string | null;
 }
 
 interface AuthContextType {

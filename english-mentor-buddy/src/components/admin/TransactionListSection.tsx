@@ -14,6 +14,7 @@ import transactionService, {
   SortConfig,
   PaginationState,
   TransactionSummary,
+  PaymentStatus,
 } from '@/services/transactionService';
 
 const TransactionListSection: React.FC = () => {
@@ -71,15 +72,14 @@ const TransactionListSection: React.FC = () => {
 
       // Convert Payment[] to Transaction[] format
       const convertedTransactions: Transaction[] = paymentResponse.payments.map((payment: Payment) => ({
-        TransactionID: payment.id.toString(),
-        UserID: payment.userId,
+        Id: payment.id.toString(),
+        UserId: payment.userId.toString(),
+        UserName: payment.fullName || 'N/A',
         UserEmail: payment.email,
-        UserFullName: payment.fullName || 'N/A',
         Amount: payment.amount,
-        Method: payment.method || 'Manual',
-        Status: payment.status,
-        IsLifetime: payment.isLifetime,
+        Status: payment.status as PaymentStatus,
         CreatedAt: payment.createdAt,
+        UpdatedAt: payment.createdAt, // Use CreatedAt as UpdatedAt if not available
       }));
 
       setTransactions(convertedTransactions);
@@ -117,6 +117,7 @@ const TransactionListSection: React.FC = () => {
   // Fetch on mount and when dependencies change
   useEffect(() => {
     fetchTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, pagination.pageSize, filters, sortConfig]);
 
   // Handle filter changes

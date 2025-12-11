@@ -55,7 +55,7 @@ namespace EngAce.Api.Services
                     Username = request.Username?.Trim(),
                     FullName = request.FullName?.Trim(),
                     PasswordHash = passwordHash,
-                    Role = "user", // Default role
+                    Role = "customer", // Default role matches DB enum
                     Status = "active",
                     AccountType = "free",
                     CreatedAt = DateTime.UtcNow,
@@ -79,9 +79,11 @@ namespace EngAce.Api.Services
                         Username = createdUser.Username,
                         FullName = createdUser.FullName,
                         Avatar = createdUser.Avatar,
-                        Role = "user",
+                        Role = "customer",
                         Status = createdUser.Status,
-                        EmailVerified = true
+                        EmailVerified = true,
+                        AccountType = createdUser.AccountType,
+                        PremiumExpiresAt = createdUser.PremiumExpiresAt
                     }
                 };
             }
@@ -125,10 +127,15 @@ namespace EngAce.Api.Services
                     };
                 }
 
-                // Check if user has password (not OAuth-only user)
-                _logger.LogInformation($"🔍 Password Hash Check - IsNull: {user.PasswordHash == null}, IsEmpty: {user.PasswordHash == string.Empty}, Length: {user.PasswordHash?.Length ?? 0}");
+                _logger.LogInformation($"🔍 User Found - ID: {user.UserID}, Email: {user.Email}, Username: {user.Username}");
+                _logger.LogInformation($"🔍 Password Hash - IsNull: {user.PasswordHash == null}, IsEmpty: {string.IsNullOrEmpty(user.PasswordHash)}, IsWhitespace: {string.IsNullOrWhiteSpace(user.PasswordHash)}, Length: {user.PasswordHash?.Length ?? 0}");
+                if (!string.IsNullOrEmpty(user.PasswordHash))
+                {
+                    _logger.LogInformation($"🔍 Password Hash Preview: {user.PasswordHash.Substring(0, Math.Min(20, user.PasswordHash.Length))}...");
+                }
                 
-                if (string.IsNullOrEmpty(user.PasswordHash))
+                // Check if user has password (not OAuth-only user)
+                if (string.IsNullOrWhiteSpace(user.PasswordHash))
                 {
                     _logger.LogWarning("⚠️ OAuth-only account attempted password login: {Email}", user.Email);
                     return new AuthResponse
@@ -184,9 +191,11 @@ namespace EngAce.Api.Services
                         Username = user.Username,
                         FullName = user.FullName,
                         Avatar = user.Avatar,
-                        Role = "user",
+                        Role = user.Role,
                         Status = user.Status,
-                        EmailVerified = true
+                        EmailVerified = true,
+                        AccountType = user.AccountType,
+                        PremiumExpiresAt = user.PremiumExpiresAt
                     }
                 };
             }
@@ -292,9 +301,11 @@ namespace EngAce.Api.Services
                         Username = user.Username,
                         FullName = user.FullName,
                         Avatar = user.Avatar,
-                        Role = "user",
+                        Role = user.Role,
                         Status = user.Status,
-                        EmailVerified = true
+                        EmailVerified = true,
+                        AccountType = user.AccountType,
+                        PremiumExpiresAt = user.PremiumExpiresAt
                     }
                 };
             }
