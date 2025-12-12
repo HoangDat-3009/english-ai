@@ -7,6 +7,7 @@ namespace Entities
     {
         /// <summary>
         /// Total number of users in the system (students only)
+        /// Total number of users in the system
         /// </summary>
         public int TotalUsers { get; set; }
 

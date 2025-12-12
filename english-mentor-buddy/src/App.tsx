@@ -9,14 +9,31 @@ import Index from "./pages/Index";
 import Dictionary from "./pages/Dictionary";
 import DictionaryResult from "./pages/DictionaryResult";
 import Exercises from "./pages/Exercises";
+import Writing from "./pages/Writing";
+import Listening from "./pages/Listening";
+import Speaking from "./pages/Speaking";
+import WritingMode from "./pages/WritingMode";
+import Leaderboard from "./pages/Leaderboard"
+import Progress from "./pages/Progress";
+import ReadingExercises from "./pages/ReadingExercises";
+import SentenceWriting from "./pages/SentenceWriting";
+import SentencePractice from "./pages/SentencePractice";
+import WritingEssayLibrary from "./pages/WritingEssayLibrary";
+import WritingSentenceLibrary from "./pages/WritingSentenceLibrary";
+import WritingPractice from "./pages/WritingPractice";
 import Chat from "./pages/Chat";
-import EnglishTopicCards from "./pages/EnglishTopicCards";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import TestList from "./pages/TestList";
+import TestConfiguration from "./pages/TestConfiguration";
+import TestExam from "./pages/TestExam";
+
 import LoginAlt from "./pages/LoginAlt";
 import Register from "./pages/Register";
 import Auth0Callback from "./pages/Auth0Callback";
 import ProtectedRoute from "./components/ProtectedRoute"; // Nhập ProtectedRoute
+import Checkout from "./pages/Checkout";
+import Pricing from "./pages/Pricing";
 
 // Admin imports
 import AdminLayout from "./layouts/admin/AdminLayout.tsx";
@@ -44,22 +61,134 @@ const App = () => (
         <BrowserRouter>
           <AnimatePresence mode="wait">
             <Routes>
-              {/* Route mặc định - chuyển thẳng tới trang chính */}
+              {/* Route mặc định - trang landing public */}
               <Route path="/" element={<Index />} />
 
-              {/* Public routes */}
+              {/* Public routes - không cần đăng nhập */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/callback" element={<Auth0Callback />} />
+              <Route path="/pricing" element={<Pricing />} />
 
-              {/* Các routes chính - không còn bắt buộc đăng nhập */}
-              <Route path="/index" element={<Index />} />
-              <Route path="/dictionary" element={<Dictionary />} />
-              <Route path="/dictionary-result" element={<DictionaryResult />} />
-              <Route path="/exercises" element={<Exercises />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/topics" element={<EnglishTopicCards />} />
-              <Route path="/test-stats" element={<TestStatistics />} />
+              {/* Protected routes - cần đăng nhập */}
+              <Route path="/index" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/dictionary" element={
+                <ProtectedRoute>
+                  <Dictionary />
+                </ProtectedRoute>
+              } />
+              <Route path="/dictionary-result" element={
+                <ProtectedRoute>
+                  <DictionaryResult />
+                </ProtectedRoute>
+              } />
+              <Route path="/exercises" element={
+                <ProtectedRoute>
+                  <Exercises />
+                </ProtectedRoute>
+              } />
+              
+              {/* Writing routes - cần đăng nhập */}
+              <Route path="/writing-mode" element={
+                <ProtectedRoute>
+                  <WritingMode />
+                </ProtectedRoute>
+              } />
+              <Route path="/writing" element={
+                <ProtectedRoute>
+                  <Writing />
+                </ProtectedRoute>
+              } />
+              <Route path="/listening" element={
+                <ProtectedRoute>
+                  <Listening />
+                </ProtectedRoute>
+              } />
+              <Route path="/speaking" element={
+                <ProtectedRoute>
+                  <Speaking />
+                </ProtectedRoute>
+              } />
+              <Route path="/sentence-writing" element={
+                <ProtectedRoute>
+                  <SentenceWriting />
+                </ProtectedRoute>
+              } />
+              <Route path="/sentence-practice" element={
+                <ProtectedRoute>
+                  <SentencePractice />
+                </ProtectedRoute>
+              } />
+              <Route path="/writing-essay-library" element={
+                <ProtectedRoute>
+                  <WritingEssayLibrary />
+                </ProtectedRoute>
+              } />
+              <Route path="/writing-sentence-library" element={
+                <ProtectedRoute>
+                  <WritingSentenceLibrary />
+                </ProtectedRoute>
+              } />
+              <Route path="/writing-practice/:id" element={
+                <ProtectedRoute>
+                  <WritingPractice />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/chat" element={
+                <ProtectedRoute>
+                  <Chat />
+                </ProtectedRoute>
+              } />
+              <Route path="/test-stats" element={
+                <ProtectedRoute>
+                  <TestStatistics />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/progress" element={
+                <ProtectedRoute>
+                  <Progress />
+                </ProtectedRoute>
+              } />
+              <Route path="/leaderboard" element={
+                <ProtectedRoute>
+                  <Leaderboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/reading-exercises" element={
+                <ProtectedRoute>
+                  <ReadingExercises />
+                </ProtectedRoute>
+              } />
+              
+              {/* TOEIC Test routes - cần đăng nhập */}
+              <Route path="/test-list" element={
+                <ProtectedRoute>
+                  <TestList />
+                </ProtectedRoute>
+              } />
+              <Route path="/test-config/:testId" element={
+                <ProtectedRoute>
+                  <TestConfiguration />
+                </ProtectedRoute>
+              } />
+              <Route path="/test-exam/:testId" element={
+                <ProtectedRoute>
+                  <TestExam />
+                </ProtectedRoute>
+              } />
+              
+              {/* Checkout - cần đăng nhập */}
+              <Route path="/checkout" element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              } />
 
               {/* Admin routes */}
               <Route path="/admin" element={
@@ -76,7 +205,6 @@ const App = () => (
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="content" element={<ContentManagement />} />
                 <Route path="settings" element={<AdminSettings />} />
-                {/* Có thể thêm các admin routes khác ở đây */}
               </Route>
 
               {/* Route cho trang không tìm thấy */}

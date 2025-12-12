@@ -1,5 +1,6 @@
 using EngAce.Api.DTO;
 using EngAce.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 
@@ -91,6 +92,29 @@ namespace EngAce.Api.Controllers
             }
 
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Get current user information
+        /// </summary>
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            // Get user ID from JWT token
+            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst("sub");
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized(new { success = false, message = "Invalid or missing token" });
+            }
+
+            var user = await _authService.GetUserByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new { success = false, message = "User not found" });
+            }
+
+            return Ok(new { success = true, user = user });
         }
 
         /// <summary>

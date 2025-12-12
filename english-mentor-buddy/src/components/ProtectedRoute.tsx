@@ -9,12 +9,11 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const { user } = useAuth();
 
-    // Vô hiệu hóa việc bắt buộc đăng nhập - cho phép truy cập trực tiếp
-    // if (!user) {
-    //     return <Navigate to="/" replace />; // Chuyển hướng về /login (mà bạn đặt là /)
-    // }
+    // Kiểm tra nếu chưa đăng nhập, chuyển hướng về trang login
+    if (!user) {
+        return <Navigate to="/login" replace />;
+    }
 
     return <>{children}</>;
 };
-
 export default ProtectedRoute;

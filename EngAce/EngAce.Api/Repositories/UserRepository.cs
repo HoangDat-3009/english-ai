@@ -43,13 +43,12 @@ namespace EngAce.Api.Repositories
         public async Task<User?> GetByIdAsync(int userId)
         {
             using var connection = GetConnection();
-            var sql = @"SELECT id as UserID, email as Email, username as Username, full_name as FullName, 
-                        password_hash as PasswordHash, phone as Phone, avatar_url as Avatar, 
-                        status as Status, account_type as AccountType, role as UserRole,
-                        google_id as GoogleID, facebook_id as FacebookID,
-                        created_at as CreatedAt, updated_at as UpdatedAt, last_active_at as LastLoginAt,
-                        bio as Bio, address as Address, premium_expires_at as PremiumExpiresAt,
-                        total_study_time as TotalStudyTime, total_xp as TotalXP
+            var sql = @"SELECT id as UserID, username as Username, password_hash as PasswordHash, 
+                        email as Email, google_id as GoogleId, facebook_id as FacebookId, 
+                        phone as Phone, full_name as FullName, bio as Bio, address as Address,
+                        status as Status, account_type as AccountType, premium_expires_at as PremiumExpiresAt,
+                        total_study_time as TotalStudyTime, total_xp as TotalXP, avatar_url as Avatar,
+                        last_active_at as LastActiveAt, created_at as CreatedAt, updated_at as UpdatedAt, role as Role
                         FROM users WHERE id = @UserID";
             return await connection.QueryFirstOrDefaultAsync<User>(sql, new { UserID = userId });
         }
@@ -58,16 +57,22 @@ namespace EngAce.Api.Repositories
         {
             _logger.LogInformation($"📧 Searching user by email: {email}");
             using var connection = GetConnection();
-            var sql = @"SELECT id as UserID, email as Email, username as Username, full_name as FullName, 
-                        password_hash as PasswordHash, phone as Phone, avatar_url as Avatar, 
-                        status as Status, account_type as AccountType, role as UserRole,
-                        google_id as GoogleID, facebook_id as FacebookID,
-                        created_at as CreatedAt, updated_at as UpdatedAt, last_active_at as LastLoginAt,
-                        bio as Bio, address as Address, premium_expires_at as PremiumExpiresAt,
-                        total_study_time as TotalStudyTime, total_xp as TotalXP
+            var sql = @"SELECT id as UserID, username as Username, password_hash as PasswordHash, 
+                        email as Email, google_id as GoogleId, facebook_id as FacebookId, 
+                        phone as Phone, full_name as FullName, bio as Bio, address as Address,
+                        status as Status, account_type as AccountType, premium_expires_at as PremiumExpiresAt,
+                        total_study_time as TotalStudyTime, total_xp as TotalXP, avatar_url as Avatar,
+                        last_active_at as LastActiveAt, created_at as CreatedAt, updated_at as UpdatedAt, role as Role
                         FROM users WHERE email = @Email";
             var user = await connection.QueryFirstOrDefaultAsync<User>(sql, new { Email = email });
-            _logger.LogInformation($"✅ User found: {user != null}");
+            if (user != null)
+            {
+                _logger.LogInformation($"✅ User found - PasswordHash length: {user.PasswordHash?.Length ?? 0}");
+            }
+            else
+            {
+                _logger.LogInformation("❌ User not found");
+            }
             return user;
         }
 
@@ -75,30 +80,48 @@ namespace EngAce.Api.Repositories
         {
             _logger.LogInformation($"👤 Searching user by username: {username}");
             using var connection = GetConnection();
-            var sql = @"SELECT id as UserID, email as Email, username as Username, full_name as FullName, 
-                        password_hash as PasswordHash, phone as Phone, avatar_url as Avatar, 
-                        status as Status, account_type as AccountType, role as UserRole,
-                        google_id as GoogleID, facebook_id as FacebookID,
-                        created_at as CreatedAt, updated_at as UpdatedAt, last_active_at as LastLoginAt,
-                        bio as Bio, address as Address, premium_expires_at as PremiumExpiresAt,
-                        total_study_time as TotalStudyTime, total_xp as TotalXP
+            var sql = @"SELECT id as UserID, username as Username, password_hash as PasswordHash, 
+                        email as Email, google_id as GoogleId, facebook_id as FacebookId, 
+                        phone as Phone, full_name as FullName, bio as Bio, address as Address,
+                        status as Status, account_type as AccountType, premium_expires_at as PremiumExpiresAt,
+                        total_study_time as TotalStudyTime, total_xp as TotalXP, avatar_url as Avatar,
+                        last_active_at as LastActiveAt, created_at as CreatedAt, updated_at as UpdatedAt, role as Role
                         FROM users WHERE username = @Username";
             var user = await connection.QueryFirstOrDefaultAsync<User>(sql, new { Username = username });
-            _logger.LogInformation($"✅ User found: {user != null}");
+            if (user != null)
+            {
+                _logger.LogInformation($"✅ User found - PasswordHash length: {user.PasswordHash?.Length ?? 0}");
+            }
+            else
+            {
+                _logger.LogInformation("❌ User not found");
+            }
             return user;
         }
 
         public async Task<User?> GetByGoogleIdAsync(string googleId)
         {
             using var connection = GetConnection();
-            var sql = "SELECT * FROM users WHERE google_id = @GoogleID";
+            var sql = @"SELECT id as UserID, username as Username, password_hash as PasswordHash, 
+                        email as Email, google_id as GoogleId, facebook_id as FacebookId, 
+                        phone as Phone, full_name as FullName, bio as Bio, address as Address,
+                        status as Status, account_type as AccountType, premium_expires_at as PremiumExpiresAt,
+                        total_study_time as TotalStudyTime, total_xp as TotalXP, avatar_url as Avatar,
+                        last_active_at as LastActiveAt, created_at as CreatedAt, updated_at as UpdatedAt, role as Role
+                        FROM users WHERE google_id = @GoogleID";
             return await connection.QueryFirstOrDefaultAsync<User>(sql, new { GoogleID = googleId });
         }
 
         public async Task<User?> GetByFacebookIdAsync(string facebookId)
         {
             using var connection = GetConnection();
-            var sql = "SELECT * FROM users WHERE facebook_id = @FacebookID";
+            var sql = @"SELECT id as UserID, username as Username, password_hash as PasswordHash, 
+                        email as Email, google_id as GoogleId, facebook_id as FacebookId, 
+                        phone as Phone, full_name as FullName, bio as Bio, address as Address,
+                        status as Status, account_type as AccountType, premium_expires_at as PremiumExpiresAt,
+                        total_study_time as TotalStudyTime, total_xp as TotalXP, avatar_url as Avatar,
+                        last_active_at as LastActiveAt, created_at as CreatedAt, updated_at as UpdatedAt, role as Role
+                        FROM users WHERE facebook_id = @FacebookID";
             return await connection.QueryFirstOrDefaultAsync<User>(sql, new { FacebookID = facebookId });
         }
 
@@ -119,18 +142,12 @@ namespace EngAce.Api.Repositories
                 user.PasswordHash = string.Empty;
             }
             
-            // Ensure role is always set to 'customer' if not provided
-            if (string.IsNullOrWhiteSpace(user.UserRole))
-            {
-                user.UserRole = "customer";
-            }
-            
             var sql = @"
                 INSERT INTO users (email, username, full_name, password_hash, phone, avatar_url, 
                                    status, account_type, role, google_id, facebook_id, 
                                    created_at, updated_at)
                 VALUES (@Email, @Username, @FullName, @PasswordHash, @Phone, @Avatar,
-                        @Status, @AccountType, @UserRole, @GoogleID, @FacebookID,
+                        @Status, @AccountType, @Role, @GoogleID, @FacebookID,
                         @CreatedAt, @UpdatedAt);
                 SELECT LAST_INSERT_ID();";
             
@@ -155,7 +172,7 @@ namespace EngAce.Api.Repositories
                     avatar_url = @Avatar, 
                     status = @Status,
                     account_type = @AccountType,
-                    role = @UserRole,
+                    role = @Role,
                     google_id = @GoogleID, 
                     facebook_id = @FacebookID,
                     last_active_at = @LastLoginAt, 

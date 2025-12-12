@@ -42,5 +42,11 @@ namespace EngAce.Api.DTO
         
         [JsonPropertyName("emailVerified")]
         public bool EmailVerified { get; set; }
+        
+        [JsonPropertyName("accountType")]
+        public string AccountType { get; set; } = "free";
+        
+        [JsonPropertyName("premiumExpiresAt")]
+        public DateTime? PremiumExpiresAt { get; set; }
     }
 }

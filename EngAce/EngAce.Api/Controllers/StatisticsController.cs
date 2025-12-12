@@ -158,6 +158,60 @@ namespace EngAce.Api.Controllers
                         _logger.LogWarning("payments table not found, setting pending payments to 0");
                         statistics.PendingPayments = 0;
                     }
+
+                    // Get total revenue (completed payments only)
+                    try
+                    {
+                        using (var command = new MySqlCommand(
+                            "SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed'", 
+                            connection))
+                        {
+                            var result = await command.ExecuteScalarAsync();
+                            statistics.TotalRevenue = Convert.ToDouble(result);
+                        }
+                    }
+                    catch (MySqlException ex) when (ex.Message.Contains("doesn't exist"))
+                    {
+                        _logger.LogWarning("payments table not found, setting revenue to 0");
+                        statistics.TotalRevenue = 0;
+                    }
+
+                    // Get revenue this month (completed payments in current month)
+                    try
+                    {
+                        using (var command = new MySqlCommand(
+                            @"SELECT COALESCE(SUM(amount), 0) FROM payments 
+                              WHERE status = 'completed' 
+                              AND YEAR(created_at) = YEAR(CURDATE()) 
+                              AND MONTH(created_at) = MONTH(CURDATE())", 
+                            connection))
+                        {
+                            var result = await command.ExecuteScalarAsync();
+                            statistics.RevenueThisMonth = Convert.ToDouble(result);
+                        }
+                    }
+                    catch (MySqlException ex) when (ex.Message.Contains("doesn't exist"))
+                    {
+                        _logger.LogWarning("payments table not found, setting revenue this month to 0");
+                        statistics.RevenueThisMonth = 0;
+                    }
+
+                    // Get pending payments count
+                    try
+                    {
+                        using (var command = new MySqlCommand(
+                            "SELECT COUNT(*) FROM payments WHERE status = 'pending'", 
+                            connection))
+                        {
+                            var result = await command.ExecuteScalarAsync();
+                            statistics.PendingPayments = Convert.ToInt32(result);
+                        }
+                    }
+                    catch (MySqlException ex) when (ex.Message.Contains("doesn't exist"))
+                    {
+                        _logger.LogWarning("payments table not found, setting pending payments to 0");
+                        statistics.PendingPayments = 0;
+                    }
                 }
 
                 _logger.LogInformation("System statistics retrieved successfully: {TotalUsers} total users, {ActiveUsers} active, {NewUsers} new this month, {Tests} tests, {Exercises} exercises, {Completions} completions, {Revenue} VND total revenue, {RevenueMonth} VND revenue this month, {PendingPayments} pending payments", 

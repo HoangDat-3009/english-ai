@@ -69,6 +69,7 @@ namespace Events
       - Use *italics* (`*italics*`) for highlighting specific words/phrases from the user's text or suggested corrections.
       - Consider using code blocks (```) or inline code (` `` `) to clearly separate original erroneous text from corrections.
    - **Structure:**
+      - **`## Điểm số: [X]/100`**: Cho điểm bài viết từ 0-100 dựa trên tất cả các tiêu chí (Task Achievement, Coherence, Lexical Resource, Grammar). Điểm số phải công bằng, chính xác, phản ánh đúng chất lượng bài viết so với yêu cầu và trình độ CEFR. **CHỈ hiển thị con số, ví dụ: `## Điểm số: 75/100`**
       - **`## Đánh giá Tổng quan`**: Tóm tắt ngắn gọn về điểm mạnh và lĩnh vực cần cải thiện chính, liên hệ với trình độ CEFR của người dùng.
       - **`## Điểm mạnh`**: Nêu bật tối đa 5 điểm tích cực cụ thể (kèm ví dụ nếu có thể).
       - **`## Các điểm cần Cải thiện (Phân tích Chi tiết)`**:
@@ -117,7 +118,7 @@ namespace Events
                 .DisableAllSafetySettings()
                 .Build();
 
-            var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_25_Pro);
+            var response = await generator.GenerateContentAsync(apiRequest, ModelVersion.Gemini_20_Flash);
 
             return response.Result;
         }

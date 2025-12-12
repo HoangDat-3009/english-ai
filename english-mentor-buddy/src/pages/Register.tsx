@@ -125,8 +125,9 @@ const Register: React.FC = () => {
             }
 
             return response;
-        } catch (error: any) {
-            throw new Error(error.message || 'Đã xảy ra lỗi khi đăng ký');
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Đã xảy ra lỗi khi đăng ký';
+            throw new Error(message);
         }
     };
 
@@ -151,11 +152,12 @@ const Register: React.FC = () => {
             // Chuyển hướng về trang đăng nhập
             navigate('/Login');
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Registration error:', error);
+            const message = error instanceof Error ? error.message : "Đã xảy ra lỗi khi đăng ký tài khoản";
             toast({
                 title: "Đăng ký thất bại",
-                description: error.message || "Đã xảy ra lỗi khi đăng ký tài khoản",
+                description: message,
                 variant: "destructive",
             });
         } finally {

@@ -33,7 +33,6 @@ namespace EngAce.Api.Controllers
         /// <param name="accountType">Filter by account type: free, premium (optional)</param>
         /// <param name="search">Search by name, username, or ID (optional)</param>
         /// <param name="status">Filter by status: active, inactive, banned (optional)</param>
-        /// <param name="role">Filter by role: customer, admin, superadmin (optional)</param>
         /// <returns>Paginated list of users</returns>
         [HttpGet]
         public async Task<ActionResult> GetUsers(
@@ -41,8 +40,7 @@ namespace EngAce.Api.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string? accountType = null,
             [FromQuery] string? search = null,
-            [FromQuery] string? status = null,
-            [FromQuery] string? role = null)
+            [FromQuery] string? status = null)
         {
             try
             {
@@ -76,9 +74,6 @@ namespace EngAce.Api.Controllers
                     if (!string.IsNullOrEmpty(status))
                         whereConditions.Add("u.status = @Status");
                     
-                    if (!string.IsNullOrEmpty(role))
-                        whereConditions.Add("u.role = @Role");
-                    
                     var whereClause = whereConditions.Count > 0 ? "WHERE " + string.Join(" AND ", whereConditions) : "";
 
                     // Get total count
@@ -91,15 +86,13 @@ namespace EngAce.Api.Controllers
                             countCommand.Parameters.AddWithValue("@Search", $"%{search}%");
                         if (!string.IsNullOrEmpty(status))
                             countCommand.Parameters.AddWithValue("@Status", status);
-                        if (!string.IsNullOrEmpty(role))
-                            countCommand.Parameters.AddWithValue("@Role", role);
                         
                         totalCount = Convert.ToInt32(await countCommand.ExecuteScalarAsync());
                     }
 
                     // Get paginated data
                     var offset = (page - 1) * pageSize;
-                    var query = $@"SELECT u.id, u.username, u.email, u.phone, u.account_type, u.status, u.role,
+                    var query = $@"SELECT u.id, u.username, u.email, u.phone, u.account_type, u.status, 
                                          u.full_name, u.avatar_url, u.total_xp, u.premium_expires_at
                                   FROM users u
                                   {whereClause}
@@ -114,8 +107,6 @@ namespace EngAce.Api.Controllers
                             command.Parameters.AddWithValue("@Search", $"%{search}%");
                         if (!string.IsNullOrEmpty(status))
                             command.Parameters.AddWithValue("@Status", status);
-                        if (!string.IsNullOrEmpty(role))
-                            command.Parameters.AddWithValue("@Role", role);
                         
                         command.Parameters.AddWithValue("@PageSize", pageSize);
                         command.Parameters.AddWithValue("@Offset", offset);
@@ -134,13 +125,10 @@ namespace EngAce.Api.Controllers
                                         : reader.GetString("phone"),
                                     AccountType = reader.GetString("account_type"),
                                     Status = reader.GetString("status"),
-                                    Role = reader.IsDBNull(reader.GetOrdinal("role")) 
-                                        ? "customer" 
-                                        : reader.GetString("role"),
                                     FullName = reader.IsDBNull(reader.GetOrdinal("full_name"))
                                         ? null
                                         : reader.GetString("full_name"),
-                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                    Avatar = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
                                         ? null
                                         : reader.GetString("avatar_url"),
                                     TotalXP = reader.GetInt32("total_xp"),
@@ -247,7 +235,7 @@ namespace EngAce.Api.Controllers
                                     PremiumExpiresAt = reader.IsDBNull(reader.GetOrdinal("premium_expires_at"))
                                         ? (DateTime?)null
                                         : reader.GetDateTime("premium_expires_at"),
-                                    LastLoginAt = reader.IsDBNull(reader.GetOrdinal("last_active_at"))
+                                    LastActiveAt = reader.IsDBNull(reader.GetOrdinal("last_active_at"))
                                         ? (DateTime?)null
                                         : reader.GetDateTime("last_active_at"),
                                     CreatedAt = reader.GetDateTime("created_at"),
@@ -332,7 +320,7 @@ namespace EngAce.Api.Controllers
                                     FullName = reader.IsDBNull(reader.GetOrdinal("full_name")) 
                                         ? null 
                                         : reader.GetString("full_name"),
-                                    AvatarURL = reader.IsDBNull(reader.GetOrdinal("avatar_url")) 
+                                    Avatar = reader.IsDBNull(reader.GetOrdinal("avatar_url")) 
                                         ? null 
                                         : reader.GetString("avatar_url"),
                                     Address = reader.IsDBNull(reader.GetOrdinal("address")) 
@@ -432,7 +420,7 @@ namespace EngAce.Api.Controllers
                                     FullName = reader.IsDBNull(reader.GetOrdinal("full_name"))
                                         ? null
                                         : reader.GetString("full_name"),
-                                    AvatarUrl = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
+                                    Avatar = reader.IsDBNull(reader.GetOrdinal("avatar_url"))
                                         ? null
                                         : reader.GetString("avatar_url"),
                                     TotalXP = reader.GetInt32("total_xp")
@@ -692,16 +680,17 @@ namespace EngAce.Api.Controllers
             {
                 await connection.OpenAsync();
 
-            // Get all statistics in one query for better performance (only for customers)
-            var query = @"
-                SELECT 
-                    COUNT(*) as TotalUsers,
-                    COUNT(CASE WHEN status = 'active' THEN 1 END) as ActiveUsers,
-                    COUNT(CASE WHEN created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') THEN 1 END) as NewThisMonth,
-                    COUNT(CASE WHEN account_type = 'premium' THEN 1 END) as PremiumUsers,
-                    COUNT(CASE WHEN status = 'inactive' THEN 1 END) as InactiveUsers
-                FROM users
-                WHERE role = 'customer'";                using (var command = new MySqlCommand(query, connection))
+                // Get all statistics in one query for better performance
+                var query = @"
+                    SELECT 
+                        COUNT(*) as TotalUsers,
+                        COUNT(CASE WHEN status = 'active' THEN 1 END) as ActiveUsers,
+                        COUNT(CASE WHEN created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') THEN 1 END) as NewThisMonth,
+                        COUNT(CASE WHEN account_type = 'premium' THEN 1 END) as PremiumUsers,
+                        COUNT(CASE WHEN status = 'inactive' THEN 1 END) as InactiveUsers
+                    FROM users";
+
+                using (var command = new MySqlCommand(query, connection))
                 {
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -767,15 +756,16 @@ namespace EngAce.Api.Controllers
             {
                 await connection.OpenAsync();
 
-            // 1. Status Distribution (only customers)
-            var statusDistribution = new List<object>();
-            var statusQuery = @"
-                SELECT 
-                    status,
-                    COUNT(*) as count
-                FROM users
-                WHERE role = 'customer'
-                GROUP BY status";                using (var command = new MySqlCommand(statusQuery, connection))
+                // 1. Status Distribution
+                var statusDistribution = new List<object>();
+                var statusQuery = @"
+                    SELECT 
+                        status,
+                        COUNT(*) as count
+                    FROM users
+                    GROUP BY status";
+                
+                using (var command = new MySqlCommand(statusQuery, connection))
                 {
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -790,15 +780,16 @@ namespace EngAce.Api.Controllers
                     }
                 }
 
-            // 2. Account Type Distribution (only customers)
-            var accountTypeDistribution = new List<object>();
-            var accountTypeQuery = @"
-                SELECT 
-                    account_type,
-                    COUNT(*) as count
-                FROM users
-                WHERE role = 'customer'
-                GROUP BY account_type";                using (var command = new MySqlCommand(accountTypeQuery, connection))
+                // 2. Account Type Distribution
+                var accountTypeDistribution = new List<object>();
+                var accountTypeQuery = @"
+                    SELECT 
+                        account_type,
+                        COUNT(*) as count
+                    FROM users
+                    GROUP BY account_type";
+                
+                using (var command = new MySqlCommand(accountTypeQuery, connection))
                 {
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -813,17 +804,18 @@ namespace EngAce.Api.Controllers
                     }
                 }
 
-            // 3. Monthly Growth (last 6 months, only customers)
-            var monthlyGrowth = new List<object>();
-            var monthlyQuery = @"
-                SELECT 
-                    DATE_FORMAT(created_at, '%Y-%m') as month,
-                    COUNT(*) as count
-                FROM users
-                WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-                    AND role = 'customer'
-                GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-                ORDER BY month ASC";                using (var command = new MySqlCommand(monthlyQuery, connection))
+                // 3. Monthly Growth (last 6 months)
+                var monthlyGrowth = new List<object>();
+                var monthlyQuery = @"
+                    SELECT 
+                        DATE_FORMAT(created_at, '%Y-%m') as month,
+                        COUNT(*) as count
+                    FROM users
+                    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+                    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+                    ORDER BY month ASC";
+                
+                using (var command = new MySqlCommand(monthlyQuery, connection))
                 {
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -838,27 +830,28 @@ namespace EngAce.Api.Controllers
                     }
                 }
 
-            // 4. XP Distribution (only customers)
-            var xpDistribution = new List<object>();
-            var xpQuery = @"
-                SELECT 
-                    CASE 
-                        WHEN total_xp BETWEEN 0 AND 100 THEN '0-100'
-                        WHEN total_xp BETWEEN 101 AND 500 THEN '101-500'
-                        WHEN total_xp BETWEEN 501 AND 1000 THEN '501-1000'
-                        ELSE '1000+'
-                    END as xp_range,
-                    COUNT(*) as count
-                FROM users
-                WHERE role = 'customer'
-                GROUP BY xp_range
-                ORDER BY 
-                    CASE xp_range
-                        WHEN '0-100' THEN 1
-                        WHEN '101-500' THEN 2
-                        WHEN '501-1000' THEN 3
-                        WHEN '1000+' THEN 4
-                    END";                using (var command = new MySqlCommand(xpQuery, connection))
+                // 4. XP Distribution
+                var xpDistribution = new List<object>();
+                var xpQuery = @"
+                    SELECT 
+                        CASE 
+                            WHEN total_xp BETWEEN 0 AND 100 THEN '0-100'
+                            WHEN total_xp BETWEEN 101 AND 500 THEN '101-500'
+                            WHEN total_xp BETWEEN 501 AND 1000 THEN '501-1000'
+                            ELSE '1000+'
+                        END as xp_range,
+                        COUNT(*) as count
+                    FROM users
+                    GROUP BY xp_range
+                    ORDER BY 
+                        CASE xp_range
+                            WHEN '0-100' THEN 1
+                            WHEN '101-500' THEN 2
+                            WHEN '501-1000' THEN 3
+                            WHEN '1000+' THEN 4
+                        END";
+                
+                using (var command = new MySqlCommand(xpQuery, connection))
                 {
                     using (var reader = await command.ExecuteReaderAsync())
                     {

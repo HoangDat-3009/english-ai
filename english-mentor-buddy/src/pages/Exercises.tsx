@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, ArrowLeft, Clock, ArrowRight, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { GraduationCap, ArrowLeft, Clock, ArrowRight, Sparkles, ChevronDown, ChevronUp, Bot, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -7,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/AuthContext';
 import {
   exerciseService,
   ExerciseGenerationParams,
@@ -192,10 +194,10 @@ const QuestionTypesSelector: React.FC<{
       <div className="relative">
         <button
           type="button"
-          className="flex justify-between items-center w-full p-3 text-left border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700"
+          className="flex justify-between items-center w-full p-3 text-left border rounded-md bg-background dark:bg-card border-border"
           onClick={toggleDropdown}
         >
-          <span className="text-gray-700 dark:text-gray-300">
+          <span className="text-foreground">
             {selectedTypes.length > 0
               ? selectedTypes.map((type) => questionTypeOptions.find((opt) => opt.value === type)?.label).join(', ')
               : 'Chọn dạng câu hỏi'}
@@ -204,18 +206,18 @@ const QuestionTypesSelector: React.FC<{
         </button>
 
         {isOpen && (
-          <div className="absolute z-10 w-full mt-1 border rounded-md shadow-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+          <div className="absolute z-10 w-full mt-1 border rounded-md shadow-lg bg-background dark:bg-card border-border">
             {questionTypeOptions.map((option) => (
               <div
                 key={option.value}
-                className={`flex items-center space-x-2 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${selectedTypes.includes(option.value) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                className={`flex items-center space-x-2 p-3 hover:bg-accent dark:hover:bg-accent/20 cursor-pointer ${selectedTypes.includes(option.value) ? 'bg-accent/50 dark:bg-accent/10' : ''}`}
                 onClick={() => toggleQuestionType(option.value)}
               >
                 <div>
-                  <p className="font-medium dark:text-white">
+                  <p className="font-medium text-foreground">
                     {option.label}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{option.description}</p>
+                  <p className="text-sm text-muted-foreground">{option.description}</p>
                 </div>
                 {selectedTypes.includes(option.value) && (
                   <div className="ml-auto w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
@@ -232,7 +234,9 @@ const QuestionTypesSelector: React.FC<{
 };
 
 const Exercises: React.FC = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [showExercise, setShowExercise] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -250,6 +254,7 @@ const Exercises: React.FC = () => {
   } | null>(null);
 
   const [selectedQuestionTypes, setSelectedQuestionTypes] = useState<AssignmentType[]>([]);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
 
   // Timer effect
   useEffect(() => {
@@ -262,6 +267,7 @@ const Exercises: React.FC = () => {
       handleSubmitExercise();
     }
     return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showExercise, timeLeft]);
 
   // Format time display
@@ -310,17 +316,7 @@ const Exercises: React.FC = () => {
         TotalQuestions: totalQuestions
       };
 
-      console.log('REQUEST FORMAT:');
-      console.log(JSON.stringify(params, null, 2));
-      console.log('EXPECTED REQUEST FORMAT:');
-      console.log(JSON.stringify({
-        "Topic": "Animals in the wild",
-        "AssignmentTypes": [1],
-        "EnglishLevel": 1,
-        "TotalQuestions": 10
-      }, null, 2));
-
-      const result = await exerciseService.generateExercise(params);
+      const result = await exerciseService.generateExercise(params, aiProvider);
 
       console.log('RECEIVED RESPONSE:');
       console.log(JSON.stringify(result, null, 2));
@@ -333,6 +329,34 @@ const Exercises: React.FC = () => {
         setTimeLeft(600); // Reset timer
         setSubmissionResult(null);
         setAnswers({}); // Reset answers
+        
+        // Tự động lưu bài tập vào database
+        try {
+          const saveRequest = {
+            title: `${result.Topic} - AI Generated`,
+            topic: result.Topic,
+            questions: result.Questions,
+            level: 'A1', // Có thể thay đổi theo level thực tế
+            type: selectedQuestionTypes.length > 1 ? 'mixed' : 'single',
+            category: result.Topic,
+            estimatedMinutes: Math.ceil(result.Questions.length * 1.5),
+            timeLimit: 600,
+            description: `AI-generated exercise with ${result.Questions.length} questions`,
+            createdBy: user?.userId || 1 // Sử dụng user ID hiện tại
+          };
+          
+          console.log('💾 Saving exercise to database...');
+          console.log('📊 Save request:', JSON.stringify(saveRequest, null, 2));
+          const saveResult = await exerciseService.saveExercise(saveRequest);
+          
+          if (saveResult.success) {
+            console.log('✅ Exercise saved with ID:', saveResult.exerciseId);
+          }
+        } catch (saveError) {
+          console.error('⚠️ Failed to save exercise:', saveError);
+          // Không show error toast vì vẫn có thể làm bài
+        }
+        
         toast({
           title: 'Đã tạo bài tập',
           description: 'Bài tập đã được tạo thành công',
@@ -402,19 +426,19 @@ const Exercises: React.FC = () => {
   // Render submission result
   if (submissionResult) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-pink-50 to-pink-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen flex flex-col bg-gradient-soft">
         <Header />
         <main className="flex-1 container max-w-screen-md mx-auto py-8 px-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 text-center">
-            <h2 className="text-3xl font-bold mb-6 dark:text-white">
+          <div className="bg-card dark:bg-card rounded-xl shadow-md p-8 text-center">
+            <h2 className="text-3xl font-bold mb-6 text-foreground">
               Kết Quả Bài Tập
             </h2>
 
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 mb-6">
-              <p className="text-xl font-semibold dark:text-blue-200">
+            <div className="bg-accent dark:bg-accent/20 rounded-xl p-6 mb-6">
+              <p className="text-xl font-semibold text-foreground">
                 Điểm số: {submissionResult.score}%
               </p>
-              <p className="text-gray-600 dark:text-gray-300 mt-2">
+              <p className="text-muted-foreground mt-2">
                 {submissionResult.correctAnswers} / {submissionResult.totalQuestions} câu
               </p>
             </div>
@@ -423,17 +447,17 @@ const Exercises: React.FC = () => {
               {exerciseSet?.Questions.map((q, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-lg ${q.Options[q.RightOptionIndex] === answers[index + 1]
-                    ? 'bg-green-50 dark:bg-green-900/20'
-                    : 'bg-red-50 dark:bg-red-900/20'
+                  className={`p-4 rounded-lg border ${q.Options[q.RightOptionIndex] === answers[index + 1]
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                    : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
                     }`}
                 >
-                  <p className="font-medium mb-2 dark:text-white">{q.Question}</p>
+                  <p className="font-medium mb-2 text-foreground">{q.Question}</p>
                   <div className="flex justify-between items-center">
-                    <p className="text-gray-600 dark:text-gray-300">
+                    <p className="text-muted-foreground">
                       Đáp án đúng: {q.Options[q.RightOptionIndex]}
                     </p>
-                    <p className="text-sm italic dark:text-gray-400">
+                    <p className="text-sm italic text-muted-foreground">
                       {q.ExplanationInVietnamese}
                     </p>
                   </div>
@@ -457,46 +481,81 @@ const Exercises: React.FC = () => {
 
   // Main component return
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-pink-50 to-pink-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex flex-col bg-gradient-soft">
       <Header />
       <main className="flex-1 container max-w-screen-md mx-auto py-8 px-4 animate-fade-in">
         {!showExercise ? (
           // Exercise creation form
           <>
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/")}
+              className="mb-6"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Quay lại
+            </Button>
+
             <div className="flex justify-center mb-8">
               <div className="w-24 h-24 bg-engace-pink rounded-2xl flex items-center justify-center">
                 <GraduationCap size={48} color="white" />
               </div>
             </div>
 
-            <h1 className="text-4xl font-bold text-center mb-2 dark:text-white">BÀI TẬP</h1>
-            <p className="text-center text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
+            <h1 className="text-4xl font-bold text-center mb-2 text-foreground">BÀI TẬP</h1>
+            <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
               Thiết lập bài tập phù hợp với nhu cầu học tập của bạn với các chủ đề và dạng bài tập đa dạng.
             </p>
 
+            {/* AI Provider Selector */}
+            <div className="flex justify-center mb-6">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50">
+                <button
+                  onClick={() => setAiProvider('gemini')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    aiProvider === 'gemini'
+                      ? 'bg-blue-500 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  🤖 Gemini
+                </button>
+                <button
+                  onClick={() => setAiProvider('openai')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    aiProvider === 'openai'
+                      ? 'bg-green-500 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  ✨ ChatGPT
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-6">
               <div className="mb-4">
-                <Label htmlFor="topic" className="text-gray-700 dark:text-gray-300 mb-2 block">Nhập chủ đề bài tập...</Label>
+                <Label htmlFor="topic" className="text-foreground mb-2 block">Nhập chủ đề bài tập...</Label>
                 <Input
                   id="topic"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="Nhập chủ đề bài tập..."
-                  className="text-lg py-6 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                  className="text-lg py-6"
                 />
               </div>
 
               <div className="mb-4">
                 <div className="flex items-center mb-2">
-                  <Sparkles size={16} className="text-gray-600 dark:text-gray-400 mr-2" />
-                  <Label className="text-gray-700 dark:text-gray-300 font-medium">Chủ đề gợi ý</Label>
+                  <Sparkles size={16} className="text-muted-foreground mr-2" />
+                  <Label className="text-foreground font-medium">Chủ đề gợi ý</Label>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {suggestedTopics.map((suggestedTopic, index) => (
                     <Button
                       key={index}
                       variant="outline"
-                      className="bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="bg-background hover:bg-accent"
                       onClick={() => setTopic(suggestedTopic)}
                     >
                       {suggestedTopic}
@@ -506,7 +565,7 @@ const Exercises: React.FC = () => {
               </div>
 
               <div className="mb-4">
-                <Label className="text-gray-700 dark:text-gray-300 mb-2 block">Loại câu hỏi</Label>
+                <Label className="text-foreground mb-2 block">Loại câu hỏi</Label>
                 <QuestionTypesSelector
                   selectedTypes={selectedQuestionTypes}
                   onChange={setSelectedQuestionTypes}
@@ -514,7 +573,7 @@ const Exercises: React.FC = () => {
               </div>
 
               <div className="mb-4">
-                <Label htmlFor="questionCount" className="text-gray-700 dark:text-gray-300 mb-2 block">Số lượng câu hỏi</Label>
+                <Label htmlFor="questionCount" className="text-foreground mb-2 block">Số lượng câu hỏi</Label>
                 <Input
                   id="questionCount"
                   type="number"
@@ -522,7 +581,6 @@ const Exercises: React.FC = () => {
                   max={20}
                   value={totalQuestions}
                   onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 10)}
-                  className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 />
               </div>
 
@@ -537,17 +595,17 @@ const Exercises: React.FC = () => {
           </>
         ) : (
           // Exercise questions
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+          <div className="bg-card rounded-xl shadow-md p-6">
             <div className="flex justify-between items-center mb-4">
               <Button
                 variant="ghost"
-                className="text-gray-600 dark:text-gray-400"
+                className="text-muted-foreground"
                 onClick={() => setShowExercise(false)}
               >
                 <ArrowLeft className="mr-2" size={16} />
                 Quay lại
               </Button>
-              <div className="flex items-center text-gray-600 dark:text-gray-400">
+              <div className="flex items-center text-muted-foreground">
                 <Clock size={16} className="mr-1" />
                 <span>{formatTime(timeLeft)}</span>
               </div>
@@ -555,25 +613,25 @@ const Exercises: React.FC = () => {
 
             <div className="mb-6">
               <Progress value={progressPercentage} className="h-2" />
-              <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex justify-between mt-2 text-sm text-muted-foreground">
                 <span>Câu {currentQuestion}/{totalQuestions}</span>
                 <span>{Math.round(progressPercentage)}%</span>
               </div>
             </div>
 
             <Card className="p-6 mb-6">
-              <h3 className="text-xl font-semibold mb-4 dark:text-white">{question.Question}</h3>
+              <h3 className="text-xl font-semibold mb-4 text-foreground">{question.Question}</h3>
               <div className="space-y-3">
                 {Array.isArray(question.Options) && question.Options.map((option, index) => (
                   <div
                     key={index}
                     className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedAnswer === option
-                      ? 'bg-blue-50 border-blue-500 dark:bg-blue-900/30 dark:border-blue-400'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                      ? 'bg-accent border-primary dark:bg-accent/30 dark:border-primary'
+                      : 'hover:bg-accent/50 dark:hover:bg-accent/20'
                       }`}
                     onClick={() => handleSelectAnswer(option)}
                   >
-                    <p className="dark:text-white">{option}</p>
+                    <p className="text-foreground">{option}</p>
                   </div>
                 ))}
               </div>
