@@ -297,7 +297,7 @@ export default function AIReview() {
           options,
           correctAnswer,
           userAnswer,
-          teacherAnswer: userAnswer, // Initially set to user's answer
+          teacherAnswer: userAnswer, // Initially set to user's answer, will be overwritten if adjustments exist
           points,
           maxPoints,
           originalPoints: points,
@@ -305,29 +305,66 @@ export default function AIReview() {
         };
       });
 
-      // Calculate total score
-      const totalScore = transformedQuestions.reduce((sum, q) => sum + q.points, 0);
-      const maxScore = transformedQuestions.length * 10; // 10 points per question = 100 total
+      // Parse reviewNotes to get saved adjustments - use data from API details directly
+      let parsedNotes = "";
+      let savedAdjustments: Array<{
+        questionNumber: number;
+        newCorrectAnswer: string;
+        teacherExplanation: string;
+        newPoints: number;
+      }> = [];
+      
+      try {
+        // Use reviewNotes from API details response (more reliable than list)
+        const reviewNotesRaw = data.reviewNotes || submissionInfo?.reviewNotes || "";
+        if (reviewNotesRaw && reviewNotesRaw.startsWith('{')) {
+          const parsed = JSON.parse(reviewNotesRaw);
+          parsedNotes = parsed.notes || "";
+          savedAdjustments = parsed.adjustments || [];
+        } else {
+          parsedNotes = reviewNotesRaw;
+        }
+      } catch {
+        parsedNotes = data.reviewNotes || submissionInfo?.reviewNotes || "";
+      }
+
+      // Apply saved adjustments to questions
+      const questionsWithAdjustments = transformedQuestions.map((q) => {
+        const adjustment = savedAdjustments.find(adj => adj.questionNumber === q.id);
+        if (adjustment) {
+          return {
+            ...q,
+            teacherAnswer: adjustment.newCorrectAnswer,
+            points: adjustment.newPoints,
+            explanation: adjustment.teacherExplanation || q.explanation,
+          };
+        }
+        return q;
+      });
+
+      // Calculate total score from adjusted questions
+      const totalScore = questionsWithAdjustments.reduce((sum, q) => sum + q.points, 0);
+      const maxScore = questionsWithAdjustments.length * 10; // 10 points per question = 100 total
 
       const transformedData: SubmissionDetail = {
         id: data.id,
-        userId: submissionInfo?.userId || 0,
-        userName: submissionInfo?.userName || "Unknown",
+        userId: data.userId || submissionInfo?.userId || 0,
+        userName: data.userName || submissionInfo?.userName || "Unknown",
         exerciseTitle: data.exerciseTitle || submissionInfo?.exerciseTitle || "Unknown Exercise",
-        exerciseType: submissionInfo?.exerciseType || "multiple_choice",
+        exerciseType: data.exerciseType || submissionInfo?.exerciseType || "multiple_choice",
         totalScore,
         maxScore,
         submittedAt: submissionInfo?.completedAt || new Date().toISOString(),
-        reviewStatus: submissionInfo?.reviewStatus || "pending",
-        reviewNotes: submissionInfo?.reviewNotes || "",
-        questions: transformedQuestions,
+        reviewStatus: (data.reviewStatus || submissionInfo?.reviewStatus || "pending") as ReviewStatus,
+        reviewNotes: parsedNotes,
+        questions: questionsWithAdjustments,
       };
 
       setSelectedSubmission(transformedData);
       setReviewNotes(transformedData.reviewNotes || "");
       setReviewStatus(transformedData.reviewStatus);
       // Expand all questions by default for review
-      setExpandedQuestions(new Set(transformedQuestions.map((_, idx) => idx)));
+      setExpandedQuestions(new Set(questionsWithAdjustments.map((_, idx) => idx)));
     } catch (error) {
       console.error("Error fetching submission details:", error);
       toast({
@@ -496,11 +533,17 @@ export default function AIReview() {
         isCorrect: q.teacherAnswer === q.correctAnswer,
       }));
 
+      // Combine notes and adjustments into a single JSON string for storage
+      const reviewNotesWithAdjustments = JSON.stringify({
+        notes: reviewNotes,
+        adjustments: questionAdjustments,
+      });
+
       await aiReviewService.updateReview(selectedSubmission.id, {
         submissionId: selectedSubmission.id,
         finalScore: selectedSubmission.totalScore,
         reviewStatus: reviewStatus,
-        reviewNotes: reviewNotes,
+        reviewNotes: reviewNotesWithAdjustments,
         questionAdjustments,
       });
 
@@ -546,7 +589,7 @@ export default function AIReview() {
   };
 
   const getStatusBadge = (status: ReviewStatus) => {
-    const config = reviewStatusConfig[status];
+    const config = reviewStatusConfig[status] || reviewStatusConfig.pending;
     const Icon = config.icon;
     return (
       <Badge className={cn("gap-1", config.color)}>

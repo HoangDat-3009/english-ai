@@ -228,14 +228,21 @@ public class AIReviewController : ControllerBase
                 SELECT 
                     ec.id,
                     ec.exercise_id as exerciseId,
+                    ec.user_id as userId,
                     ec.user_answers_json as userAnswers,
                     ec.score as score,
+                    ec.final_score as finalScore,
+                    ec.review_status as reviewStatus,
+                    ec.review_notes as reviewNotes,
                     ec.total_questions as totalQuestions,
                     e.questions_json as questionsJson,
                     e.correct_answers_json as correctAnswersJson,
-                    e.title as exerciseTitle
+                    e.title as exerciseTitle,
+                    e.type as exerciseType,
+                    u.username as userName
                 FROM exercise_completions ec
                 JOIN exercises e ON ec.exercise_id = e.id
+                JOIN users u ON ec.user_id = u.id
                 WHERE ec.id = @id";
 
             using var cmd = new MySqlCommand(query, connection);
@@ -248,11 +255,17 @@ public class AIReviewController : ControllerBase
                 {
                     id = reader.GetInt32("id"),
                     exerciseId = reader.GetInt32("exerciseId"),
+                    userId = reader.GetInt32("userId"),
+                    userName = reader.IsDBNull(reader.GetOrdinal("userName")) ? "Unknown" : reader.GetString("userName"),
                     exerciseTitle = reader.GetString("exerciseTitle"),
+                    exerciseType = reader.IsDBNull(reader.GetOrdinal("exerciseType")) ? "multiple_choice" : reader.GetString("exerciseType"),
                     userAnswers = reader.IsDBNull(reader.GetOrdinal("userAnswers")) ? "[]" : reader.GetString("userAnswers"),
                     questionsJson = reader.IsDBNull(reader.GetOrdinal("questionsJson")) ? "[]" : reader.GetString("questionsJson"),
                     correctAnswersJson = reader.IsDBNull(reader.GetOrdinal("correctAnswersJson")) ? "[]" : reader.GetString("correctAnswersJson"),
                     score = reader.IsDBNull(reader.GetOrdinal("score")) ? 0 : reader.GetDecimal("score"),
+                    finalScore = reader.IsDBNull(reader.GetOrdinal("finalScore")) ? (decimal?)null : reader.GetDecimal("finalScore"),
+                    reviewStatus = reader.IsDBNull(reader.GetOrdinal("reviewStatus")) ? "pending" : reader.GetString("reviewStatus"),
+                    reviewNotes = reader.IsDBNull(reader.GetOrdinal("reviewNotes")) ? null : reader.GetString("reviewNotes"),
                     totalQuestions = reader.GetInt32("totalQuestions")
                 };
 
