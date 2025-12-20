@@ -11,8 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/components/AuthContext";
-import { useTheme } from "@/components/ThemeProvider";
+import { useAuth } from "@/components/auth/AuthContext";
+import { useTheme } from "@/components/common/ThemeProvider";
 import { 
   LayoutDashboard, 
   Users, 

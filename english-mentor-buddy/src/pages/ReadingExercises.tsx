@@ -4,8 +4,8 @@
 // 📊 Features: TOEIC format, difficulty filtering, AI generation, admin upload
 // 🎯 Mock Data: 7 complete exercises covering all parts & difficulty levels
 
-import ReadingExerciseCard from "@/components/ReadingExerciseCard";
-import Navbar from "@/components/Navbar";
+import ReadingExerciseCard from "@/components/exercises/ReadingExerciseCard";
+import Navbar from "@/components/common/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

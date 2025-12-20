@@ -1,7 +1,7 @@
 using EngAce.Api.DTO.Core;
 using EngAce.Api.DTO.Shared;
 using EngAce.Api.Helpers;
-using EngAce.Api.Services.Interfaces;
+using EngAce.Api.Services.Exercise;
 using Entities.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

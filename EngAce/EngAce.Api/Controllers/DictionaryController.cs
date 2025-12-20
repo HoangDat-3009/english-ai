@@ -3,7 +3,7 @@ using Events;
 using Helper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-using EngAce.Api.Services.Interfaces;
+using EngAce.Api.Services.AI;
 using System.Text;
 
 namespace EngAce.Api.Controllers

@@ -1,10 +1,11 @@
-using EngAce.Api.DTO;
+using EngAce.Api.DTO.Writing;
+using EngAce.Api.DTO.AI;
 using Entities;
 using Entities.Enums;
 using Events;
 using Helper;
 using Microsoft.AspNetCore.Mvc;
-using EngAce.Api.Services.Interfaces;
+using EngAce.Api.Services.AI;
 using System.Text;
 using System.Text.Json;
 

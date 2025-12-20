@@ -1,7 +1,7 @@
 using EngAce.Api.DTO.Core;
 using EngAce.Api.DTO.Shared;
 using EngAce.Api.DTO.Admin;
-using EngAce.Api.Services.Interfaces;
+using EngAce.Api.Services.Exercise;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EngAce.Api.Controllers;
@@ -230,7 +230,7 @@ public class ProgressController : ControllerBase
     /// Returns AdminUser format with totalXp, level conversion, etc.
     /// </summary>
     [HttpGet("admin-format/{userId}")]
-    public async Task<ActionResult<AdminUserDto>> GetAdminUser(int userId)
+    public async Task<ActionResult<DTO.Admin.AdminUserDto>> GetAdminUser(int userId)
     {
         try
         {
@@ -246,13 +246,13 @@ public class ProgressController : ControllerBase
                 int.TryParse(levelStr, out levelNumber);
             }
 
-            var adminUser = new AdminUserDto
+            var adminUser = new DTO.Admin.AdminUserDto
             {
                 Id = progress.UserId.ToString(),
                 Username = progress.Username,
                 Email = progress.Email,
                 TotalXp = (int)progress.TotalScore, // Map TotalScore to TotalXp
-                Level = levelNumber.ToString(),
+                Level = levelNumber,
                 AverageScore = progress.Reading, // Use Reading score for Reading-focused app
                 ExercisesCompleted = progress.Exams,
                 StreakDays = progress.StudyStreak,

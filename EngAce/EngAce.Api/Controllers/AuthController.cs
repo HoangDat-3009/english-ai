@@ -1,5 +1,5 @@
-using EngAce.Api.DTO;
-using EngAce.Api.Services;
+using EngAce.Api.DTO.Auth;
+using EngAce.Api.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -25,23 +25,40 @@ namespace EngAce.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(new AuthResponse
+                _logger.LogInformation("📝 Registration attempt for email: {Email}", request?.Email);
+
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogWarning("❌ Invalid model state for registration");
+                    return BadRequest(new AuthResponse
+                    {
+                        Success = false,
+                        Message = "Invalid input data",
+                    });
+                }
+
+                var result = await _authService.RegisterAsync(request);
+
+                if (!result.Success)
+                {
+                    _logger.LogWarning("❌ Registration failed: {Message}", result.Message);
+                    return BadRequest(result);
+                }
+
+                _logger.LogInformation("✅ Registration successful for email: {Email}", request?.Email);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "💥 Exception during registration for email: {Email}", request?.Email);
+                return StatusCode(500, new AuthResponse
                 {
                     Success = false,
-                    Message = "Invalid input data",
+                    Message = $"An error occurred during registration: {ex.Message}"
                 });
             }
-
-            var result = await _authService.RegisterAsync(request);
-
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-
-            return Ok(result);
         }
 
         /// <summary>

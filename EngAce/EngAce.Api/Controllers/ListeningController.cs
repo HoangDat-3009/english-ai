@@ -1,4 +1,5 @@
-using EngAce.Api.DTO;
+using EngAce.Api.DTO.Listening;
+using EngAce.Api.DTO.AI;
 using Entities;
 using Entities.Enums;
 using Events;

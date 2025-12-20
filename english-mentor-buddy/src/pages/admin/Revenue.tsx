@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import statisticsService, { SystemStatistics, RevenuePaymentData } from '@/services/statisticsService';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RevenueStatisticsCharts } from '@/components/RevenueStatisticsCharts';
+import { RevenueStatisticsCharts } from '@/components/statistics/RevenueStatisticsCharts';
 import TransactionListSection from '@/components/admin/TransactionListSection';
 import { AddPaymentDialog } from '@/components/admin/AddPaymentDialog';
 

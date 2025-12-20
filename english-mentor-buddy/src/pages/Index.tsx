@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
-import FeatureCard from '@/components/FeatureCard';
-import FeatureCardWithSubmenu from '@/components/FeatureCardWithSubmenu';
+import FeatureCard from '@/components/common/FeatureCard';
+import FeatureCardWithSubmenu from '@/components/common/FeatureCardWithSubmenu';
 import { Book, GraduationCap, MessageCircle, Globe, Pencil, ExternalLink, FileText, TrendingUp, Trophy, BookOpen, Headphones, Mic, ChevronDown } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
-import { useAuth0Integration } from '@/hooks/useAuth0Integration';
 
 const features = [
   {
@@ -66,8 +65,6 @@ const features = [
 ];
 
 const Index = () => {
-  // Tích hợp Auth0 để tự động đồng bộ user khi đăng nhập
-  useAuth0Integration();
 
   const scrollToFeatures = () => {
     const featuresSection = document.getElementById('features');

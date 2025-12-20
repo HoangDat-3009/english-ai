@@ -23,7 +23,7 @@ Before running this project, make sure you have the following installed:
 
 ### For Frontend (React App)
 - [Node.js](https://nodejs.org/) (version 18 or later)
-- [Bun](https://bun.sh/) (recommended) or npm/yarn
+- [Bun](https://bun.sh/) (recommended) or npm/yar
 
 ## 🛠️ Installation & Setup
 
@@ -159,6 +159,8 @@ The frontend can be deployed to:
 - Azure Static Web Apps
 
 ## 🤝 Contributing
+
+
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`

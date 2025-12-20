@@ -1,4 +1,4 @@
-﻿using EngAce.Api.DTO;
+﻿using EngAce.Api.DTO.Admin;
 using Events;
 using Helper;
 using Microsoft.AspNetCore.Mvc;

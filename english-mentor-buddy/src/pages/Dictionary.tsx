@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BookText, Search, Star, ArrowLeft } from 'lucide-react';
-import Header from '@/components/Navbar';
+import Header from '@/components/common/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';

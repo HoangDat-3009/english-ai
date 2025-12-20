@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Volume2, Copy, CheckCheck } from 'lucide-react';
-import Header from '@/components/Navbar';
+import Header from '@/components/common/Navbar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useNavigate, useLocation } from 'react-router-dom';

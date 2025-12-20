@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
-using EngAce.Api.Services;
+using EngAce.Api.Services.Auth;
+using EngAce.Api.Services.Exercise;
+using EngAce.Api.Services.Premium;
+using EngAce.Api.Services.AI;
 using EngAce.Api.Repositories;
 using EngAce.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,8 +14,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Entities.Data;
 using Microsoft.EntityFrameworkCore;
-using EngAce.Api.Services.Interfaces;
-using EngAce.Api.Services.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,7 +53,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IReadingExerciseService, ReadingExerciseService>();
 builder.Services.AddScoped<IProgressService, ProgressService>();
 builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
-builder.Services.AddHttpClient<IGeminiService, GeminiService>();
+// Register GeminiService with HttpClient support
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IGeminiService, GeminiService>();
 
 // Register Authentication Services
 builder.Services.AddScoped<IUserRepository, UserRepository>();

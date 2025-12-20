@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Building2, CheckCircle2, ArrowLeft, QrCode, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/components/AuthContext";
+import { useAuth } from "@/components/auth/AuthContext";
 import {
   Dialog,
   DialogContent,

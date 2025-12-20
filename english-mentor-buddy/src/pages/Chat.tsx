@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, RefreshCw, ArrowLeft } from 'lucide-react';
-import Header from '@/components/Navbar';
+import Header from '@/components/common/Navbar';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { chatService, ChatMessage } from '@/services/consultationService';
 import ReactMarkdown from 'react-markdown';
-import { useAuth } from '@/components/AuthContext';
+import { useAuth } from '@/components/auth/AuthContext';
 
 // Định nghĩa interface Message cho UI
 interface Message {

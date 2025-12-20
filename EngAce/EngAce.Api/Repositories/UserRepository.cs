@@ -127,34 +127,74 @@ namespace EngAce.Api.Repositories
 
         public async Task<User> CreateAsync(User user)
         {
-            _logger.LogInformation("➕ Creating new user: {Email}", user.Email);
-            using var connection = GetConnection();
-            
-            // Generate username if not provided (for OAuth users)
-            if (string.IsNullOrWhiteSpace(user.Username))
+            try
             {
-                user.Username = $"user_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+                _logger.LogInformation("➕ Creating new user: {Email}, Username: {Username}", user.Email, user.Username);
+                using var connection = GetConnection();
+                await connection.OpenAsync();
+                
+                // Generate username if not provided (for OAuth users)
+                if (string.IsNullOrWhiteSpace(user.Username))
+                {
+                    user.Username = $"user_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+                    _logger.LogInformation("📝 Generated username: {Username}", user.Username);
+                }
+                
+                // Set empty password hash if not provided (for OAuth users)
+                if (string.IsNullOrWhiteSpace(user.PasswordHash))
+                {
+                    user.PasswordHash = string.Empty;
+                }
+                
+                // Ensure dates are set
+                if (user.CreatedAt == default)
+                    user.CreatedAt = DateTime.UtcNow;
+                if (user.UpdatedAt == default)
+                    user.UpdatedAt = DateTime.UtcNow;
+                
+                var sql = @"
+                    INSERT INTO users (email, username, full_name, password_hash, phone, avatar_url, 
+                                       status, account_type, role, google_id, facebook_id, 
+                                       created_at, updated_at)
+                    VALUES (@Email, @Username, @FullName, @PasswordHash, @Phone, @Avatar,
+                            @Status, @AccountType, @Role, @GoogleId, @FacebookId,
+                            @CreatedAt, @UpdatedAt);
+                    SELECT LAST_INSERT_ID();";
+                
+                var parameters = new
+                {
+                    Email = user.Email,
+                    Username = user.Username,
+                    FullName = user.FullName,
+                    PasswordHash = user.PasswordHash,
+                    Phone = user.Phone,
+                    Avatar = user.Avatar,
+                    Status = user.Status ?? "active",
+                    AccountType = user.AccountType ?? "free",
+                    Role = user.Role ?? "customer",
+                    GoogleId = user.GoogleId,
+                    FacebookId = user.FacebookId,
+                    CreatedAt = user.CreatedAt,
+                    UpdatedAt = user.UpdatedAt
+                };
+                
+                _logger.LogInformation("📤 Executing SQL insert for user: {Email}", user.Email);
+                var userId = await connection.ExecuteScalarAsync<int>(sql, parameters);
+                user.UserID = userId;
+                _logger.LogInformation("✅ User created with ID: {UserId}", userId);
+                return user;
             }
-            
-            // Set empty password hash if not provided (for OAuth users)
-            if (string.IsNullOrWhiteSpace(user.PasswordHash))
+            catch (MySqlConnector.MySqlException ex)
             {
-                user.PasswordHash = string.Empty;
+                _logger.LogError(ex, "💥 MySQL error creating user: {Email}, Error Code: {ErrorCode}, Message: {Message}", 
+                    user.Email, ex.Number, ex.Message);
+                throw;
             }
-            
-            var sql = @"
-                INSERT INTO users (email, username, full_name, password_hash, phone, avatar_url, 
-                                   status, account_type, role, google_id, facebook_id, 
-                                   created_at, updated_at)
-                VALUES (@Email, @Username, @FullName, @PasswordHash, @Phone, @Avatar,
-                        @Status, @AccountType, @Role, @GoogleID, @FacebookID,
-                        @CreatedAt, @UpdatedAt);
-                SELECT LAST_INSERT_ID();";
-            
-            var userId = await connection.ExecuteScalarAsync<int>(sql, user);
-            user.UserID = userId;
-            _logger.LogInformation("✅ User created with ID: {UserId}", userId);
-            return user;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "💥 Unexpected error creating user: {Email}", user.Email);
+                throw;
+            }
         }
 
         public async Task<User> UpdateAsync(User user)

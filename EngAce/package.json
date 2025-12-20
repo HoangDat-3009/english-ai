@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@auth0/auth0-react": "^2.11.0",
+    "react-markdown": "^10.1.0",
+    "xlsx": "^0.18.5"
+  }
+}

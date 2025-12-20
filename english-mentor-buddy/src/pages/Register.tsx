@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { useTheme } from '@/components/ThemeProvider';
+import { useTheme } from '@/components/common/ThemeProvider';
 import { authService } from '@/services/authService';
 
 const Register: React.FC = () => {

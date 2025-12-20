@@ -1,6 +1,6 @@
 using System.Text;
 using System.Text.Json;
-using EngAce.Api.Services.Interfaces;
+using EngAce.Api.Services.AI;
 
 namespace EngAce.Api.Services.AI;
 

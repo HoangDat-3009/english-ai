@@ -1,4 +1,4 @@
-using EngAce.Api.DTO;
+using EngAce.Api.DTO.Writing;
 using Microsoft.AspNetCore.Mvc;
 using MySqlConnector;
 using System.Text.Json;

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from '@/components/Navbar';
-import { ReviewForm } from "@/components/ReviewForm";
-import { ReviewResult } from "@/components/ReviewResult";
+import Header from '@/components/common/Navbar';
+import { ReviewForm } from "@/components/review/ReviewForm";
+import { ReviewResult } from "@/components/review/ReviewResult";
 import { reviewApi, GenerateReviewRequest } from "@/lib/api";
 import { toast } from "sonner";
 import { Sparkles, ArrowLeft } from "lucide-react";

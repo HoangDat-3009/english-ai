@@ -1,9 +1,9 @@
 
 import React from 'react';
-import Navbar from '@/components/Navbar';
+import Navbar from '@/components/common/Navbar';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
-import { useTheme } from '@/components/ThemeProvider';
+import { useTheme } from '@/components/common/ThemeProvider';
 
 interface MainLayoutProps {
   children: React.ReactNode;

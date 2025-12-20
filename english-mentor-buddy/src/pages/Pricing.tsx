@@ -1,7 +1,7 @@
 import { Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import Header from '@/components/Navbar';
+import Header from '@/components/common/Navbar';
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 

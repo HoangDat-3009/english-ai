@@ -26,11 +26,11 @@ import {
 import { MoreHorizontal, Mail, UserCheck, UserX, AlertCircle, RefreshCw, Users as UsersIcon, Shield, GraduationCap, Ban, History, User as UserIcon, TrendingUp, BookOpen, AlertTriangle, BarChart3, Search, Filter, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import userService, { User, UserStatistics, PaginationInfo } from '@/services/userService';
-import { StatusReasonDialog } from '@/components/StatusReasonDialog';
-import { ConfirmStatusDialog } from '@/components/ConfirmStatusDialog';
-import { UserStatusHistoryDialog } from '@/components/UserStatusHistoryDialog';
-import { UserProfileDialog } from '@/components/UserProfileDialog';
-import { UserStatisticsCharts } from '@/components/UserStatisticsCharts';
+import { StatusReasonDialog } from '@/components/user/StatusReasonDialog';
+import { ConfirmStatusDialog } from '@/components/user/ConfirmStatusDialog';
+import { UserStatusHistoryDialog } from '@/components/user/UserStatusHistoryDialog';
+import { UserProfileDialog } from '@/components/user/UserProfileDialog';
+import { UserStatisticsCharts } from '@/components/statistics/UserStatisticsCharts';
 import { PremiumExpirationPanel } from '@/components/admin/PremiumExpirationPanel';
 
 // Memoized Statistics Cards component to prevent re-render

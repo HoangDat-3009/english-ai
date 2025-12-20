@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using MySqlConnector;
 using System;
 using System.Threading.Tasks;
-using EngAce.Api.Services;
+using EngAce.Api.Services.Premium;
 
 namespace EngAce.Api.Controllers
 {

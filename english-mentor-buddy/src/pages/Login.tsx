@@ -7,17 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { useTheme } from '@/components/ThemeProvider';
+import { useTheme } from '@/components/common/ThemeProvider';
 import { authService } from '@/services/authService';
-import { useAuth } from '@/components/AuthContext';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@/components/auth/AuthContext';
+import { loginWithGoogle, loginWithFacebook } from '@/utils/oauth';
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { theme } = useTheme();
     const { login } = useAuth();
-    const { loginWithRedirect } = useAuth0();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
         username: '',
@@ -245,10 +244,27 @@ const Login: React.FC = () => {
                             onClick={async () => {
                                 try {
                                     setIsLoading(true);
-                                    await loginWithRedirect({ authorizationParams: { connection: 'google-oauth2' } });
-                                } catch (err) {
-                                    console.error('Auth0 Google login error', err);
-                                    toast({ title: 'Lỗi đăng nhập', description: 'Không thể đăng nhập bằng Google', variant: 'destructive' });
+                                    await loginWithGoogle();
+                                    
+                                    // Refresh user data from backend
+                                    const user = authService.getUser();
+                                    if (user) {
+                                        login(user);
+                                    }
+                                    
+                                    toast({
+                                        title: 'Đăng nhập thành công',
+                                        description: `Chào mừng ${user?.fullName || user?.email || 'bạn'} quay trở lại!`,
+                                        variant: 'default',
+                                    });
+                                    navigate('/index');
+                                } catch (err: any) {
+                                    console.error('Google login error', err);
+                                    toast({
+                                        title: 'Lỗi đăng nhập',
+                                        description: err.message || 'Không thể đăng nhập bằng Google',
+                                        variant: 'destructive',
+                                    });
                                 } finally {
                                     setIsLoading(false);
                                 }
@@ -284,10 +300,27 @@ const Login: React.FC = () => {
                             onClick={async () => {
                                 try {
                                     setIsLoading(true);
-                                    await loginWithRedirect({ authorizationParams: { connection: 'facebook' } });
-                                } catch (err) {
-                                    console.error('Auth0 Facebook login error', err);
-                                    toast({ title: 'Lỗi đăng nhập', description: 'Không thể đăng nhập bằng Facebook', variant: 'destructive' });
+                                    await loginWithFacebook();
+                                    
+                                    // Refresh user data from backend
+                                    const user = authService.getUser();
+                                    if (user) {
+                                        login(user);
+                                    }
+                                    
+                                    toast({
+                                        title: 'Đăng nhập thành công',
+                                        description: `Chào mừng ${user?.fullName || user?.email || 'bạn'} quay trở lại!`,
+                                        variant: 'default',
+                                    });
+                                    navigate('/index');
+                                } catch (err: any) {
+                                    console.error('Facebook login error', err);
+                                    toast({
+                                        title: 'Lỗi đăng nhập',
+                                        description: err.message || 'Không thể đăng nhập bằng Facebook',
+                                        variant: 'destructive',
+                                    });
                                 } finally {
                                     setIsLoading(false);
                                 }

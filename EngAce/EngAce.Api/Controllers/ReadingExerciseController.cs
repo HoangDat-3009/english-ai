@@ -3,8 +3,10 @@ using Entities.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using EngAce.Api.Services.Interfaces;
+using EngAce.Api.Services.Exercise;
 using EngAce.Api.Services.AI;
+using EngAce.Api.DTO.AI;
+using EngAce.Api.DTO.Exercises;
 
 namespace EngAce.Api.Controllers;
 
@@ -724,21 +726,41 @@ public class ReadingExerciseController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("Attempting to delete exercise with ID {ExerciseId}", id);
+            
             var exercise = await _context.Exercises.FindAsync(id);
             if (exercise == null)
+            {
+                _logger.LogWarning("Exercise with ID {ExerciseId} not found", id);
                 return NotFound(new { message = $"Exercise with ID {id} not found" });
+            }
+
+            // Check if already deleted
+            if (!exercise.IsActive)
+            {
+                _logger.LogWarning("Exercise with ID {ExerciseId} is already deleted (IsActive = false)", id);
+                return Ok(new { message = "Exercise is already deleted", exerciseId = id });
+            }
 
             // Soft delete
             exercise.IsActive = false;
             exercise.UpdatedAt = DateTime.UtcNow;
+            
+            _logger.LogInformation("Setting exercise {ExerciseId} IsActive to false", id);
             await _context.SaveChangesAsync();
+            _logger.LogInformation("Successfully deleted exercise with ID {ExerciseId}", id);
 
-            return NoContent();
+            return Ok(new { message = "Exercise deleted successfully", exerciseId = id });
+        }
+        catch (DbUpdateException dbEx)
+        {
+            _logger.LogError(dbEx, "Database error when deleting exercise with ID {ExerciseId}", id);
+            return StatusCode(500, new { message = "Database error occurred", error = dbEx.InnerException?.Message ?? dbEx.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting exercise with ID {ExerciseId}", id);
-            return StatusCode(500, new { message = "Internal server error" });
+            _logger.LogError(ex, "Error deleting exercise with ID {ExerciseId}: {ErrorMessage}", id, ex.Message);
+            return StatusCode(500, new { message = "Internal server error", error = ex.Message });
         }
     }
 

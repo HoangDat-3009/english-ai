@@ -4,7 +4,7 @@
 // 🎮 Features: Time-based filtering, user search, profile modals, badge system
 // 🎯 Business Impact: Gamification tăng user retention 40%
 
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/common/Navbar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";

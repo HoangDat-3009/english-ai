@@ -4,7 +4,7 @@
 // 📊 Features: Stats cards, 4-skill tracking, interactive charts, achievements, admin data sync
 // 🎨 UI: Responsive design, animations, gradient themes, progress bars, admin notifications
 
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/common/Navbar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
